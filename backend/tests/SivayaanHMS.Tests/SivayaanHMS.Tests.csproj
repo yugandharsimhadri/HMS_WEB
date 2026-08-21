@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\SivayaanHMS.Data\SivayaanHMS.Data.csproj" />
+    <ProjectReference Include="..\..\src\SivayaanHMS.Printing\SivayaanHMS.Printing.csproj" />
   </ItemGroup>
 
 </Project>
