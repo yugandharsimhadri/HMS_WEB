@@ -43,6 +43,55 @@ export interface Doctor {
   isActive: boolean;
 }
 
+export interface ClinicProfile {
+  name: string;
+  addressLine: string;
+  addressLine2: string;
+  phone: string;
+  gstRegistered: boolean;
+  gstin: string;
+  footerText: string;
+  morningFrom: string;
+  morningTo: string;
+  eveningFrom: string;
+  eveningTo: string;
+}
+
+export interface PharmacyProfile {
+  name: string;
+  addressLine: string;
+  addressLine2: string;
+  phone: string;
+  gstRegistered: boolean;
+  gstin: string;
+  drugLicenceNo: string;
+  pharmacistName: string;
+  footerText: string;
+}
+
+export interface DocumentTheme {
+  footer: string;
+  logoBase64: string | null;
+  logoContentType: string | null;
+  printFontFamily: string | null;
+  printFontSizeDelta: number;
+  titleFontFamily: string | null;
+  titleFontSizeDelta: number;
+}
+
+export interface GeneralSettings {
+  queueLayout: 'Tiles' | 'Rows';
+  theme: 'Light' | 'Dark';
+  diagnosticsEnabled: boolean;
+  opdEnabled: boolean;
+  pharmacyEnabled: boolean;
+  appointmentsEnabled: boolean;
+  pediatricsEnabled: boolean;
+  dentistEnabled: boolean;
+  pathologyLabEnabled: boolean;
+  requireLogin: boolean;
+}
+
 export type DrugSchedule = 'None' | 'H' | 'H1' | 'X';
 
 export interface Product {
