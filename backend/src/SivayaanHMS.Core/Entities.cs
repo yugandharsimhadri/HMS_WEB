@@ -1424,3 +1424,31 @@ public class H1RegisterEntry : BaseEntity
     public string PatientName { get; set; } = string.Empty;
     public string? DoctorName { get; set; }
 }
+
+// ── Tenancy ──────────────────────────────────────────────────────────────
+// The desktop has no equivalent of this: one install was always exactly one
+// clinic, so nothing needed to register which clinic a login belonged to.
+// The web edition's every other table is scoped by BaseEntity.TenantId, but
+// a tenant registry has to sit outside that scoping — it is what defines a
+// tenant, not something that belongs to one. Deliberately NOT a BaseEntity:
+// AppDbContext's global query filter is applied by reflection to every
+// BaseEntity-derived type, and a tenant row filtered by its own TenantId
+// would never be readable by anyone.
+
+/// <summary>One registered clinic. <see cref="Id"/> is the TenantId every
+/// other table's rows carry.</summary>
+public class Tenant
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+
+    /// <summary>Globally unique across the whole platform — how a login
+    /// page resolves which clinic a request is for, before any user or
+    /// password has been checked. Chosen at signup; a URL-safe slug, not a
+    /// display name (ClinicProfile.Name, set later under Settings, is the
+    /// one that changes freely).</summary>
+    public string Slug { get; set; } = string.Empty;
+
+    public string ClinicName { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
+    public bool IsActive { get; set; } = true;
+}

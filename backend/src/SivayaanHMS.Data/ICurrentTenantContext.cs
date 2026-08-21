@@ -20,3 +20,11 @@ public class NullCurrentTenantContext : ICurrentTenantContext
 {
     public Guid TenantId => Guid.Empty;
 }
+
+/// <summary>A fixed tenant, known up front rather than resolved from a
+/// request — signup provisioning a brand-new tenant before any user or
+/// token exists for it, a background job working one tenant at a time.</summary>
+public class StaticTenantContext(Guid tenantId) : ICurrentTenantContext
+{
+    public Guid TenantId { get; } = tenantId;
+}

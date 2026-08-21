@@ -90,6 +90,10 @@ public class AppDbContext : DbContext
     public DbSet<VendorProductCode> VendorProductCodes => Set<VendorProductCode>();
     public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
 
+    /// <summary>The tenant registry itself — not tenant-scoped, since it is
+    /// what tenant-scoping is scoped against. See Tenant's own class doc.</summary>
+    public DbSet<Tenant> Tenants => Set<Tenant>();
+
     protected override void OnModelCreating(ModelBuilder b)
     {
         // Money: 12,2 is plenty for a clinic and keeps SQLite storage predictable.
@@ -452,6 +456,8 @@ public class AppDbContext : DbContext
             e.Ignore(x => x.SplitDateFormats);
             e.Ignore(x => x.SplitExpiryFormats);
         });
+
+        b.Entity<Tenant>(e => e.HasIndex(x => x.Slug).IsUnique());
 
         // Every entity gets the same two-part read filter — soft delete and
         // tenant isolation — applied here once via reflection rather than

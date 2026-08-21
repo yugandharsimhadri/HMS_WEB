@@ -398,6 +398,21 @@ namespace SivayaanHMS.Data.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "Tenants",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "TEXT", nullable: false),
+                    Slug = table.Column<string>(type: "TEXT", nullable: false),
+                    ClinicName = table.Column<string>(type: "TEXT", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
+                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Tenants", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
                 {
@@ -2020,6 +2035,12 @@ namespace SivayaanHMS.Data.Migrations
                 column: "StockEntryId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Tenants_Slug",
+                table: "Tenants",
+                column: "Slug",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Users_TenantId_Username",
                 table: "Users",
                 columns: new[] { "TenantId", "Username" },
@@ -2163,6 +2184,9 @@ namespace SivayaanHMS.Data.Migrations
 
             migrationBuilder.DropTable(
                 name: "StockEntryItems");
+
+            migrationBuilder.DropTable(
+                name: "Tenants");
 
             migrationBuilder.DropTable(
                 name: "Users");

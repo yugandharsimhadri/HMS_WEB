@@ -2711,6 +2711,34 @@ namespace SivayaanHMS.Data.Migrations
                     b.ToTable("StockEntryItems");
                 });
 
+            modelBuilder.Entity("SivayaanHMS.Core.Tenant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ClinicName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Tenants");
+                });
+
             modelBuilder.Entity("SivayaanHMS.Core.User", b =>
                 {
                     b.Property<Guid>("Id")
