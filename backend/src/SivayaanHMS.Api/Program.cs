@@ -91,6 +91,22 @@ builder.Services.AddControllers()
     .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
 builder.Services.AddOpenApi();
 
+// ── CORS ─────────────────────────────────────────────────────────────────
+// The frontend is a separate origin (its own dev server today, its own
+// deployed domain later) - without this every request the browser makes
+// is blocked before it reaches a controller at all. Origins come from
+// config, not a wildcard: a bearer-token API allowing "*" would let any
+// page on the internet read a signed-in clinic's data via a visitor's
+// browser.
+const string FrontendCorsPolicy = "Frontend";
+var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendCorsPolicy, policy =>
+        policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod());
+});
+
 var app = builder.Build();
 
 // Dev convenience: apply pending migrations at startup rather than
@@ -111,6 +127,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors(FrontendCorsPolicy);
 
 app.UseAuthentication();
 app.UseAuthorization();
