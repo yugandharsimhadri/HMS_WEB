@@ -49,6 +49,18 @@ public static class NumberService
         if (connection.State != ConnectionState.Open)
             await connection.OpenAsync(ct);
 
+        // SQLite allows one writer at a time. Without a busy timeout, a
+        // second concurrent caller gets SQLITE_BUSY immediately instead of
+        // queuing behind the first — exactly the two-counters-at-once
+        // moment this method exists to serialize safely. WAL lets readers
+        // proceed without waiting on a writer at all; both are connection-
+        // or database-level settings, cheap to reassert on every call.
+        await using (var pragma = connection.CreateCommand())
+        {
+            pragma.CommandText = "PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL;";
+            await pragma.ExecuteNonQueryAsync(ct);
+        }
+
         await using var cmd = connection.CreateCommand();
         cmd.CommandText = """
             INSERT INTO Counters (Id, TenantId, Name, Prefix, LastNumber, CreatedAt, IsDeleted, RowVersion)
