@@ -7,11 +7,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.11" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.22.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SivayaanHMS.Data\SivayaanHMS.Data.csproj" />
+    <ProjectReference Include="..\SivayaanHMS.Printing\SivayaanHMS.Printing.csproj" />
   </ItemGroup>
 
 </Project>
