@@ -31,11 +31,31 @@ export interface Patient {
   display: string;
 }
 
+export type VisitStatus = 'Booked' | 'Waiting' | 'InConsultation' | 'Completed' | 'Cancelled';
+export type PaymentMode = 'Cash' | 'Upi' | 'Card';
+
+export interface Doctor {
+  id: string;
+  name: string;
+  speciality: string | null;
+  registrationNo: string | null;
+  consultationFee: number;
+  isActive: boolean;
+}
+
 export interface Visit {
   id: string;
   visitNo: string;
+  tokenNo: number;
   scheduledOn: string;
-  status: string;
+  status: VisitStatus;
+  patientId: string;
+  patient: Patient;
+  doctorId: string;
+  doctor: Doctor;
+  complaint: string | null;
   fee: number;
   feePaid: boolean;
+  feeReceiptNo: string | null;
+  feePaymentMode: PaymentMode | null;
 }

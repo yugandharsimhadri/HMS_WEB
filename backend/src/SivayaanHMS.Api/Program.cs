@@ -87,8 +87,21 @@ builder.Services.AddAuthorization();
 
 // Enums as strings ("Male", not 1) - a JSON API read by a TypeScript
 // frontend should never make someone go look up what 1 means in a C# enum.
+//
+// IgnoreCycles: this schema has real bidirectional navigations (Visit.Patient
+// <-> Patient.Visits, DentalCase.Sittings/Payments, LabOrder.Reports.Results,
+// and more) - ported straight off the desktop, where nothing ever serialized
+// the object graph, so nothing ever surfaced this. The first controller that
+// returns a Visit with its Patient Included threw "possible object cycle
+// detected" here in real browser testing, not a hunch - this guards every
+// future endpoint against the same class of bug rather than patching one
+// controller.
 builder.Services.AddControllers()
-    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter()));
+    .AddJsonOptions(o =>
+    {
+        o.JsonSerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        o.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 builder.Services.AddOpenApi();
 
 // ── CORS ─────────────────────────────────────────────────────────────────

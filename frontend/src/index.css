@@ -228,3 +228,63 @@ th {
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
+
+.hint {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.patient-picker {
+  position: relative;
+  display: flex;
+  gap: 6px;
+}
+
+.picker-results {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 10;
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  min-width: 260px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.picker-results li button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text);
+  padding: 6px 8px;
+  border-radius: 4px;
+}
+
+.picker-results li button:hover {
+  background: var(--bg);
+}
+
+.row-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.row-actions button {
+  padding: 5px 10px;
+  font-size: 13px;
+}
+
+button.danger {
+  background: var(--danger);
+}
+
+button.danger:hover {
+  background: #991b1b;
+}

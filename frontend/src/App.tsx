@@ -5,6 +5,7 @@ import { AppShell } from './layout/AppShell';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { PatientsPage } from './pages/PatientsPage';
+import { OpdQueuePage } from './pages/OpdQueuePage';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -24,7 +25,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       >
-        <Route index element={<PatientsPage />} />
+        <Route index element={<OpdQueuePage />} />
+        <Route path="patients" element={<PatientsPage />} />
       </Route>
     </Routes>
   );

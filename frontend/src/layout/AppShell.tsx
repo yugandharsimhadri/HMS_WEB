@@ -16,8 +16,9 @@ export function AppShell() {
         <div className="shell-brand">Sivayaan HMS</div>
         <nav>
           <NavLink to="/" end>
-            OPD
+            OPD Queue
           </NavLink>
+          <NavLink to="/patients">Patients</NavLink>
         </nav>
         <div className="shell-user">
           <span>{session?.username}</span>
