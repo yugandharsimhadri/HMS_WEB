@@ -19,6 +19,7 @@ export function AppShell() {
             OPD Queue
           </NavLink>
           <NavLink to="/patients">Patients</NavLink>
+          <NavLink to="/pharmacy">Pharmacy</NavLink>
         </nav>
         <div className="shell-user">
           <span>{session?.username}</span>

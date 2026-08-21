@@ -288,3 +288,34 @@ button.danger {
 button.danger:hover {
   background: #991b1b;
 }
+
+.picker-results.static {
+  position: static;
+  box-shadow: none;
+  margin-top: 10px;
+}
+
+.counter-selected {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.counter-selected h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+
+.card.success {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+}
+
+.bill-footer {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

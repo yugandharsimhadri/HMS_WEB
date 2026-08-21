@@ -43,6 +43,65 @@ export interface Doctor {
   isActive: boolean;
 }
 
+export type DrugSchedule = 'None' | 'H' | 'H1' | 'X';
+
+export interface Product {
+  id: string;
+  name: string;
+  genericName: string | null;
+  manufacturer: string | null;
+  packSize: string | null;
+  unitsPerPack: number;
+  allowLooseSale: boolean;
+  gstRate: number;
+  hsnCode: string;
+  schedule: DrugSchedule;
+  isActive: boolean;
+  stockOnHand: number;
+}
+
+export interface Batch {
+  id: string;
+  productId: string;
+  batchNo: string;
+  expiryDate: string;
+  mrp: number;
+  unitsPerPack: number;
+  qtyOnHand: number;
+}
+
+export interface CartLine {
+  productId: string;
+  batchId: string;
+  productName: string;
+  batchNo: string;
+  expiryDate: string;
+  quantity: number;
+  unitsPerPack: number;
+  packLabel: string | null;
+  mrp: number;
+  discountPercent: number;
+  gstRate: number;
+  schedule: DrugSchedule;
+}
+
+export interface Sale {
+  id: string;
+  billNo: string;
+  billDate: string;
+  customerName: string;
+  doctorName: string | null;
+  paymentMode: PaymentMode;
+  isTaxInvoice: boolean;
+  grossAmount: number;
+  discountAmount: number;
+  taxableAmount: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  roundOff: number;
+  netAmount: number;
+}
+
 export interface Visit {
   id: string;
   visitNo: string;
