@@ -1,0 +1,19 @@
+## .NET
+bin/
+obj/
+*.user
+
+## Node / frontend
+node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+
+## Data
+*.db
+*.db-shm
+*.db-wal
+
+## IDE
+.vs/
+.vscode/

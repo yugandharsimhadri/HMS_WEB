@@ -1,0 +1,106 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="2fa9f76f-c4c3-4c1a-922e-e129733d3d4c" name="srini@DESKTOP-CNR9OSN 2026-07-29 08:31:06" runUser="DESKTOP-CNR9OSN\srini" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-07-29T08:31:06.0359092+05:30" queuing="2026-07-29T08:31:06.0359096+05:30" start="2026-07-29T08:30:09.7347762+05:30" finish="2026-07-29T08:32:25.8733043+05:30" />
+  <TestSettings name="default" id="444920ca-af1a-4036-a2cd-e569fdcd23c3">
+    <Deployment runDeploymentRoot="srini_DESKTOP-CNR9OSN_2026-07-29_08_31_06" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="89fe7793-aea8-4903-9da8-dab41b1ba08a" testId="1779ee6c-93ed-acde-01e0-d914c071bc8d" testName="Pharma.UiTests.PrescriptionUiTests.The_course_is_worked_out_in_individual_units" computerName="DESKTOP-CNR9OSN" duration="00:00:08.3133199" startTime="2026-07-29T08:31:21.5656012+05:30" endTime="2026-07-29T08:31:29.8780348+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="89fe7793-aea8-4903-9da8-dab41b1ba08a" />
+    <UnitTestResult executionId="8e1a3f41-507e-43f0-83b7-bc28c648149d" testId="eecbf891-d68d-1aa6-bb47-62d2235b32b2" testName="Pharma.UiTests.ReprintUiTests.Printing_a_receipt_for_an_unpaid_visit_says_so_instead_of_printing" computerName="DESKTOP-CNR9OSN" duration="00:00:04.0032656" startTime="2026-07-29T08:32:20.3999799+05:30" endTime="2026-07-29T08:32:24.4021527+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8e1a3f41-507e-43f0-83b7-bc28c648149d" />
+    <UnitTestResult executionId="d7add9bf-ffc6-4c75-af59-89275487dc21" testId="7c82298b-bc90-7081-0354-18b9f5d3ba63" testName="Pharma.UiTests.ReprintUiTests.Taking_the_fee_issues_a_numbered_receipt" computerName="DESKTOP-CNR9OSN" duration="00:00:03.5827323" startTime="2026-07-29T08:32:05.6767976+05:30" endTime="2026-07-29T08:32:09.2591802+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="d7add9bf-ffc6-4c75-af59-89275487dc21" />
+    <UnitTestResult executionId="142a8778-ad2b-4e82-bf89-8e4424d35a74" testId="665957ba-0898-7b7b-7620-96aac53b238c" testName="Pharma.UiTests.PrescriptionUiTests.A_half_dose_morning_and_night_is_understood" computerName="DESKTOP-CNR9OSN" duration="00:00:07.7158921" startTime="2026-07-29T08:31:36.8244503+05:30" endTime="2026-07-29T08:31:44.5396140+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="142a8778-ad2b-4e82-bf89-8e4424d35a74" />
+    <UnitTestResult executionId="2f5c34b4-933c-464b-8c92-7e4720b4b8ea" testId="516eb549-5b78-ab21-3f2d-1b73c52ac0a0" testName="Pharma.UiTests.PrescriptionUiTests.Nothing_is_filled_in_before_the_doctor_types_it" computerName="DESKTOP-CNR9OSN" duration="00:00:06.1296395" startTime="2026-07-29T08:31:09.9392747+05:30" endTime="2026-07-29T08:31:16.0668455+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="2f5c34b4-933c-464b-8c92-7e4720b4b8ea" />
+    <UnitTestResult executionId="ff0ec9a9-837c-4039-aa56-ad9050d63443" testId="d1ea7265-eda6-933b-ba19-7925a57d6027" testName="Pharma.UiTests.PrescriptionUiTests.A_medicine_we_do_not_stock_can_still_be_prescribed" computerName="DESKTOP-CNR9OSN" duration="00:00:10.9007954" startTime="2026-07-29T08:31:44.5403412+05:30" endTime="2026-07-29T08:31:55.4406189+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="ff0ec9a9-837c-4039-aa56-ad9050d63443" />
+    <UnitTestResult executionId="23fa9115-f5c0-463c-b27c-3a253814d4a2" testId="939d422e-55c4-a7d5-cdf5-46f4407ce7c8" testName="Pharma.UiTests.PrescriptionUiTests.Choosing_a_result_links_the_line_to_our_stock" computerName="DESKTOP-CNR9OSN" duration="00:00:06.9452358" startTime="2026-07-29T08:31:29.8792048+05:30" endTime="2026-07-29T08:31:36.8235350+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="23fa9115-f5c0-463c-b27c-3a253814d4a2" />
+    <UnitTestResult executionId="8d6ab8af-8503-4a11-986b-10ba9dcee62c" testId="72018e80-ec7b-929c-998a-fc85663d078d" testName="Pharma.UiTests.PrescriptionUiTests.The_consultation_cannot_be_left_open_behind_the_shell" computerName="DESKTOP-CNR9OSN" duration="00:00:05.8351795" startTime="2026-07-29T08:31:55.4415320+05:30" endTime="2026-07-29T08:32:01.2759729+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="8d6ab8af-8503-4a11-986b-10ba9dcee62c" />
+    <UnitTestResult executionId="862f3b6f-9ae7-401f-8a46-1b1b16a498f5" testId="c91bcf4f-68b9-feeb-ad3a-fc772ac39715" testName="Pharma.UiTests.ReprintUiTests.A_visit_with_no_prescription_says_so_rather_than_printing_a_blank_page" computerName="DESKTOP-CNR9OSN" duration="00:00:05.2045401" startTime="2026-07-29T08:32:09.2599797+05:30" endTime="2026-07-29T08:32:14.4638902+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="862f3b6f-9ae7-401f-8a46-1b1b16a498f5" />
+    <UnitTestResult executionId="3225b2e4-8b6b-4102-b057-89a968051969" testId="4a3f7a7b-eb34-10b7-7ee9-9d131b511385" testName="Pharma.UiTests.ReprintUiTests.Searching_for_a_bill_that_does_not_exist_says_so" computerName="DESKTOP-CNR9OSN" duration="00:00:01.1697862" startTime="2026-07-29T08:32:24.4030993+05:30" endTime="2026-07-29T08:32:25.5722343+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="3225b2e4-8b6b-4102-b057-89a968051969" />
+    <UnitTestResult executionId="9c26bca5-a25b-4a4d-9acf-74fd38df6e62" testId="c2b943bb-7ada-c319-8f24-0eeeec1fd96d" testName="Pharma.UiTests.FeverVisitUiTests.A_fever_visit_from_the_door_to_the_bill" computerName="DESKTOP-CNR9OSN" duration="00:00:47.1898837" startTime="2026-07-29T08:30:17.9931409+05:30" endTime="2026-07-29T08:31:05.1452547+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="9c26bca5-a25b-4a4d-9acf-74fd38df6e62" />
+    <UnitTestResult executionId="c943e6df-9da7-4b77-b985-bd8d6b454bb9" testId="7e43f781-6068-7be4-a765-df8f58371d30" testName="Pharma.UiTests.PrescriptionUiTests.Typing_part_of_a_name_searches_our_pharmacy" computerName="DESKTOP-CNR9OSN" duration="00:00:05.4971087" startTime="2026-07-29T08:31:16.0690710+05:30" endTime="2026-07-29T08:31:21.5643009+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="c943e6df-9da7-4b77-b985-bd8d6b454bb9" />
+    <UnitTestResult executionId="a3149536-2631-4c73-b0c6-a457fc9c0d22" testId="8e330e2f-103e-2d5f-54c4-29de305e2a4d" testName="Pharma.UiTests.ReprintUiTests.A_receipt_can_be_printed_again_from_the_patients_record" computerName="DESKTOP-CNR9OSN" duration="00:00:05.9345404" startTime="2026-07-29T08:32:14.4653707+05:30" endTime="2026-07-29T08:32:20.3989062+05:30" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Passed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a3149536-2631-4c73-b0c6-a457fc9c0d22" />
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="Pharma.UiTests.PrescriptionUiTests.A_half_dose_morning_and_night_is_understood" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="665957ba-0898-7b7b-7620-96aac53b238c">
+      <Execution id="142a8778-ad2b-4e82-bf89-8e4424d35a74" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.PrescriptionUiTests" name="A_half_dose_morning_and_night_is_understood" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.ReprintUiTests.A_visit_with_no_prescription_says_so_rather_than_printing_a_blank_page" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="c91bcf4f-68b9-feeb-ad3a-fc772ac39715">
+      <Execution id="862f3b6f-9ae7-401f-8a46-1b1b16a498f5" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.ReprintUiTests" name="A_visit_with_no_prescription_says_so_rather_than_printing_a_blank_page" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.ReprintUiTests.Printing_a_receipt_for_an_unpaid_visit_says_so_instead_of_printing" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="eecbf891-d68d-1aa6-bb47-62d2235b32b2">
+      <Execution id="8e1a3f41-507e-43f0-83b7-bc28c648149d" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.ReprintUiTests" name="Printing_a_receipt_for_an_unpaid_visit_says_so_instead_of_printing" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.PrescriptionUiTests.The_consultation_cannot_be_left_open_behind_the_shell" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="72018e80-ec7b-929c-998a-fc85663d078d">
+      <Execution id="8d6ab8af-8503-4a11-986b-10ba9dcee62c" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.PrescriptionUiTests" name="The_consultation_cannot_be_left_open_behind_the_shell" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.ReprintUiTests.Searching_for_a_bill_that_does_not_exist_says_so" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="4a3f7a7b-eb34-10b7-7ee9-9d131b511385">
+      <Execution id="3225b2e4-8b6b-4102-b057-89a968051969" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.ReprintUiTests" name="Searching_for_a_bill_that_does_not_exist_says_so" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.ReprintUiTests.A_receipt_can_be_printed_again_from_the_patients_record" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="8e330e2f-103e-2d5f-54c4-29de305e2a4d">
+      <Execution id="a3149536-2631-4c73-b0c6-a457fc9c0d22" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.ReprintUiTests" name="A_receipt_can_be_printed_again_from_the_patients_record" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.PrescriptionUiTests.Typing_part_of_a_name_searches_our_pharmacy" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="7e43f781-6068-7be4-a765-df8f58371d30">
+      <Execution id="c943e6df-9da7-4b77-b985-bd8d6b454bb9" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.PrescriptionUiTests" name="Typing_part_of_a_name_searches_our_pharmacy" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.PrescriptionUiTests.A_medicine_we_do_not_stock_can_still_be_prescribed" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="d1ea7265-eda6-933b-ba19-7925a57d6027">
+      <Execution id="ff0ec9a9-837c-4039-aa56-ad9050d63443" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.PrescriptionUiTests" name="A_medicine_we_do_not_stock_can_still_be_prescribed" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.PrescriptionUiTests.Nothing_is_filled_in_before_the_doctor_types_it" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="516eb549-5b78-ab21-3f2d-1b73c52ac0a0">
+      <Execution id="2f5c34b4-933c-464b-8c92-7e4720b4b8ea" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.PrescriptionUiTests" name="Nothing_is_filled_in_before_the_doctor_types_it" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.PrescriptionUiTests.Choosing_a_result_links_the_line_to_our_stock" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="939d422e-55c4-a7d5-cdf5-46f4407ce7c8">
+      <Execution id="23fa9115-f5c0-463c-b27c-3a253814d4a2" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.PrescriptionUiTests" name="Choosing_a_result_links_the_line_to_our_stock" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.ReprintUiTests.Taking_the_fee_issues_a_numbered_receipt" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="7c82298b-bc90-7081-0354-18b9f5d3ba63">
+      <Execution id="d7add9bf-ffc6-4c75-af59-89275487dc21" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.ReprintUiTests" name="Taking_the_fee_issues_a_numbered_receipt" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.PrescriptionUiTests.The_course_is_worked_out_in_individual_units" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="1779ee6c-93ed-acde-01e0-d914c071bc8d">
+      <Execution id="89fe7793-aea8-4903-9da8-dab41b1ba08a" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.PrescriptionUiTests" name="The_course_is_worked_out_in_individual_units" />
+    </UnitTest>
+    <UnitTest name="Pharma.UiTests.FeverVisitUiTests.A_fever_visit_from_the_door_to_the_bill" storage="c:\users\srini\source\repos\yugandharsimhadri\hms_wpf\tests\pharma.uitests\bin\debug\net10.0-windows\pharma.uitests.dll" id="c2b943bb-7ada-c319-8f24-0eeeec1fd96d">
+      <Execution id="9c26bca5-a25b-4a4d-9acf-74fd38df6e62" />
+      <TestMethod codeBase="C:\Users\srini\source\repos\yugandharsimhadri\HMS_WPF\tests\Pharma.UiTests\bin\Debug\net10.0-windows\Pharma.UiTests.dll" adapterTypeName="executor://xunit/VsTestRunner3/netcore/" className="Pharma.UiTests.FeverVisitUiTests" name="A_fever_visit_from_the_door_to_the_bill" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="1779ee6c-93ed-acde-01e0-d914c071bc8d" executionId="89fe7793-aea8-4903-9da8-dab41b1ba08a" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="eecbf891-d68d-1aa6-bb47-62d2235b32b2" executionId="8e1a3f41-507e-43f0-83b7-bc28c648149d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7c82298b-bc90-7081-0354-18b9f5d3ba63" executionId="d7add9bf-ffc6-4c75-af59-89275487dc21" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="665957ba-0898-7b7b-7620-96aac53b238c" executionId="142a8778-ad2b-4e82-bf89-8e4424d35a74" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="516eb549-5b78-ab21-3f2d-1b73c52ac0a0" executionId="2f5c34b4-933c-464b-8c92-7e4720b4b8ea" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="d1ea7265-eda6-933b-ba19-7925a57d6027" executionId="ff0ec9a9-837c-4039-aa56-ad9050d63443" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="939d422e-55c4-a7d5-cdf5-46f4407ce7c8" executionId="23fa9115-f5c0-463c-b27c-3a253814d4a2" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="72018e80-ec7b-929c-998a-fc85663d078d" executionId="8d6ab8af-8503-4a11-986b-10ba9dcee62c" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c91bcf4f-68b9-feeb-ad3a-fc772ac39715" executionId="862f3b6f-9ae7-401f-8a46-1b1b16a498f5" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="4a3f7a7b-eb34-10b7-7ee9-9d131b511385" executionId="3225b2e4-8b6b-4102-b057-89a968051969" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="c2b943bb-7ada-c319-8f24-0eeeec1fd96d" executionId="9c26bca5-a25b-4a4d-9acf-74fd38df6e62" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7e43f781-6068-7be4-a765-df8f58371d30" executionId="c943e6df-9da7-4b77-b985-bd8d6b454bb9" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8e330e2f-103e-2d5f-54c4-29de305e2a4d" executionId="a3149536-2631-4c73-b0c6-a457fc9c0d22" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Completed">
+    <Counters total="13" executed="13" passed="13" failed="0" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.01] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.9)&#xD;
+[xUnit.net 00:00:00.27]   Discovering: Pharma.UiTests&#xD;
+[xUnit.net 00:00:00.49]   Discovered:  Pharma.UiTests&#xD;
+[xUnit.net 00:00:00.58]   Starting:    Pharma.UiTests&#xD;
+[xUnit.net 00:02:14.33]   Finished:    Pharma.UiTests&#xD;
+</StdOut>
+    </Output>
+  </ResultSummary>
+</TestRun>

@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/SivayaanHMS.Api/SivayaanHMS.Api.csproj" />
+    <Project Path="src/SivayaanHMS.Core/SivayaanHMS.Core.csproj" />
+    <Project Path="src/SivayaanHMS.Data/SivayaanHMS.Data.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SivayaanHMS.Tests/SivayaanHMS.Tests.csproj" />
+  </Folder>
+</Solution>
