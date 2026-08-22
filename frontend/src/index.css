@@ -749,3 +749,15 @@ tbody tr:hover {
   background: var(--bg);
   cursor: default;
 }
+
+.sub-heading {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 16px 0 6px;
+}
+
+.sub-heading:first-of-type {
+  margin-top: 4px;
+}

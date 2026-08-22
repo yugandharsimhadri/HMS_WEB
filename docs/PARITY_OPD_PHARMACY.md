@@ -91,14 +91,14 @@ Status: ☑ done · ◻ not started · ◐ partial
 | # | Feature | Status |
 |---|---|---|
 | 5.1 | Search, list | ☑ |
-| 5.2 | Full editor: name, phone, age, **DOB**, blood group, guardian, gender, address, **allergies** | ◐ 3 fields |
-| 5.3 | **DOB drives age** and locks the age box | ◻ |
-| 5.4 | **Guardian shown only for minors** (age < 18) | ◻ |
-| 5.5 | Requires name **and** (DOB or age) | ◻ |
-| 5.6 | **Remove patient**, refused when visits exist | ◻ |
-| 5.7 | **Visit history** per patient | ◻ |
-| 5.8 | **Bill history** per patient | ◻ |
-| 5.9 | Reprint prescription / receipt / bill from history | ◻ |
+| 5.2 | Full editor: name, phone, age, **DOB**, blood group, guardian, gender, address, **allergies** | ☑ |
+| 5.3 | **DOB drives age** and locks the age box | ☑ |
+| 5.4 | **Guardian shown only for minors** (age < 18) | ☑ |
+| 5.5 | Requires name **and** (DOB or age) | ☑ |
+| 5.6 | **Remove patient**, refused when visits exist | ☑ |
+| 5.7 | **Visit history** per patient | ☑ |
+| 5.8 | **Bill history** per patient | ☑ |
+| 5.9 | Reprint prescription / receipt / bill from history | ☑ |
 
 ## 6 · Pharmacy counter (`SaleViewModel`)
 

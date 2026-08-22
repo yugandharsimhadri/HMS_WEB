@@ -6,7 +6,24 @@ using SivayaanHMS.Data;
 namespace SivayaanHMS.Api.Controllers;
 
 public record AllocateRequest(Guid ProductId, int Units);
-public record SaveSaleRequest(Sale Sale, List<SaleLine> Lines);
+
+/// <summary>The bill header the counter may set. Every amount on the saved
+/// Sale is recomputed server-side from the lines, so none of them appear
+/// here — and neither do TenantId or the audit columns, for the same reason
+/// as <see cref="SavePatientRequest"/>.</summary>
+public record SaleHeaderRequest(
+    Guid? PatientId, Guid? VisitId, string CustomerName, string? DoctorName,
+    PaymentMode PaymentMode, string? TransactionNo, bool IsTaxInvoice);
+
+public record SaveSaleRequest(SaleHeaderRequest Sale, List<SaleLine> Lines);
+
+/// <summary>What the medicine editor may set — the catalogue fields and
+/// nothing else.</summary>
+public record SaveProductRequest(
+    Guid? Id, string Name, string? GenericName, string? Manufacturer, string? Composition,
+    string? Storage, string? PackSize, string HsnCode, decimal GstRate, DrugSchedule Schedule,
+    string? RackLocation, int ReorderLevel, bool IsActive, int UnitsPerPack,
+    bool AllowLooseSale, DispensingUnit DispensingUnit);
 public record QuickAddStockRequest(int Packs, decimal Mrp, string? BatchNo, DateTime? Expiry, decimal PurchaseRate);
 
 /// <summary>One delivery line going onto the shelf — what a delivery note
@@ -39,8 +56,36 @@ public class PharmacyController(PharmacyService pharmacy) : ControllerBase
         => Ok(await pharmacy.GetSellableBatchesAsync(productId));
 
     [HttpPost("products")]
-    public async Task<IActionResult> SaveProduct(Product product)
+    public async Task<IActionResult> SaveProduct(SaveProductRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest("The brand name is required.");
+
+        // Loaded rather than attached, so the client cannot write TenantId,
+        // the audit stamps or SearchKey — the last of which is what the
+        // duplicate-medicine index is built on.
+        var existing = request.Id is { } id
+            ? (await pharmacy.SearchProductsAsync(null, 5000)).FirstOrDefault(p => p.Id == id)
+            : null;
+
+        var product = existing ?? new Product();
+
+        product.Name = request.Name.Trim();
+        product.GenericName = NullIfBlank(request.GenericName);
+        product.Manufacturer = NullIfBlank(request.Manufacturer);
+        product.Composition = NullIfBlank(request.Composition);
+        product.Storage = NullIfBlank(request.Storage);
+        product.PackSize = NullIfBlank(request.PackSize);
+        product.HsnCode = string.IsNullOrWhiteSpace(request.HsnCode) ? "3004" : request.HsnCode.Trim();
+        product.GstRate = request.GstRate;
+        product.Schedule = request.Schedule;
+        product.RackLocation = NullIfBlank(request.RackLocation);
+        product.ReorderLevel = request.ReorderLevel;
+        product.IsActive = request.IsActive;
+        product.UnitsPerPack = Math.Max(1, request.UnitsPerPack);
+        product.AllowLooseSale = request.AllowLooseSale;
+        product.DispensingUnit = request.DispensingUnit;
+
         try
         {
             await pharmacy.SaveProductAsync(product);
@@ -87,9 +132,26 @@ public class PharmacyController(PharmacyService pharmacy) : ControllerBase
     [HttpPost("sales")]
     public async Task<ActionResult<Sale>> SaveSale(SaveSaleRequest request)
     {
+        var header = request.Sale;
+
+        var sale = new Sale
+        {
+            // The bill's own date is the server's, not the client's: a bill
+            // is a statutory document and its date decides which day's book
+            // it lands in.
+            BillDate = DateTime.Now,
+            PatientId = header.PatientId,
+            VisitId = header.VisitId,
+            CustomerName = string.IsNullOrWhiteSpace(header.CustomerName) ? "Guest" : header.CustomerName.Trim(),
+            DoctorName = NullIfBlank(header.DoctorName),
+            PaymentMode = header.PaymentMode,
+            TransactionNo = NullIfBlank(header.TransactionNo),
+            IsTaxInvoice = header.IsTaxInvoice,
+        };
+
         try
         {
-            return Ok(await pharmacy.SaveSaleAsync(request.Sale, request.Lines));
+            return Ok(await pharmacy.SaveSaleAsync(sale, request.Lines));
         }
         catch (InvalidOperationException ex)
         {
@@ -107,6 +169,12 @@ public class PharmacyController(PharmacyService pharmacy) : ControllerBase
     [HttpGet("sales")]
     public async Task<ActionResult<List<Sale>>> SearchSales([FromQuery] string? term, [FromQuery] int take = 100)
         => Ok(await pharmacy.SearchSalesAsync(term, take));
+
+    /// <summary>Every medicine bill for a patient, newest first — the
+    /// history panel, and where a months-old bill gets reprinted from.</summary>
+    [HttpGet("sales/by-patient/{patientId:guid}")]
+    public async Task<ActionResult<List<Sale>>> SalesByPatient(Guid patientId)
+        => Ok(await pharmacy.GetSalesByPatientAsync(patientId));
 
     // ── Inventory ──────────────────────────────────────────────────────────
 
@@ -210,4 +278,6 @@ public class PharmacyController(PharmacyService pharmacy) : ControllerBase
     [HttpGet("expiring")]
     public async Task<ActionResult<List<Batch>>> Expiring([FromQuery] int withinDays = 90)
         => Ok(await pharmacy.GetExpiringAsync(withinDays));
+
+    private static string? NullIfBlank(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
