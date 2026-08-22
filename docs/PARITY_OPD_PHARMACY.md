@@ -19,72 +19,72 @@ Status: ☑ done · ◻ not started · ◐ partial
 
 | # | Feature | Why it exists | Status |
 |---|---|---|---|
-| 1.1 | **Waiting / Completed split** — two columns, not one list | The desk asks "who is left", not "who came" | ◐ one flat list |
-| 1.2 | **Doctor tabs** — one tab per doctor plus "All" | Repeating the doctor on every row was the bulk of the old screen's duplication | ◻ |
-| 1.3 | **Session filter** — Full day / Morning / Evening, from clinic hours | Indian clinics run two sittings; "who is left this evening" is the real question | ◻ |
-| 1.4 | **Hidden count** — "N more today outside these hours" | A 2pm walk-in belongs to neither sitting and must not silently vanish | ◻ |
-| 1.5 | **Subtitle line** — `N waiting · N completed · date [· session, hours]` | ◻ |
-| 1.6 | **Date picker** — any day, not just today | ◻ |
-| 1.7 | **Tiles vs Rows layout** — from Settings → `QueueLayout` | Short list reads better as tiles; busy day fits more as rows | ◻ |
-| 1.8 | Action: **Arrived** (Booked → Waiting) | ◻ |
-| 1.9 | Action: **Consult** (→ InConsultation, opens consultation) | ◻ |
-| 1.10 | Action: **Complete** (→ Completed) | ☑ generic advance |
-| 1.11 | Action: **Reopen** (Completed → Waiting) | ◻ |
-| 1.12 | Action: **Cancel** with confirmation, refused once paid/completed | Refusal is server-side too (`CanCancel`) | ◐ no confirm |
-| 1.13 | Action: **Collect fee** → opens fee dialog (not instant) | A receipt is numbered as written; a wrong fee is reversed on paper | ◐ instant, cash-only |
-| 1.14 | Action: **Print receipt** (duplicate) | ◻ |
-| 1.15 | Action: **Print prescription** | ◻ |
-| 1.16 | Already-paid guard: "use the receipt button to reprint" | ◻ |
+| 1.1 | **Waiting / Completed split** — two columns, not one list | The desk asks "who is left", not "who came" | ☑ |
+| 1.2 | **Doctor tabs** — one tab per doctor plus "All" | Repeating the doctor on every row was the bulk of the old screen's duplication | ☑ |
+| 1.3 | **Session filter** — Full day / Morning / Evening, from clinic hours | Indian clinics run two sittings; "who is left this evening" is the real question | ☑ |
+| 1.4 | **Hidden count** — "N more today outside these hours" | A 2pm walk-in belongs to neither sitting and must not silently vanish | ☑ |
+| 1.5 | **Subtitle line** — `N waiting · N completed · date [· session, hours]` | ☑ |
+| 1.6 | **Date picker** — any day, not just today | ☑ |
+| 1.7 | **Tiles vs Rows layout** — from Settings → `QueueLayout` | Short list reads better as tiles; busy day fits more as rows | ☑ |
+| 1.8 | Action: **Arrived** (Booked → Waiting) | ☑ |
+| 1.9 | Action: **Consult** (→ InConsultation, opens consultation) | ☑ |
+| 1.10 | Action: **Complete** (→ Completed) | ☑ |
+| 1.11 | Action: **Reopen** (Completed → Waiting) | ☑ |
+| 1.12 | Action: **Cancel** with confirmation, refused once paid/completed | Refusal is server-side too (`CanCancel`) | ☑ |
+| 1.13 | Action: **Collect fee** → opens fee dialog (not instant) | A receipt is numbered as written; a wrong fee is reversed on paper | ☑ |
+| 1.14 | Action: **Print receipt** (duplicate) | ☑ |
+| 1.15 | Action: **Print prescription** | ☑ |
+| 1.16 | Already-paid guard: "use the receipt button to reprint" | ☑ |
 
 ## 2 · Book a visit (`BookVisitViewModel`)
 
 | # | Feature | Why | Status |
 |---|---|---|---|
-| 2.1 | Patient search by name **or phone** | ◐ |
-| 2.2 | **Family disambiguation** — "N people on this number, select which one" | Siblings share a phone; auto-picking sends the wrong child in | ◻ |
-| 2.3 | **Inline new-patient** when search finds nobody | ◻ |
-| 2.4 | Auto-fills name **or** phone into the new-patient form from what was typed | ◻ |
-| 2.5 | Refuses to book when matches exist but none selected | Creating a duplicate child record instead of picking | ◻ |
-| 2.6 | Doctor picker, defaults to the active doctor tab | ◐ no default |
+| 2.1 | Patient search by name **or phone** | ☑ |
+| 2.2 | **Family disambiguation** — "N people on this number, select which one" | Siblings share a phone; auto-picking sends the wrong child in | ☑ |
+| 2.3 | **Inline new-patient** when search finds nobody | ☑ |
+| 2.4 | Auto-fills name **or** phone into the new-patient form from what was typed | ☑ |
+| 2.5 | Refuses to book when matches exist but none selected | Creating a duplicate child record instead of picking | ☑ |
+| 2.6 | Doctor picker, defaults to the active doctor tab | ☑ |
 | 2.7 | **Fee auto-fills** from doctor's consultation fee | ☑ |
-| 2.8 | Time field (defaults to now), booked onto the chosen date | ◻ |
+| 2.8 | Time field (defaults to now), booked onto the chosen date | ☑ |
 | 2.9 | Complaint field | ☑ |
-| 2.10 | Clear form / Cancel | ◻ |
-| 2.11 | Outcome message: "Token N booked for X" | ◻ |
+| 2.10 | Clear form / Cancel | ☑ |
+| 2.11 | Outcome message: "Token N booked for X" | ☑ |
 
 ## 3 · Collect fee (`CollectFeeViewModel`)
 
 | # | Feature | Why | Status |
 |---|---|---|---|
-| 3.1 | Editable **amount** (concession, rounding) | ◐ always booked fee |
-| 3.2 | **Payment mode** Cash/UPI/Card | ◐ always Cash |
-| 3.3 | **Transaction no.** shown only for UPI/Card | Cash has nothing to reconcile against | ◻ |
-| 3.4 | **Fee-changed note** — "Booked at ₹X. This receipt will say ₹Y" | A concession is a decision; a typo is not | ◻ |
-| 3.5 | **Confirmation** naming amount, mode and patient | Three things that get mixed up with two people at the desk | ◻ |
-| 3.6 | **Print receipt** toggle (on by default) | ◻ |
-| 3.7 | Header: token + patient; summary: age/sex/time + doctor | ◻ |
-| 3.8 | Money shown to 2dp always (`300` → `300.00`) | ◻ |
+| 3.1 | Editable **amount** (concession, rounding) | ☑ |
+| 3.2 | **Payment mode** Cash/UPI/Card | ☑ |
+| 3.3 | **Transaction no.** shown only for UPI/Card | Cash has nothing to reconcile against | ☑ |
+| 3.4 | **Fee-changed note** — "Booked at ₹X. This receipt will say ₹Y" | A concession is a decision; a typo is not | ☑ |
+| 3.5 | **Confirmation** naming amount, mode and patient | Three things that get mixed up with two people at the desk | ☑ |
+| 3.6 | **Print receipt** toggle (on by default) | ☑ |
+| 3.7 | Header: token + patient; summary: age/sex/time + doctor | ☑ |
+| 3.8 | Money shown to 2dp always (`300` → `300.00`) | ☑ |
 
-## 4 · Consultation (`ConsultationViewModel`) — **entirely missing**
+## 4 · Consultation (`ConsultationViewModel`)
 
 | # | Feature | Why | Status |
 |---|---|---|---|
-| 4.1 | Header: token · patient · age/sex · doctor | ◻ |
-| 4.2 | Complaint / Diagnosis / Notes | ◻ |
-| 4.3 | **Vitals**: weight, BP, temp, height, heart rate, SpO2 | ◻ |
-| 4.4 | Editable fee | ◻ |
-| 4.5 | Follow-up date | ◻ |
-| 4.6 | **Medicine autocomplete** over the catalogue (name + manufacturer) | ◻ |
-| 4.7 | **Free-text medicines allowed** — never added to our catalogue | Parent buys it outside | ◻ |
-| 4.8 | Stock hint on picked medicine ("N in stock" / "out of stock") | ◻ |
-| 4.9 | **Dose pickers** M-A-N with `0, 1/4, 1/2, 1, 2` | Paediatric halves; picking rules out "1-0-l" | ◻ |
-| 4.10 | **Auto quantity** from frequency × days (`DoseMath`) | ◻ |
-| 4.11 | **Course hint** in packs ("6 units · 1 × 10 TAB minus 4") | Doctor writes units; pharmacy hands strips | ◻ |
-| 4.12 | Per-line instructions | ◻ |
-| 4.13 | Entry row **fully clears** after Add (dose and days included) | A leftover dose reads as chosen for the next medicine | ◻ |
-| 4.14 | **Investigations** — test autocomplete + free text, dedup | ◻ |
-| 4.15 | Save (stay) / Complete (close) / Print | ◻ |
-| 4.16 | **Unsaved-changes guard** on close (snapshot comparison) | ◻ |
+| 4.1 | Header: token · patient · age/sex · doctor | ☑ |
+| 4.2 | Complaint / Diagnosis / Notes | ☑ |
+| 4.3 | **Vitals**: weight, BP, temp, height, heart rate, SpO2 | ☑ |
+| 4.4 | Editable fee | ☑ |
+| 4.5 | Follow-up date | ☑ |
+| 4.6 | **Medicine autocomplete** over the catalogue (name + manufacturer) | ☑ |
+| 4.7 | **Free-text medicines allowed** — never added to our catalogue | Parent buys it outside | ☑ |
+| 4.8 | Stock hint on picked medicine ("N in stock" / "out of stock") | ☑ |
+| 4.9 | **Dose pickers** M-A-N with `0, 1/4, 1/2, 1, 2` | Paediatric halves; picking rules out "1-0-l" | ☑ |
+| 4.10 | **Auto quantity** from frequency × days (`DoseMath`) | ☑ |
+| 4.11 | **Course hint** in packs ("6 units · 1 × 10 TAB minus 4") | Doctor writes units; pharmacy hands strips | ☑ |
+| 4.12 | Per-line instructions | ☑ |
+| 4.13 | Entry row **fully clears** after Add (dose and days included) | A leftover dose reads as chosen for the next medicine | ☑ |
+| 4.14 | **Investigations** — test autocomplete + free text, dedup | ☑ |
+| 4.15 | Save (stay) / Complete (close) / Print | ☑ |
+| 4.16 | **Unsaved-changes guard** on close (snapshot comparison) | ☑ |
 
 ## 5 · Patients (`PatientsViewModel`, `PatientEditorViewModel`)
 

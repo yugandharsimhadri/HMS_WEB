@@ -1,221 +1,335 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { api, ApiError } from '../api/client';
-import type { Doctor, Patient, Visit, VisitStatus } from '../api/types';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { api, ApiError, openPdf } from '../api/client';
+import type { ClinicProfile, ClinicSession, Doctor, GeneralSettings, Visit, VisitStatus } from '../api/types';
+import { describeSession, isInSession, SESSIONS } from '../opd/session';
+import { BookVisitDialog } from '../opd/BookVisitDialog';
+import { CollectFeeDialog } from '../opd/CollectFeeDialog';
 
-const NEXT_STATUS: Partial<Record<VisitStatus, VisitStatus>> = {
-  Booked: 'Waiting',
-  Waiting: 'InConsultation',
-  InConsultation: 'Completed',
-};
+/** Still to be seen — everything that has not finished or been cancelled.
+ * Mirrors the desktop's Visit.IsWaiting. */
+const isWaiting = (v: Visit) =>
+  v.status === 'Booked' || v.status === 'Waiting' || v.status === 'InConsultation';
+
+/** A visit can be cancelled only while it is Booked or Waiting and nothing
+ * has been taken for it. Mirrors Visit.CanCancel — the server refuses too. */
+const canCancel = (v: Visit) => !v.feePaid && (v.status === 'Booked' || v.status === 'Waiting');
+
+const today = () => new Date().toISOString().slice(0, 10);
 
 export function OpdQueuePage() {
-  const [visits, setVisits] = useState<Visit[]>([]);
+  const navigate = useNavigate();
+
+  const [date, setDate] = useState(today);
+  const [all, setAll] = useState<Visit[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [clinic, setClinic] = useState<ClinicProfile | null>(null);
+  const [useTiles, setUseTiles] = useState(true);
+
+  const [doctorTab, setDoctorTab] = useState<string | null>(null); // null = All
+  const [session, setSession] = useState<ClinicSession>('FullDay');
+
+  const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const [patientTerm, setPatientTerm] = useState('');
-  const [patientResults, setPatientResults] = useState<Patient[]>([]);
-  const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
-  const [doctorId, setDoctorId] = useState('');
-  const [complaint, setComplaint] = useState('');
-  const [fee, setFee] = useState('');
   const [booking, setBooking] = useState(false);
+  const [collectingFor, setCollectingFor] = useState<Visit | null>(null);
 
-  const loadQueue = async () => {
+  const refresh = useCallback(async (forDate: string) => {
     try {
-      setVisits(await api.get<Visit[]>('/api/visits'));
+      setAll(await api.get<Visit[]>(`/api/visits?date=${forDate}`));
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not load today’s queue.');
+      setError(err instanceof ApiError ? err.message : 'Could not load the queue.');
     }
-  };
-
-  useEffect(() => {
-    void loadQueue();
-    void api.get<Doctor[]>('/api/doctors').then(setDoctors).catch(() => {});
   }, []);
 
-  const onSearchPatient = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!patientTerm.trim()) return;
-    setPatientResults(await api.get<Patient[]>(`/api/patients?term=${encodeURIComponent(patientTerm)}`));
-  };
+  useEffect(() => {
+    void api.get<Doctor[]>('/api/doctors').then(setDoctors).catch(() => {});
+    void api.get<ClinicProfile>('/api/settings/clinic').then(setClinic).catch(() => {});
+    // Tiles vs rows is a Settings choice, re-read every time this opens.
+    void api
+      .get<GeneralSettings>('/api/settings/general')
+      .then((g) => setUseTiles(g.queueLayout === 'Tiles'))
+      .catch(() => {});
+  }, []);
 
-  const pickPatient = (p: Patient) => {
-    setSelectedPatient(p);
-    setPatientResults([]);
-    setPatientTerm(p.name);
-  };
+  useEffect(() => {
+    void refresh(date);
+  }, [date, refresh]);
 
-  const onDoctorChange = (id: string) => {
-    setDoctorId(id);
-    const doctor = doctors.find((d) => d.id === id);
-    if (doctor) setFee(String(doctor.consultationFee));
-  };
+  // Split into the two columns for the chosen doctor and sitting. Visits
+  // outside the sitting are counted rather than dropped: an afternoon
+  // walk-in belongs to neither, and a queue that quietly loses somebody is
+  // worse than one that says it is filtered.
+  const { waiting, completed, hidden } = useMemo(() => {
+    const w: Visit[] = [];
+    const c: Visit[] = [];
+    let h = 0;
 
-  const onBook = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!selectedPatient || !doctorId) return;
-    setBooking(true);
+    for (const v of all) {
+      if (doctorTab && v.doctorId !== doctorTab) continue;
+
+      if (clinic && !isInSession(clinic, session, v.scheduledOn)) {
+        if (isWaiting(v) || v.status === 'Completed') h++;
+        continue;
+      }
+
+      if (isWaiting(v)) w.push(v);
+      else if (v.status === 'Completed') c.push(v);
+    }
+
+    return { waiting: w, completed: c, hidden: h };
+  }, [all, doctorTab, session, clinic]);
+
+  const subtitle = useMemo(() => {
+    const when = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
+      weekday: 'short', day: '2-digit', month: 'short',
+    });
+    let line = `${waiting.length} waiting · ${completed.length} completed · ${when}`;
+    if (session !== 'FullDay' && clinic) {
+      line += ` · ${session} sitting, ${describeSession(clinic, session)}`;
+      if (hidden > 0) line += ` · ${hidden} more today outside these hours`;
+    }
+    return line;
+  }, [waiting.length, completed.length, date, session, clinic, hidden]);
+
+  const act = async (fn: () => Promise<void>, ok: string) => {
     setError(null);
     try {
-      await api.post('/api/visits', {
-        patientId: selectedPatient.id,
-        doctorId,
-        scheduledOn: new Date().toISOString(),
-        complaint: complaint || null,
-        fee: Number(fee) || 0,
-      });
-      setSelectedPatient(null);
-      setPatientTerm('');
-      setComplaint('');
-      setFee('');
-      await loadQueue();
+      await fn();
+      await refresh(date);
+      setStatus(ok);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not book the visit.');
-    } finally {
-      setBooking(false);
+      setError(err instanceof ApiError ? err.message : 'That did not work.');
     }
   };
 
-  const advance = async (visit: Visit) => {
-    const next = NEXT_STATUS[visit.status];
-    if (!next) return;
-    try {
-      await api.post(`/api/visits/${visit.id}/status`, { status: next });
-      await loadQueue();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not update the visit.');
-    }
-  };
+  const setStatusOf = (visit: Visit, next: VisitStatus, message: string) =>
+    act(() => api.post(`/api/visits/${visit.id}/status`, { status: next }), message);
 
   const cancel = async (visit: Visit) => {
+    if (!canCancel(visit)) {
+      setStatus(
+        visit.feePaid
+          ? `Token ${visit.tokenNo} has already been paid and cannot be cancelled.`
+          : `Token ${visit.tokenNo} is already ${visit.status.toLowerCase()}.`,
+      );
+      await refresh(date);
+      return;
+    }
+
+    if (!window.confirm(`Cancel token ${visit.tokenNo} for ${visit.patient.name}?`)) return;
+    await setStatusOf(visit, 'Cancelled', `Token ${visit.tokenNo} cancelled.`);
+  };
+
+  const consult = async (visit: Visit) => {
+    // Moving to InConsultation before opening is what takes the tile out of
+    // the "not started" state for anyone else looking at the queue.
+    await act(
+      () => api.post(`/api/visits/${visit.id}/status`, { status: 'InConsultation' }),
+      `Token ${visit.tokenNo} in consultation.`,
+    );
+    navigate(`/consultation/${visit.id}`);
+  };
+
+  const collectFee = (visit: Visit) => {
+    if (visit.feePaid) {
+      setStatus(`Token ${visit.tokenNo} has already paid — use Receipt to reprint.`);
+      return;
+    }
+    setCollectingFor(visit);
+  };
+
+  const print = async (path: string, unavailable: string) => {
+    setError(null);
     try {
-      await api.post(`/api/visits/${visit.id}/status`, { status: 'Cancelled' });
-      await loadQueue();
+      await openPdf(path);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not cancel the visit.');
+      setStatus(err instanceof ApiError && err.status === 400 ? unavailable : String(err));
     }
   };
 
-  const collectFee = async (visit: Visit) => {
-    try {
-      await api.post(`/api/visits/${visit.id}/collect-fee`, { mode: 'Cash', amount: null, transactionNo: null });
-      await loadQueue();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not collect the fee.');
-    }
-  };
+  const actions = (visit: Visit) => (
+    <div className="row-actions">
+      {visit.status === 'Booked' && (
+        <button type="button" onClick={() => setStatusOf(visit, 'Waiting', `Token ${visit.tokenNo} marked arrived.`)}>
+          Arrived
+        </button>
+      )}
+      {isWaiting(visit) && (
+        <button type="button" onClick={() => consult(visit)}>Consult</button>
+      )}
+      {isWaiting(visit) && (
+        <button
+          type="button"
+          onClick={() => setStatusOf(visit, 'Completed', `Token ${visit.tokenNo} moved to completed.`)}
+        >
+          Complete
+        </button>
+      )}
+      {visit.status === 'Completed' && (
+        <button
+          type="button"
+          onClick={() => setStatusOf(visit, 'Waiting', `Token ${visit.tokenNo} moved back to waiting.`)}
+        >
+          Reopen
+        </button>
+      )}
+      {!visit.feePaid && visit.status !== 'Cancelled' && (
+        <button type="button" onClick={() => collectFee(visit)}>Fee</button>
+      )}
+      {visit.feePaid && (
+        <button
+          type="button"
+          className="ghost"
+          onClick={() => print(`/api/print/receipt/${visit.id}?reprint=true`, 'No receipt to print.')}
+        >
+          Receipt
+        </button>
+      )}
+      <button
+        type="button"
+        className="ghost"
+        onClick={() => print(`/api/print/prescription/${visit.id}`, `Token ${visit.tokenNo} has no prescription yet.`)}
+      >
+        Rx
+      </button>
+      {canCancel(visit) && (
+        <button type="button" className="danger" onClick={() => cancel(visit)}>Cancel</button>
+      )}
+    </div>
+  );
+
+  const tile = (visit: Visit) => (
+    <div className="tile" key={visit.id}>
+      <div className="tile-head">
+        <span className="token">{visit.tokenNo}</span>
+        <div>
+          <strong>{visit.patient.name}</strong>
+          <div className="hint">
+            {visit.patient.age}
+            {visit.patient.gender.charAt(0)} ·{' '}
+            {new Date(visit.scheduledOn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ·{' '}
+            {visit.doctor.name}
+          </div>
+        </div>
+        <span className={`badge ${visit.feePaid ? 'paid' : 'unpaid'}`}>
+          ₹{visit.fee.toFixed(2)}{visit.feePaid ? ' paid' : ''}
+        </span>
+      </div>
+      {visit.complaint && <p className="hint complaint">{visit.complaint}</p>}
+      {actions(visit)}
+    </div>
+  );
+
+  const rows = (list: Visit[]) => (
+    <table>
+      <thead>
+        <tr>
+          <th>Token</th><th>Patient</th><th>Time</th><th>Doctor</th><th>Fee</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {list.map((v) => (
+          <tr key={v.id}>
+            <td>{v.tokenNo}</td>
+            <td>
+              {v.patient.name}
+              <span className="hint"> · {v.patient.age}{v.patient.gender.charAt(0)}</span>
+            </td>
+            <td>{new Date(v.scheduledOn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+            <td>{v.doctor.name}</td>
+            <td>{v.fee.toFixed(2)}{v.feePaid ? ' (paid)' : ''}</td>
+            <td>{actions(v)}</td>
+          </tr>
+        ))}
+        {list.length === 0 && <tr><td colSpan={6}>Nobody here.</td></tr>}
+      </tbody>
+    </table>
+  );
+
+  const column = (title: string, list: Visit[]) => (
+    <section className="card queue-column">
+      <h2>{title} <span className="hint">({list.length})</span></h2>
+      {useTiles ? (
+        list.length === 0 ? <p className="hint">Nobody here.</p> : <div className="tiles">{list.map(tile)}</div>
+      ) : (
+        rows(list)
+      )}
+    </section>
+  );
 
   return (
-    <div className="page">
-      <h1>OPD Queue</h1>
-
-      <section className="card">
-        <h2>Book a visit</h2>
-        <form className="inline-form" onSubmit={onBook}>
-          <div className="patient-picker">
-            <input
-              placeholder="Search patient by name or phone"
-              value={patientTerm}
-              onChange={(e) => {
-                setPatientTerm(e.target.value);
-                setSelectedPatient(null);
-              }}
-            />
-            <button type="button" onClick={onSearchPatient}>
-              Find
-            </button>
-            {patientResults.length > 0 && (
-              <ul className="picker-results">
-                {patientResults.map((p) => (
-                  <li key={p.id}>
-                    <button type="button" onClick={() => pickPatient(p)}>
-                      {p.name} · {p.phone || 'no phone'}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          <select value={doctorId} onChange={(e) => onDoctorChange(e.target.value)} required>
-            <option value="">Doctor…</option>
-            {doctors.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
+    <div className="page wide">
+      <div className="page-head">
+        <div>
+          <h1>OPD Queue</h1>
+          <p className="hint">{subtitle}</p>
+        </div>
+        <div className="inline-form">
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          <select value={session} onChange={(e) => setSession(e.target.value as ClinicSession)}>
+            {SESSIONS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
+          <button type="button" onClick={() => setBooking(true)}>+ Book visit</button>
+        </div>
+      </div>
 
-          <input placeholder="Complaint" value={complaint} onChange={(e) => setComplaint(e.target.value)} />
-          <input
-            placeholder="Fee"
-            type="number"
-            min="0"
-            step="0.01"
-            value={fee}
-            onChange={(e) => setFee(e.target.value)}
-          />
-
-          <button type="submit" disabled={booking || !selectedPatient || !doctorId}>
-            {booking ? 'Booking…' : 'Book visit'}
+      {/* One tab per doctor rather than a column repeated on every row — the
+          duplication that dominated the old desktop screen. */}
+      <div className="tabs">
+        <button
+          type="button"
+          className={doctorTab === null ? 'tab active' : 'tab'}
+          onClick={() => setDoctorTab(null)}
+        >
+          All doctors
+        </button>
+        {doctors.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            className={doctorTab === d.id ? 'tab active' : 'tab'}
+            onClick={() => setDoctorTab(d.id)}
+          >
+            {d.name}
           </button>
-        </form>
-        {selectedPatient && <p className="hint">Booking for {selectedPatient.name}.</p>}
-      </section>
+        ))}
+      </div>
 
-      <section className="card">
-        <h2>Today</h2>
-        {error && <p className="auth-error">{error}</p>}
+      {error && <p className="auth-error">{error}</p>}
+      {status && <p className="hint status-line">{status}</p>}
 
-        <table>
-          <thead>
-            <tr>
-              <th>Token</th>
-              <th>Patient</th>
-              <th>Doctor</th>
-              <th>Status</th>
-              <th>Fee</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visits.map((v) => (
-              <tr key={v.id}>
-                <td>{v.tokenNo}</td>
-                <td>{v.patient.name}</td>
-                <td>{v.doctor.name}</td>
-                <td>{v.status}</td>
-                <td>
-                  {v.fee.toFixed(2)} {v.feePaid ? '(paid)' : ''}
-                </td>
-                <td className="row-actions">
-                  {NEXT_STATUS[v.status] && (
-                    <button type="button" onClick={() => advance(v)}>
-                      {NEXT_STATUS[v.status]}
-                    </button>
-                  )}
-                  {!v.feePaid && v.status !== 'Cancelled' && (
-                    <button type="button" onClick={() => collectFee(v)}>
-                      Collect fee
-                    </button>
-                  )}
-                  {v.status === 'Booked' && (
-                    <button type="button" className="danger" onClick={() => cancel(v)}>
-                      Cancel
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {visits.length === 0 && (
-              <tr>
-                <td colSpan={6}>No visits booked today.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </section>
+      <div className="queue-columns">
+        {column('Waiting', waiting)}
+        {column('Completed', completed)}
+      </div>
+
+      {booking && (
+        <BookVisitDialog
+          doctors={doctors}
+          preferredDoctorId={doctorTab}
+          date={date}
+          onClose={() => setBooking(false)}
+          onBooked={async (message) => {
+            setBooking(false);
+            await refresh(date);
+            setStatus(message);
+          }}
+        />
+      )}
+
+      {collectingFor && (
+        <CollectFeeDialog
+          visit={collectingFor}
+          onClose={() => setCollectingFor(null)}
+          onCollected={async (message) => {
+            setCollectingFor(null);
+            await refresh(date);
+            setStatus(message);
+          }}
+        />
+      )}
     </div>
   );
 }

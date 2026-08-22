@@ -48,6 +48,38 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * Opens a server-generated PDF in a new tab.
+ *
+ * Not `window.open(url)`: these endpoints are behind `[Authorize]`, and a
+ * plain navigation carries no Authorization header, so the tab would just
+ * show a 401. Fetching it as a blob keeps the bearer token on the request
+ * and hands the browser's own PDF viewer the bytes — which is what stands
+ * in for the desktop's print-preview window, print and save included.
+ */
+export async function openPdf(path: string): Promise<void> {
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${API_URL}${path}`, { headers });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new ApiError(text || response.statusText, response.status);
+  }
+
+  const url = URL.createObjectURL(await response.blob());
+  const opened = window.open(url, '_blank');
+
+  // Revoked on a delay rather than immediately: the new tab has to finish
+  // reading the blob first, and a popup blocker may have returned null, in
+  // which case nothing is reading it at all.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+
+  if (!opened) throw new ApiError('Allow pop-ups for this site to open the printable document.', 0);
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>

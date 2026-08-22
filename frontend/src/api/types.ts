@@ -151,6 +151,23 @@ export interface Sale {
   netAmount: number;
 }
 
+export interface PrescriptionItem {
+  id: string;
+  productId: string | null;
+  medicineName: string;
+  dosage: string | null;
+  frequency: string | null;
+  days: number;
+  quantity: number;
+  instructions: string | null;
+}
+
+export interface VisitDiagnosticRequest {
+  id: string;
+  testId: string | null;
+  testName: string;
+}
+
 export interface Visit {
   id: string;
   visitNo: string;
@@ -162,8 +179,25 @@ export interface Visit {
   doctorId: string;
   doctor: Doctor;
   complaint: string | null;
+  diagnosis: string | null;
+  notes: string | null;
+  weightKg: number | null;
+  bloodPressure: string | null;
+  temperatureF: number | null;
+  heightCm: number | null;
+  heartRateBpm: number | null;
+  spo2Percent: number | null;
   fee: number;
   feePaid: boolean;
   feeReceiptNo: string | null;
   feePaymentMode: PaymentMode | null;
+  feeTransactionNo: string | null;
+  followUpOn: string | null;
+  prescription: PrescriptionItem[];
+  diagnosticRequests: VisitDiagnosticRequest[];
 }
+
+/** Which sitting the OPD screen is showing. Mirrors the desktop's
+ * ClinicSession — Full day hides nobody, which matters because an
+ * afternoon walk-in belongs to neither sitting. */
+export type ClinicSession = 'FullDay' | 'Morning' | 'Evening';
