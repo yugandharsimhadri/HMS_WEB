@@ -5,7 +5,11 @@ import type { Gender, Patient } from '../api/types';
 interface Props {
   existing: Patient | null;
   onClose: () => void;
-  onSaved: (message: string) => void;
+  /** The saved row is passed alongside the message so a caller that opened
+   * this to *pick* somebody — booking an appointment, say — can select the
+   * patient it just created instead of making the user search for them.
+   * Null on removal. Callers that only want the message ignore it. */
+  onSaved: (message: string, patient: Patient | null) => void;
 }
 
 const BLOOD_GROUPS = ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -78,7 +82,7 @@ export function PatientEditorDialog({ existing, onClose, onSaved }: Props) {
         allergies: allergies.trim() || null,
       });
 
-      onSaved(`${saved.name} saved as ${saved.patientNo}.`);
+      onSaved(`${saved.name} saved as ${saved.patientNo}.`, saved);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not save the patient.');
       setBusy(false);
@@ -94,7 +98,7 @@ export function PatientEditorDialog({ existing, onClose, onSaved }: Props) {
     try {
       const problem = await api.post<string | null>(`/api/patients/${existing.id}/remove`);
       if (problem) { setError(problem); setBusy(false); return; }
-      onSaved(`${existing.name} removed from the register.`);
+      onSaved(`${existing.name} removed from the register.`, null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not remove the patient.');
       setBusy(false);

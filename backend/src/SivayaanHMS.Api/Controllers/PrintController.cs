@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SivayaanHMS.Data;
 using SivayaanHMS.Printing;
 
@@ -18,8 +19,30 @@ namespace SivayaanHMS.Api.Controllers;
 [Authorize]
 [Route("api/print")]
 public class PrintController(
-    OpdService opd, PharmacyService pharmacy, SettingsService settings) : ControllerBase
+    OpdService opd, PharmacyService pharmacy, SettingsService settings,
+    IDbContextFactory<AppDbContext> factory) : ControllerBase
 {
+    /// <summary>
+    /// The appointment slip. Reachable for any appointment, not only at the
+    /// moment of booking as on the desktop — a patient who loses the slip is
+    /// the obvious case, and re-reading the row is what every other document
+    /// here already does.
+    /// </summary>
+    [HttpGet("appointment/{appointmentId:guid}")]
+    public async Task<IActionResult> AppointmentSlip(Guid appointmentId)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var appointment = await db.Appointments.AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == appointmentId);
+        if (appointment is null) return NotFound();
+
+        var clinic = await settings.GetClinicAsync();
+        var theme = await settings.GetDocumentThemeAsync();
+
+        return Inline(AppointmentSlipDocument.Generate(appointment, clinic, theme),
+                      $"appointment-{appointment.AppointmentNo}.pdf");
+    }
+
     [HttpGet("prescription/{visitId:guid}")]
     public async Task<IActionResult> Prescription(Guid visitId)
     {

@@ -239,3 +239,58 @@ export interface Visit {
  * ClinicSession — Full day hides nobody, which matters because an
  * afternoon walk-in belongs to neither sitting. */
 export type ClinicSession = 'FullDay' | 'Morning' | 'Evening';
+
+// ── Appointments ─────────────────────────────────────────────────────────
+// Exactly Core's enums. Checked against Enums.cs rather than guessed — two
+// invented values in the last pass compiled fine and failed only at runtime.
+
+export type AppointmentStatus =
+  | 'Scheduled' | 'CheckedIn' | 'Cancelled' | 'Rescheduled' | 'NoShow';
+
+/** Which module an appointment was booked against — decides what checking
+ * in actually creates. Only General has somewhere to route to today. */
+export type AppointmentModuleContext =
+  | 'General' | 'Pediatrics' | 'Dentist' | 'PathologyLab';
+
+export type ReminderSourceKind =
+  | 'FollowUp' | 'Appointment' | 'VaccineDue' | 'DentalSitting';
+
+export interface Appointment {
+  id: string;
+  appointmentNo: string;
+  patientId: string;
+  patientName: string;
+  patientPhone: string;
+  doctorId: string;
+  doctorName: string;
+  scheduledOn: string;
+  durationMinutes: number;
+  moduleContext: AppointmentModuleContext;
+  status: AppointmentStatus;
+  reason: string | null;
+  notes: string | null;
+  rescheduledFromId: string | null;
+  linkedRecordId: string | null;
+  isPending: boolean;
+}
+
+/** One row on the shared reminder call list. A reminded row stays on the
+ * list carrying isReminded rather than vanishing — the desk needs to see
+ * what has been done, not only what is left. */
+export interface ReminderItem {
+  sourceKind: ReminderSourceKind;
+  sourceId: string;
+  patientId: string;
+  patientName: string;
+  patientPhone: string | null;
+  dueOn: string;
+  description: string;
+  isReminded: boolean;
+  statusLabel: string;
+}
+
+export interface CheckInResult {
+  visitId: string;
+  tokenNo: number;
+  patientName: string;
+}

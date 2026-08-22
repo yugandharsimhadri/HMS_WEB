@@ -11,6 +11,7 @@ import { SettingsPage } from './pages/SettingsPage';
 import { ConsultationPage } from './pages/ConsultationPage';
 import { MedicinesPage } from './pages/MedicinesPage';
 import { InventoryPage } from './pages/InventoryPage';
+import { AppointmentsPage } from './pages/AppointmentsPage';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -32,6 +33,7 @@ function AppRoutes() {
       >
         <Route index element={<OpdQueuePage />} />
         <Route path="patients" element={<PatientsPage />} />
+        <Route path="appointments" element={<AppointmentsPage />} />
         <Route path="pharmacy" element={<PharmacyCounterPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="consultation/:visitId" element={<ConsultationPage />} />
