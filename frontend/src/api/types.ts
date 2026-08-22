@@ -448,3 +448,88 @@ export interface ProcedureBillResult {
    * must see it: the card is now missing a dose the bill charged for. */
   warning: string | null;
 }
+
+// ── Dentist ──────────────────────────────────────────────────────────────
+
+export type DentalCaseStatus = 'Planned' | 'InProgress' | 'Completed' | 'Cancelled';
+
+export interface DentalPackageMaster {
+  id: string;
+  name: string;
+  packagePrice: number;
+  active: boolean;
+}
+
+export interface DentalReplacementMaster {
+  id: string;
+  name: string;
+  unitCost: number;
+  active: boolean;
+}
+
+export interface AnesthesiaTypeMaster {
+  id: string;
+  name: string;
+  defaultCost: number;
+  active: boolean;
+}
+
+export interface DentalSitting {
+  id: string;
+  dentalCaseId: string;
+  sittingNumber: number;
+  sittingDate: string;
+  workDone: string | null;
+  anesthesiaTypeId: string | null;
+  anesthesiaTypeName: string | null;
+  anesthesiaCost: number | null;
+  nextSittingOn: string | null;
+}
+
+export interface DentalCaseReplacement {
+  id: string;
+  dentalCaseId: string;
+  replacementId: string | null;
+  name: string;
+  unitCost: number;
+  quantity: number;
+  amount: number;
+}
+
+export interface DentalPayment {
+  id: string;
+  dentalCaseId: string;
+  receiptNo: string;
+  paidOn: string;
+  amount: number;
+  paymentMode: PaymentMode;
+  transactionNo: string | null;
+}
+
+/** The unit money is tracked against — not a bill. Dentistry runs across
+ * several visits and is paid in parts, so total, paid and balance are all
+ * derived from the case's own sittings, replacements and payments. */
+export interface DentalCase {
+  id: string;
+  patientId: string;
+  patientName: string;
+  procedureId: string | null;
+  procedureName: string | null;
+  packageId: string | null;
+  packageName: string | null;
+  toothNumber: string | null;
+  doctorId: string;
+  status: DentalCaseStatus;
+  startedOn: string;
+  completedOn: string | null;
+  notes: string | null;
+  /** Snapshotted at opening, so a later master price change never moves the
+   * ground under an in-progress case. */
+  baseCost: number;
+  sittings: DentalSitting[];
+  replacements: DentalCaseReplacement[];
+  payments: DentalPayment[];
+  totalCost: number;
+  amountPaid: number;
+  balance: number;
+}

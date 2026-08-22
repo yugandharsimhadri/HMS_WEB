@@ -21,8 +21,30 @@ namespace SivayaanHMS.Api.Controllers;
 public class PrintController(
     OpdService opd, PharmacyService pharmacy, SettingsService settings,
     DiagnosticsService diagnostics, PediatricsService pediatrics, ProcedureBillsService procedureBills,
-    IDbContextFactory<AppDbContext> factory) : ControllerBase
+    DentistService dentist, IDbContextFactory<AppDbContext> factory) : ControllerBase
 {
+    /// <summary>
+    /// Receipt for one dental instalment. The case is re-read rather than
+    /// taken from the request, because the balance printed on it is the
+    /// whole point and has to be the balance as stored.
+    /// </summary>
+    [HttpGet("dental-receipt/{paymentId:guid}")]
+    public async Task<IActionResult> DentalReceipt(Guid paymentId, [FromQuery] bool reprint = false)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var payment = await db.DentalPayments.AsNoTracking().FirstOrDefaultAsync(p => p.Id == paymentId);
+        if (payment is null) return NotFound();
+
+        var dentalCase = await dentist.GetCaseAsync(payment.DentalCaseId);
+        if (dentalCase is null) return NotFound();
+
+        var clinic = await settings.GetClinicAsync();
+        var theme = await settings.GetDocumentThemeAsync();
+
+        return Inline(DentalReceiptDocument.Generate(payment, dentalCase, clinic, theme, reprint),
+                      $"dental-receipt-{payment.ReceiptNo}.pdf");
+    }
+
     [HttpGet("procedure-bill/{billId:guid}")]
     public async Task<IActionResult> ProcedureBill(Guid billId, [FromQuery] bool reprint = false)
     {
