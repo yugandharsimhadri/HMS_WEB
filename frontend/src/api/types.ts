@@ -622,3 +622,49 @@ export interface LabOrder {
   remarks: string | null;
   reports: LabOrderReport[];
 }
+
+// ── Dashboard ────────────────────────────────────────────────────────────
+
+export interface DashboardTrendDay {
+  day: string;
+  opd: number;
+  pharmacy: number;
+  diagnostics: number;
+}
+
+export interface DashboardLowStockRow {
+  productId: string;
+  name: string;
+  stockOnHand: number;
+  reorderLevel: number;
+}
+
+export interface DashboardActivityRow {
+  when: string;
+  billNo: string;
+  patientName: string;
+  department: string;
+  amount: number;
+}
+
+/** One payload, not several: the KPI tile and the donut only reliably agree
+ * when they come out of the same arithmetic over the same snapshot. */
+export interface DashboardResponse {
+  patientsToday: number;
+  patientsDeltaPercent: number;
+  inQueueNow: number;
+  revenueToday: number;
+  revenueDeltaPercent: number;
+  opdRevenueToday: number;
+  pharmacyRevenueToday: number;
+  diagnosticsRevenueToday: number;
+  revenueTrendTotal: number;
+  lowStockCount: number;
+  diagnosticsEnabled: boolean;
+  pediatricsEnabled: boolean;
+  dentistEnabled: boolean;
+  pathologyLabEnabled: boolean;
+  trend: DashboardTrendDay[];
+  lowStock: DashboardLowStockRow[];
+  recentActivity: DashboardActivityRow[];
+}

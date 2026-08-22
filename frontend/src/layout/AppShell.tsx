@@ -40,6 +40,9 @@ export function AppShell() {
           {session?.clinicName && <div className="shell-clinic">{session.clinicName}</div>}
         </div>
         <nav>
+          {/* The landing screen: nothing here is a destination in its own
+              right, so it sits above the modules rather than among them. */}
+          <NavLink to="/dashboard">Dashboard</NavLink>
           {general?.opdEnabled !== false && (
             <NavLink to="/" end>
               OPD Queue
