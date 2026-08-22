@@ -94,7 +94,12 @@ export interface GeneralSettings {
 
 export type DrugSchedule = 'None' | 'H' | 'H1' | 'X';
 
-export type DispensingUnit = 'Tablet' | 'Capsule' | 'Bottle' | 'Vial' | 'Sachet' | 'Injection' | 'Tube';
+/** Exactly Core's DispensingUnit. A children's clinic sells more than
+ * tablets — syrup by the bottle, moisturiser and medicated soap over the
+ * counter — which is why the list runs past the obvious four. */
+export type DispensingUnit =
+  | 'Tablet' | 'Capsule' | 'Bottle' | 'Sachet' | 'Tube' | 'Vial'
+  | 'Piece' | 'Syrup' | 'Moisturizer' | 'Soap' | 'Others';
 
 export interface Batch {
   id: string;

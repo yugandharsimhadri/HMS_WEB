@@ -740,3 +740,12 @@ input.full {
 .totals .net > span:first-child {
   color: var(--text);
 }
+
+tbody tr.selected-row {
+  background: var(--accent-soft, #e6f4f1);
+}
+
+tbody tr:hover {
+  background: var(--bg);
+  cursor: default;
+}

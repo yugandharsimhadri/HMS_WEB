@@ -31,7 +31,13 @@ export function AppShell() {
             </NavLink>
           )}
           <NavLink to="/patients">Patients</NavLink>
-          {general?.pharmacyEnabled !== false && <NavLink to="/pharmacy">Pharmacy</NavLink>}
+          {general?.pharmacyEnabled !== false && (
+            <>
+              <NavLink to="/pharmacy">Pharmacy</NavLink>
+              <NavLink to="/medicines">Medicines</NavLink>
+              <NavLink to="/inventory">Inventory</NavLink>
+            </>
+          )}
           <NavLink to="/settings">Settings</NavLink>
         </nav>
         <div className="shell-user">

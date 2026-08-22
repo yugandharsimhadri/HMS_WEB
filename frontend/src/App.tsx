@@ -9,6 +9,8 @@ import { OpdQueuePage } from './pages/OpdQueuePage';
 import { PharmacyCounterPage } from './pages/PharmacyCounterPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ConsultationPage } from './pages/ConsultationPage';
+import { MedicinesPage } from './pages/MedicinesPage';
+import { InventoryPage } from './pages/InventoryPage';
 
 function ProtectedRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated } = useAuth();
@@ -33,6 +35,8 @@ function AppRoutes() {
         <Route path="pharmacy" element={<PharmacyCounterPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="consultation/:visitId" element={<ConsultationPage />} />
+        <Route path="medicines" element={<MedicinesPage />} />
+        <Route path="inventory" element={<InventoryPage />} />
       </Route>
     </Routes>
   );

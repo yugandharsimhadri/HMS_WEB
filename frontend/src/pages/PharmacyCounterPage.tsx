@@ -4,6 +4,7 @@ import type { Batch, PaymentMode, PharmacyProfile, Product, Sale, Visit } from '
 import { nextBatchMrp } from '../api/types';
 import { billAmounts, lineAmounts, unitPrice } from '../clinical/gst';
 import { describePacks } from '../clinical/doseMath';
+import { unitWordFor } from '../pharmacy/packing';
 import { QuickStockDialog } from '../pharmacy/QuickStockDialog';
 import { EditQuantityDialog } from '../pharmacy/EditQuantityDialog';
 
@@ -32,20 +33,7 @@ export interface SaleRow {
 }
 
 /** What one of a medicine is called, so "9 loose" reads "9 tablets". */
-function unitWord(product: Product, count: number): string {
-  const base = (() => {
-    switch (product.dispensingUnit) {
-      case 'Capsule': return 'capsule';
-      case 'Bottle': return 'bottle';
-      case 'Vial': return 'vial';
-      case 'Sachet': return 'sachet';
-      case 'Injection': return 'injection';
-      case 'Tube': return 'tube';
-      default: return 'tablet';
-    }
-  })();
-  return count === 1 ? base : `${base}s`;
-}
+const unitWord = (product: Product, count: number) => unitWordFor(product.dispensingUnit, count);
 
 /** "strips of 15" for tablets, "boxes" for sachets — the desktop's PackWord. */
 function packWord(product: Product): string {

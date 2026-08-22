@@ -132,36 +132,36 @@ Status: ☑ done · ◻ not started · ◐ partial
 
 | # | Feature | Why | Status |
 |---|---|---|---|
-| 7.1 | Catalogue list + search | ◻ |
-| 7.2 | Full editor: name, generic, manufacturer, composition, storage, pack size, HSN, GST, schedule, rack, reorder level, active, units/pack, loose sale, dispensing unit | ◻ |
-| 7.3 | **Pack size auto-fills units-per-pack** for new medicines only | "15 TAB" already says fifteen | ◻ |
-| 7.4 | Never auto-changes units/pack on an **existing** medicine | Stock is already counted against it | ◻ |
-| 7.5 | **Pack mismatch warning** ("says 15 but set to 1") | The one combination that silently overcharges everyone | ◻ |
-| 7.6 | **Duplicate detection** → offer to open the existing one | Nobody adds a duplicate on purpose | ◻ |
-| 7.7 | **Offer to re-count stock** when units/pack changes | Batches keep the pack size they arrived under | ◻ |
+| 7.1 | Catalogue list + search | ☑ |
+| 7.2 | Full editor: name, generic, manufacturer, composition, storage, pack size, HSN, GST, schedule, rack, reorder level, active, units/pack, loose sale, dispensing unit | ☑ |
+| 7.3 | **Pack size auto-fills units-per-pack** for new medicines only | "15 TAB" already says fifteen | ☑ |
+| 7.4 | Never auto-changes units/pack on an **existing** medicine | Stock is already counted against it | ☑ |
+| 7.5 | **Pack mismatch warning** ("says 15 but set to 1") | The one combination that silently overcharges everyone | ☑ |
+| 7.6 | **Duplicate detection** → offer to open the existing one | Nobody adds a duplicate on purpose | ☑ |
+| 7.7 | **Offer to re-count stock** when units/pack changes | Batches keep the pack size they arrived under | ☑ |
 
 ## 8 · Inventory (`InventoryViewModel`)
 
 | # | Feature | Status |
 |---|---|---|
-| 8.1 | Medicine search, batch list per medicine | ◐ |
-| 8.2 | **Pack-mismatch warning** on the page | ◻ |
-| 8.3 | **Stale-batch warning** (received at a different pack size) | ◻ |
-| 8.4 | **Receive stock** — batch, expiry, packs, free packs, rate, MRP, supplier, invoice no. | ◻ |
-| 8.5 | Receive: **intake preview** ("10 packs × 15 = 150 tablets onto the shelf") | ◻ |
-| 8.6 | Receive: validation — batch, packs, MRP, future expiry | ◻ |
-| 8.7 | **Correct stock** — batch, corrected qty, reason, notes | ◻ |
-| 8.8 | Correct: pre-fills current quantity | ◻ |
-| 8.9 | **Adjustment trail** (last 100) | ◻ |
-| 8.10 | Low stock / expiring lists | ◐ API only |
+| 8.1 | Medicine search, batch list per medicine | ☑ |
+| 8.2 | **Pack-mismatch warning** on the page | ☑ |
+| 8.3 | **Stale-batch warning** (received at a different pack size) | ☑ |
+| 8.4 | **Receive stock** — batch, expiry, packs, free packs, rate, MRP, supplier, invoice no. | ☑ |
+| 8.5 | Receive: **intake preview** ("10 packs × 15 = 150 tablets onto the shelf") | ☑ |
+| 8.6 | Receive: validation — batch, packs, MRP, future expiry | ☑ |
+| 8.7 | **Correct stock** — batch, corrected qty, reason, notes | ☑ |
+| 8.8 | Correct: pre-fills current quantity | ☑ |
+| 8.9 | **Adjustment trail** (last 100) | ☑ |
+| 8.10 | Low stock / expiring lists | ☑ |
 
 ## 9 · Printing — server-side PDF
 
 | # | Document | Status |
 |---|---|---|
 | 9.1 | **Pharmacy bill** — GST summary by slab, amount in words, multi-batch grouping, duplicate watermark | ☑ |
-| 9.2 | **Prescription** — clinic header, doctor credentials, 3-row identity grid, vitals, Rx table, instructions, investigations, advice, follow-up, signature | ◻ |
-| 9.3 | **Fee receipt** — identity grid, particulars, received amount, in words, duplicate | ◻ |
+| 9.2 | **Prescription** — clinic header, doctor credentials, 3-row identity grid, vitals, Rx table, instructions, investigations, advice, follow-up, signature | ☑ |
+| 9.3 | **Fee receipt** — identity grid, particulars, received amount, in words, duplicate | ☑ |
 
 ---
 
