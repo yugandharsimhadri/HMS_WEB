@@ -449,7 +449,14 @@ public class PathologyLabService(IDbContextFactory<AppDbContext> factory, IClock
                     }
                     else if (range.LowValue is not null && range.HighValue is not null)
                     {
-                        rangeDisplay = $"{range.LowValue} – {range.HighValue}";
+                        // A plain hyphen, not an en dash. The desktop drew
+                        // this with WPF and the system font; the web edition
+                        // renders it into a PDF whose embedded font subset
+                        // has no U+2013, so an en dash printed as a
+                        // replacement character on the report itself — the
+                        // same reason every document here writes "Rs."
+                        // rather than the rupee sign.
+                        rangeDisplay = $"{range.LowValue} - {range.HighValue}";
 
                         if (resultType == LabResultType.Numeric && decimal.TryParse(resultValue, out var numeric))
                         {

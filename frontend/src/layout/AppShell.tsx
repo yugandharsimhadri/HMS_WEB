@@ -53,6 +53,7 @@ export function AppShell() {
           {general?.diagnosticsEnabled && <NavLink to="/diagnostics">Diagnostics</NavLink>}
           {general?.pediatricsEnabled && <NavLink to="/pediatrics">Pediatrics</NavLink>}
           {general?.dentistEnabled && <NavLink to="/dentist">Dentist</NavLink>}
+          {general?.pathologyLabEnabled && <NavLink to="/lab">Pathology Lab</NavLink>}
           {general?.pharmacyEnabled !== false && (
             <>
               <NavLink to="/pharmacy">Pharmacy</NavLink>

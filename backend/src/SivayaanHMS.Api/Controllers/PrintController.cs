@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SivayaanHMS.Core;
 using SivayaanHMS.Data;
 using SivayaanHMS.Printing;
 
@@ -21,8 +22,31 @@ namespace SivayaanHMS.Api.Controllers;
 public class PrintController(
     OpdService opd, PharmacyService pharmacy, SettingsService settings,
     DiagnosticsService diagnostics, PediatricsService pediatrics, ProcedureBillsService procedureBills,
-    DentistService dentist, IDbContextFactory<AppDbContext> factory) : ControllerBase
+    DentistService dentist, PathologyLabService lab,
+    IDbContextFactory<AppDbContext> factory) : ControllerBase
 {
+    /// <summary>
+    /// The lab report. **Refused until the order is verified** — an
+    /// unverified result leaving the building is precisely what the
+    /// order's whole status chain exists to prevent, so the guard lives
+    /// here, at the one door a browser can reach, rather than in the
+    /// document builder.
+    /// </summary>
+    [HttpGet("lab-report/{orderId:guid}")]
+    public async Task<IActionResult> LabReport(Guid orderId)
+    {
+        var order = await lab.GetOrderAsync(orderId);
+        if (order is null) return NotFound();
+
+        if (order.Status is not (LabOrderStatus.Verified or LabOrderStatus.Completed))
+            return BadRequest($"Order {order.OrderNo} has not been verified — verify it before printing its report.");
+
+        var clinic = await settings.GetClinicAsync();
+        var theme = await settings.GetDocumentThemeAsync();
+
+        return Inline(LabReportDocument.Generate(order, clinic, theme), $"lab-report-{order.OrderNo}.pdf");
+    }
+
     /// <summary>
     /// Receipt for one dental instalment. The case is re-read rather than
     /// taken from the request, because the balance printed on it is the

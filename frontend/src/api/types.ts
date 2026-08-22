@@ -533,3 +533,92 @@ export interface DentalCase {
   amountPaid: number;
   balance: number;
 }
+
+// ── Pathology Lab ────────────────────────────────────────────────────────
+
+export type LabResultType = 'Numeric' | 'Text' | 'Selection';
+
+/** Richer than a billing status: a result has to be entered and verified
+ * before it can print, which is a real pathology-lab norm. */
+export type LabOrderStatus =
+  | 'Ordered' | 'SampleCollected' | 'ResultEntered' | 'Verified' | 'Completed';
+
+export type LabResultFlag = 'Normal' | 'Low' | 'High' | 'Abnormal';
+
+export interface LabAnalyte {
+  id: string;
+  name: string;
+  category: string;
+  units: string;
+  resultType: LabResultType;
+  decimalPlaces: number;
+  sequenceOrder: number;
+  active: boolean;
+}
+
+export interface LabReport {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  sequenceOrder: number;
+  active: boolean;
+}
+
+export interface LabPackageMaster {
+  id: string;
+  name: string;
+  packagePrice: number;
+  active: boolean;
+}
+
+export interface LabResult {
+  id: string;
+  orderReportId: string;
+  analyteId: string | null;
+  analyteName: string;
+  units: string;
+  resultValue: string;
+  /** Matched server-side against this patient's gender and age — never
+   * chosen by the client. */
+  referenceRangeDisplay: string;
+  flag: LabResultFlag;
+  enteredOn: string | null;
+  enteredBy: string | null;
+  verifiedOn: string | null;
+  verifiedBy: string | null;
+}
+
+export interface LabOrderReport {
+  id: string;
+  orderId: string;
+  reportId: string | null;
+  reportName: string;
+  price: number;
+  amount: number;
+  notes: string | null;
+  results: LabResult[];
+}
+
+export interface LabOrder {
+  id: string;
+  orderNo: string;
+  orderDate: string;
+  patientId: string;
+  patientName: string;
+  patientNo: string;
+  packageId: string | null;
+  visitId: string | null;
+  referredBy: string | null;
+  specimenId: string | null;
+  collectedOn: string | null;
+  receivedOn: string | null;
+  totalAmount: number;
+  discount: number;
+  finalAmount: number;
+  paymentMode: PaymentMode;
+  transactionNo: string | null;
+  status: LabOrderStatus;
+  remarks: string | null;
+  reports: LabOrderReport[];
+}
