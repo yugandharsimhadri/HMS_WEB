@@ -51,6 +51,7 @@ export function AppShell() {
               item reads as a broken feature. */}
           {general?.appointmentsEnabled && <NavLink to="/appointments">Appointments</NavLink>}
           {general?.diagnosticsEnabled && <NavLink to="/diagnostics">Diagnostics</NavLink>}
+          {general?.pediatricsEnabled && <NavLink to="/pediatrics">Pediatrics</NavLink>}
           {general?.pharmacyEnabled !== false && (
             <>
               <NavLink to="/pharmacy">Pharmacy</NavLink>

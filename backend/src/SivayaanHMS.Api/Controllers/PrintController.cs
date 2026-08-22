@@ -20,8 +20,42 @@ namespace SivayaanHMS.Api.Controllers;
 [Route("api/print")]
 public class PrintController(
     OpdService opd, PharmacyService pharmacy, SettingsService settings,
-    DiagnosticsService diagnostics, IDbContextFactory<AppDbContext> factory) : ControllerBase
+    DiagnosticsService diagnostics, PediatricsService pediatrics, ProcedureBillsService procedureBills,
+    IDbContextFactory<AppDbContext> factory) : ControllerBase
 {
+    [HttpGet("procedure-bill/{billId:guid}")]
+    public async Task<IActionResult> ProcedureBill(Guid billId, [FromQuery] bool reprint = false)
+    {
+        var bill = await procedureBills.GetBillAsync(billId);
+        if (bill is null) return NotFound();
+
+        var clinic = await settings.GetClinicAsync();
+        var theme = await settings.GetDocumentThemeAsync();
+
+        return Inline(ProcedureBillDocument.Generate(bill, clinic, theme, reprint),
+                      $"procedure-bill-{bill.BillNo}.pdf");
+    }
+
+    /// <summary>
+    /// The card a parent carries. Printed even with no doses on it — an
+    /// empty card is a real answer, and refusing would send them away with
+    /// nothing rather than with proof there is nothing.
+    /// </summary>
+    [HttpGet("vaccination-history/{patientId:guid}")]
+    public async Task<IActionResult> VaccinationHistory(Guid patientId)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var patient = await db.Patients.AsNoTracking().FirstOrDefaultAsync(p => p.Id == patientId);
+        if (patient is null) return NotFound();
+
+        var records = await pediatrics.GetVaccinationHistoryAsync(patientId);
+        var clinic = await settings.GetClinicAsync();
+        var theme = await settings.GetDocumentThemeAsync();
+
+        return Inline(VaccinationHistoryDocument.Generate(patient, records, clinic, theme),
+                      $"vaccination-record-{patient.PatientNo}.pdf");
+    }
+
     [HttpGet("diagnostic-bill/{billId:guid}")]
     public async Task<IActionResult> DiagnosticBill(Guid billId, [FromQuery] bool reprint = false)
     {

@@ -339,3 +339,112 @@ export interface DiagnosticBill {
   referredBy: string | null;
   items: DiagnosticBillItem[];
 }
+
+// ── Pediatrics ───────────────────────────────────────────────────────────
+
+export type ProcedureDepartment = 'Pediatrics' | 'Dentist' | 'General';
+
+/** Deliberately simpler than DiagnosticBillStatus — a procedure bill has no
+ * lab workflow to move through. */
+export type ProcedureBillStatus = 'Ordered' | 'Completed';
+
+export type ImmunizationStatus = 'Given' | 'Overdue' | 'DueSoon' | 'Upcoming';
+
+export interface Procedure {
+  id: string;
+  name: string;
+  category: string;
+  department: ProcedureDepartment;
+  price: number;
+  active: boolean;
+}
+
+export interface VaccineMaster {
+  id: string;
+  name: string;
+  doseNumber: number;
+  /** Age at which due, in days from birth — "6 weeks" is 42, so every
+   * schedule comparison is one integer subtraction. */
+  recommendedAgeDays: number;
+  category: string;
+  sequenceOrder: number;
+  active: boolean;
+}
+
+export interface VaccinationRecord {
+  id: string;
+  patientId: string;
+  patientName: string;
+  vaccineId: string | null;
+  vaccineName: string;
+  doseNumber: number;
+  givenOn: string;
+  batchNo: string | null;
+  siteOfInjection: string | null;
+  administeredBy: string | null;
+  productId: string | null;
+  productName: string | null;
+  manufacturer: string | null;
+  batchId: string | null;
+  nextDueOn: string | null;
+}
+
+export interface ImmunizationCardRow {
+  vaccineId: string;
+  vaccineName: string;
+  doseNumber: number;
+  recommendedAgeDays: number;
+  /** Null when the patient has no date of birth on file — in which case
+   * every not-yet-given row reads Upcoming. */
+  recommendedOn: string | null;
+  status: ImmunizationStatus;
+  given: VaccinationRecord | null;
+}
+
+export interface GrowthMeasurement {
+  id: string;
+  patientId: string;
+  measuredOn: string;
+  ageDays: number;
+  weightKg: number | null;
+  heightCm: number | null;
+  headCircumferenceCm: number | null;
+}
+
+export interface ProcedureBillItem {
+  id: string;
+  procedureId: string | null;
+  procedureName: string;
+  price: number;
+  quantity: number;
+  amount: number;
+}
+
+export interface ProcedureBill {
+  id: string;
+  billNo: string;
+  billDate: string;
+  patientId: string;
+  patientName: string;
+  patientNo: string;
+  totalAmount: number;
+  discount: number;
+  finalAmount: number;
+  paymentMode: PaymentMode;
+  transactionNo: string | null;
+  status: ProcedureBillStatus;
+  visitId: string | null;
+  referredBy: string | null;
+  items: ProcedureBillItem[];
+}
+
+export interface ProcedureBillResult {
+  id: string;
+  billNo: string;
+  finalAmount: number;
+  vaccinationsRecorded: number;
+  /** Set when the bill saved but a dose did not record — the batch emptied
+   * between picking the brand and saving. Not a failed bill, but the desk
+   * must see it: the card is now missing a dose the bill charged for. */
+  warning: string | null;
+}
