@@ -1,12 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
-import type { ClinicProfile, DocumentTheme, GeneralSettings, PharmacyProfile } from '../api/types';
+import type { ClinicProfile, Doctor, DocumentTheme, GeneralSettings, PharmacyProfile } from '../api/types';
 
-type Tab = 'clinic' | 'pharmacy' | 'branding' | 'modules';
+type Tab = 'clinic' | 'pharmacy' | 'doctors' | 'branding' | 'modules';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'clinic', label: 'Clinic' },
   { id: 'pharmacy', label: 'Pharmacy' },
+  { id: 'doctors', label: 'Doctors' },
   { id: 'branding', label: 'Document branding' },
   { id: 'modules', label: 'Features' },
 ];
@@ -46,6 +47,7 @@ export function SettingsPage() {
 
       {tab === 'clinic' && <ClinicTab />}
       {tab === 'pharmacy' && <PharmacyTab />}
+      {tab === 'doctors' && <DoctorsTab />}
       {tab === 'branding' && <BrandingTab />}
       {tab === 'modules' && <ModulesTab />}
     </div>
@@ -241,6 +243,105 @@ function PharmacyTab() {
         <SavedNotice shown={saved} />
       </div>
     </form>
+  );
+}
+
+const emptyDoctor = { name: '', speciality: '', registrationNo: '', consultationFee: '' };
+
+function DoctorsTab() {
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [form, setForm] = useState(emptyDoctor);
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const load = () => {
+    void api.get<Doctor[]>('/api/doctors').then(setDoctors);
+  };
+
+  useEffect(load, []);
+
+  const onSave = async (e: FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    try {
+      await api.post('/api/doctors', {
+        name: form.name,
+        speciality: form.speciality || null,
+        registrationNo: form.registrationNo || null,
+        consultationFee: Number(form.consultationFee) || 0,
+        isActive: true,
+      });
+      setForm(emptyDoctor);
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not save the doctor.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="card settings-form">
+      <form className="inline-form" onSubmit={onSave}>
+        <input
+          placeholder="Name"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          required
+        />
+        <input
+          placeholder="Speciality"
+          value={form.speciality}
+          onChange={(e) => setForm({ ...form, speciality: e.target.value })}
+        />
+        <input
+          placeholder="Registration no."
+          value={form.registrationNo}
+          onChange={(e) => setForm({ ...form, registrationNo: e.target.value })}
+        />
+        <input
+          placeholder="Consultation fee"
+          type="number"
+          min="0"
+          step="0.01"
+          value={form.consultationFee}
+          onChange={(e) => setForm({ ...form, consultationFee: e.target.value })}
+          required
+        />
+        <button type="submit" disabled={saving}>
+          {saving ? 'Saving…' : 'Add doctor'}
+        </button>
+      </form>
+
+      {error && <p className="auth-error">{error}</p>}
+
+      <table>
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Speciality</th>
+            <th>Registration no.</th>
+            <th>Fee</th>
+          </tr>
+        </thead>
+        <tbody>
+          {doctors.map((d) => (
+            <tr key={d.id}>
+              <td>{d.name}</td>
+              <td>{d.speciality ?? ''}</td>
+              <td>{d.registrationNo ?? ''}</td>
+              <td>{d.consultationFee.toFixed(2)}</td>
+            </tr>
+          ))}
+          {doctors.length === 0 && (
+            <tr>
+              <td colSpan={4}>No doctors yet.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
