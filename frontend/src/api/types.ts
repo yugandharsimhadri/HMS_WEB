@@ -94,20 +94,7 @@ export interface GeneralSettings {
 
 export type DrugSchedule = 'None' | 'H' | 'H1' | 'X';
 
-export interface Product {
-  id: string;
-  name: string;
-  genericName: string | null;
-  manufacturer: string | null;
-  packSize: string | null;
-  unitsPerPack: number;
-  allowLooseSale: boolean;
-  gstRate: number;
-  hsnCode: string;
-  schedule: DrugSchedule;
-  isActive: boolean;
-  stockOnHand: number;
-}
+export type DispensingUnit = 'Tablet' | 'Capsule' | 'Bottle' | 'Vial' | 'Sachet' | 'Injection' | 'Tube';
 
 export interface Batch {
   id: string;
@@ -115,8 +102,53 @@ export interface Batch {
   batchNo: string;
   expiryDate: string;
   mrp: number;
+  purchaseRate: number;
   unitsPerPack: number;
   qtyOnHand: number;
+  receivedOn: string;
+  isProvisional: boolean;
+  isDeleted: boolean;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  genericName: string | null;
+  manufacturer: string | null;
+  composition: string | null;
+  storage: string | null;
+  packSize: string | null;
+  unitsPerPack: number;
+  allowLooseSale: boolean;
+  dispensingUnit: DispensingUnit;
+  gstRate: number;
+  hsnCode: string;
+  schedule: DrugSchedule;
+  rackLocation: string | null;
+  reorderLevel: number;
+  isActive: boolean;
+  stockOnHand: number;
+  /** Included by the products endpoint — the counter reads the batch that
+   * would actually be dispensed (nearest expiry) to show a unit price. */
+  batches: Batch[];
+}
+
+/** What one unit costs from the batch that would actually be dispensed —
+ * the desktop's SaleViewModel.UnitPriceOf. */
+export function nextBatchMrp(product: Product): number {
+  const next = (product.batches ?? [])
+    .filter((b) => !b.isDeleted && b.qtyOnHand > 0)
+    .sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))[0];
+  return next?.mrp ?? 0;
+}
+
+/** The price this medicine was last received at — what Quick stock
+ * pre-fills, because it is nearly always right. */
+export function lastReceivedMrp(product: Product): number | null {
+  const latest = (product.batches ?? [])
+    .filter((b) => !b.isDeleted)
+    .sort((a, b) => b.receivedOn.localeCompare(a.receivedOn))[0];
+  return latest?.mrp ?? null;
 }
 
 export interface CartLine {

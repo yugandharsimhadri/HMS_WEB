@@ -104,29 +104,29 @@ Status: ☑ done · ◻ not started · ◐ partial
 
 | # | Feature | Why | Status |
 |---|---|---|---|
-| 6.1 | Live medicine search (filters as typed) | ◐ button |
-| 6.2 | Auto-select on single match | ◻ |
-| 6.3 | **Quantity unit picker** — "tablets" vs "strips of 15" | "9" alone is what turned 9 tablets into 9 strips | ◻ |
-| 6.4 | **Remembers unit per medicine** for the session | ◻ |
-| 6.5 | Selected summary: stock + unit price each | ◻ |
-| 6.6 | **Loose-sale refusal** — sealed packs must go whole, suggests the round number | ◻ |
+| 6.1 | Live medicine search (filters as typed) | ☑ |
+| 6.2 | Auto-select on single match | ☑ |
+| 6.3 | **Quantity unit picker** — "tablets" vs "strips of 15" | "9" alone is what turned 9 tablets into 9 strips | ☑ |
+| 6.4 | **Remembers unit per medicine** for the session | ☑ |
+| 6.5 | Selected summary: stock + unit price each | ☑ |
+| 6.6 | **Loose-sale refusal** — sealed packs must go whole, suggests the round number | ☑ |
 | 6.7 | Nearest-expiry allocation, **auto-splits across batches** | ☑ |
-| 6.8 | **Re-lays lines on re-add** (no double-count against one batch) | ◻ |
-| 6.9 | **Edit quantity** popup with live packs + amount preview | ◻ |
-| 6.10 | **Re-allocates on quantity edit** (may span a new batch, or give stock back) | ◻ |
-| 6.11 | **Expiry warning** when soonest batch ≤ 30 days | Handing over a fortnight of shelf life without saying so | ◻ |
-| 6.12 | Multi-batch / multi-price notice | ◻ |
-| 6.13 | **Schedule H1 → prescriber required** before saving | Statutory register kept 3 years | ◻ |
-| 6.14 | **Load prescription** from today's OPD visits | ◻ |
-| 6.15 | Load reports missing / short items separately from status | Empty bill reads as "nothing happened" | ◻ |
-| 6.16 | **Quick stock** from the counter (provisional) | Don't send the operator away mid-queue | ◐ crude |
-| 6.17 | Customer name, doctor name, payment mode, transaction no. | ◐ name only |
-| 6.18 | Transaction no. only for UPI/Card | ◻ |
-| 6.19 | **Live totals**: gross, discount, taxable, CGST, SGST, round-off, net | ◐ crude estimate |
-| 6.20 | **GST off entirely when pharmacy not registered** | Can't issue a tax invoice you aren't registered for | ◻ |
-| 6.21 | Save / **Save & print** | ◐ save only |
-| 6.22 | New bill (clears everything) | ◻ |
-| 6.23 | Links bill to patient + visit when loaded from OPD | ◻ |
+| 6.8 | **Re-lays lines on re-add** (no double-count against one batch) | ☑ |
+| 6.9 | **Edit quantity** popup with live packs + amount preview | ☑ |
+| 6.10 | **Re-allocates on quantity edit** (may span a new batch, or give stock back) | ☑ |
+| 6.11 | **Expiry warning** when soonest batch ≤ 30 days | Handing over a fortnight of shelf life without saying so | ☑ |
+| 6.12 | Multi-batch / multi-price notice | ☑ |
+| 6.13 | **Schedule H1 → prescriber required** before saving | Statutory register kept 3 years | ☑ |
+| 6.14 | **Load prescription** from today's OPD visits | ☑ |
+| 6.15 | Load reports missing / short items separately from status | Empty bill reads as "nothing happened" | ☑ |
+| 6.16 | **Quick stock** from the counter (provisional) | Don't send the operator away mid-queue | ☑ |
+| 6.17 | Customer name, doctor name, payment mode, transaction no. | ☑ |
+| 6.18 | Transaction no. only for UPI/Card | ☑ |
+| 6.19 | **Live totals**: gross, discount, taxable, CGST, SGST, round-off, net | ☑ |
+| 6.20 | **GST off entirely when pharmacy not registered** | Can't issue a tax invoice you aren't registered for | ☑ |
+| 6.21 | Save / **Save & print** | ☑ |
+| 6.22 | New bill (clears everything) | ☑ |
+| 6.23 | Links bill to patient + visit when loaded from OPD | ☑ |
 
 ## 7 · Medicines catalogue (`ProductsViewModel`, `MedicineEditorViewModel`)
 

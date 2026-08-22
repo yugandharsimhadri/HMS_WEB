@@ -9,6 +9,16 @@ public record AllocateRequest(Guid ProductId, int Units);
 public record SaveSaleRequest(Sale Sale, List<SaleLine> Lines);
 public record QuickAddStockRequest(int Packs, decimal Mrp, string? BatchNo, DateTime? Expiry, decimal PurchaseRate);
 
+/// <summary>One delivery line going onto the shelf — what a delivery note
+/// actually says.</summary>
+public record ReceiveStockRequest(
+    Guid ProductId, string BatchNo, DateTime ExpiryDate, int Packs, int FreePacks,
+    decimal PurchaseRate, decimal Mrp, string? SupplierName, string? SupplierInvoiceNo);
+
+public record AdjustStockRequest(Guid BatchId, int CorrectedQuantity, AdjustmentReason Reason, string? Notes);
+
+public record RepackRequest(int UnitsPerPack);
+
 /// <summary>
 /// The pharmacy counter: product search, batch allocation and billing.
 /// Stock intake (ReceiveStockAsync), adjustments and the vendor-bill
@@ -97,6 +107,102 @@ public class PharmacyController(PharmacyService pharmacy) : ControllerBase
     [HttpGet("sales")]
     public async Task<ActionResult<List<Sale>>> SearchSales([FromQuery] string? term, [FromQuery] int take = 100)
         => Ok(await pharmacy.SearchSalesAsync(term, take));
+
+    // ── Inventory ──────────────────────────────────────────────────────────
+
+    /// <summary>Every batch on the shelf for one medicine, nearest expiry
+    /// first — what Inventory lists and what a correction picks from.</summary>
+    [HttpGet("products/{productId:guid}/all-batches")]
+    public async Task<ActionResult<List<Batch>>> AllBatches(Guid productId)
+        => Ok(await pharmacy.GetSellableBatchesAsync(productId));
+
+    /// <summary>Receives a supplier consignment. The only way stock enters
+    /// the system other than the counter's quick-add and the bill importer.</summary>
+    [HttpPost("receive-stock")]
+    public async Task<ActionResult<StockEntry>> ReceiveStock(ReceiveStockRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.BatchNo))
+            return BadRequest("Batch number is printed on the pack and has to appear on the bill.");
+        if (request.Packs <= 0 && request.FreePacks <= 0)
+            return BadRequest("Enter how many packs arrived.");
+        if (request.Mrp <= 0)
+            return BadRequest("Enter the MRP printed on the pack — the counter prices from it.");
+        if (request.ExpiryDate.Date <= DateTime.Today)
+            return BadRequest("Expiry must be in the future.");
+
+        var products = await pharmacy.SearchProductsAsync(null, 5000);
+        var product = products.FirstOrDefault(p => p.Id == request.ProductId);
+        if (product is null) return NotFound("That medicine no longer exists.");
+
+        var entry = new StockEntry
+        {
+            EntryDate = DateTime.Today,
+            SupplierName = string.IsNullOrWhiteSpace(request.SupplierName) ? null : request.SupplierName.Trim(),
+            SupplierInvoiceNo = string.IsNullOrWhiteSpace(request.SupplierInvoiceNo) ? null : request.SupplierInvoiceNo.Trim(),
+        };
+
+        var item = new StockEntryItem
+        {
+            ProductId = product.Id,
+            BatchNo = request.BatchNo.Trim(),
+            ExpiryDate = request.ExpiryDate,
+            Quantity = request.Packs,
+            FreeQuantity = request.FreePacks,
+            UnitsPerPack = product.UnitsPerPack,
+            PurchaseRate = request.PurchaseRate,
+            Mrp = request.Mrp,
+        };
+
+        try
+        {
+            return Ok(await pharmacy.ReceiveStockAsync(entry, [item]));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>Corrects a shelf count and writes the audit row with it —
+    /// stock otherwise only moves by receiving or selling, and both leave a
+    /// document.</summary>
+    [HttpPost("adjust-stock")]
+    public async Task<ActionResult<StockAdjustment>> AdjustStock(AdjustStockRequest request)
+    {
+        try
+        {
+            return Ok(await pharmacy.AdjustStockAsync(
+                request.BatchId, request.CorrectedQuantity, request.Reason, request.Notes));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpGet("adjustments")]
+    public async Task<ActionResult<List<StockAdjustment>>> Adjustments([FromQuery] int take = 100)
+        => Ok(await pharmacy.GetAdjustmentsAsync(take));
+
+    /// <summary>What re-counting this medicine's batches at a new
+    /// units-per-pack would do, without doing it.</summary>
+    [HttpPost("products/{productId:guid}/repack-preview")]
+    public async Task<ActionResult<RepackPreview>> RepackPreview(Guid productId, RepackRequest request)
+        => Ok(await pharmacy.PreviewRepackAsync(productId, request.UnitsPerPack));
+
+    [HttpPost("products/{productId:guid}/repack")]
+    public async Task<ActionResult<int>> Repack(Guid productId, RepackRequest request)
+    {
+        try
+        {
+            var by = User.Identity?.Name;
+            return Ok(await pharmacy.RepackAsync(productId, request.UnitsPerPack, by));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 
     [HttpGet("low-stock")]
     public async Task<ActionResult<List<Product>>> LowStock() => Ok(await pharmacy.GetLowStockAsync());

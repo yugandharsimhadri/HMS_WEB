@@ -704,3 +704,39 @@ input.full {
   background: transparent;
   color: var(--danger);
 }
+
+/* ── Bill totals ────────────────────────────────────────────────────── */
+
+.totals {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  margin-left: auto;
+  width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.totals > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.totals > div > span:first-child {
+  color: var(--text-muted);
+}
+
+.totals .net {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.totals .net > span:first-child {
+  color: var(--text);
+}
