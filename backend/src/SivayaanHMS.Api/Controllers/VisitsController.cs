@@ -9,6 +9,25 @@ public record BookVisitRequest(Guid PatientId, Guid DoctorId, DateTime Scheduled
 public record CollectFeeRequest(PaymentMode Mode, decimal? Amount, string? TransactionNo);
 public record SetStatusRequest(VisitStatus Status);
 
+public record PrescriptionLineRequest(
+    Guid? ProductId, string MedicineName, string? Dosage, string? Frequency,
+    int Days, int Quantity, string? Instructions);
+
+public record DiagnosticRequestLine(Guid? TestId, string TestName);
+
+/// <summary>Everything the consultation screen writes in one go — the
+/// clinical notes, the vitals, the fee as the doctor may have revised it,
+/// the follow-up, and the two lists (prescription and requested tests),
+/// which replace whatever was there rather than merging.</summary>
+public record SaveConsultationRequest(
+    string? Complaint, string? Diagnosis, string? Notes,
+    decimal? WeightKg, string? BloodPressure, decimal? TemperatureF,
+    decimal? HeightCm, int? HeartRateBpm, int? Spo2Percent,
+    decimal Fee, DateTime? FollowUpOn,
+    List<PrescriptionLineRequest> Prescription,
+    List<DiagnosticRequestLine> DiagnosticRequests,
+    bool Complete);
+
 /// <summary>The OPD queue: today's visits, booking, status changes and fee
 /// collection. The consultation itself (SaveConsultationAsync) is deferred
 /// to a later pass - this is the front-desk half of the module.</summary>
@@ -63,4 +82,63 @@ public class VisitsController(OpdService opd) : ControllerBase
         var visit = await opd.CollectFeeAsync(id, request.Mode, request.Amount, request.TransactionNo);
         return visit is null ? NotFound() : Ok(visit);
     }
+
+    /// <summary>Saves the consultation. <c>Complete</c> also moves the visit
+    /// to Completed, which is what drops its tile out of the waiting column.</summary>
+    [HttpPost("{id:guid}/consultation")]
+    public async Task<IActionResult> SaveConsultation(Guid id, SaveConsultationRequest request)
+    {
+        var visit = await opd.GetVisitAsync(id);
+        if (visit is null) return NotFound();
+
+        visit.Complaint = Trim(request.Complaint);
+        visit.Diagnosis = Trim(request.Diagnosis);
+        visit.Notes = Trim(request.Notes);
+        visit.WeightKg = request.WeightKg;
+        visit.BloodPressure = Trim(request.BloodPressure);
+        visit.TemperatureF = request.TemperatureF;
+        visit.HeightCm = request.HeightCm;
+        visit.HeartRateBpm = request.HeartRateBpm;
+        visit.Spo2Percent = request.Spo2Percent;
+        visit.Fee = request.Fee;
+        visit.FollowUpOn = request.FollowUpOn;
+
+        var items = request.Prescription
+            .Where(l => !string.IsNullOrWhiteSpace(l.MedicineName))
+            .Select(l => new PrescriptionItem
+            {
+                ProductId = l.ProductId,
+                MedicineName = l.MedicineName.Trim(),
+                Dosage = Trim(l.Dosage),
+                Frequency = Trim(l.Frequency),
+                Days = l.Days,
+                Quantity = l.Quantity,
+                Instructions = Trim(l.Instructions),
+            })
+            .ToList();
+
+        var tests = request.DiagnosticRequests
+            .Where(t => !string.IsNullOrWhiteSpace(t.TestName))
+            .Select(t => new VisitDiagnosticRequest { TestId = t.TestId, TestName = t.TestName.Trim() })
+            .ToList();
+
+        try
+        {
+            await opd.SaveConsultationAsync(visit, items, tests, request.Complete);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>Every visit this patient has ever made — the history panel
+    /// on the Patients screen, and where a months-old receipt gets
+    /// reprinted from.</summary>
+    [HttpGet("by-patient/{patientId:guid}")]
+    public async Task<ActionResult<List<Visit>>> ByPatient(Guid patientId)
+        => Ok(await opd.GetPatientHistoryAsync(patientId));
+
+    private static string? Trim(string? value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 }
