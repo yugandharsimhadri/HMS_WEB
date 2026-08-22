@@ -294,3 +294,48 @@ export interface CheckInResult {
   tokenNo: number;
   patientName: string;
 }
+
+// ── Diagnostics ──────────────────────────────────────────────────────────
+
+/** Exactly Core's DiagnosticBillStatus — the lab workflow, in order. */
+export type DiagnosticBillStatus =
+  | 'Ordered' | 'SampleCollected' | 'ResultReceived' | 'Completed';
+
+export interface DiagnosticTest {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  active: boolean;
+}
+
+export interface DiagnosticBillItem {
+  id: string;
+  /** Null once the test it was added from has been deleted from the master,
+   * and for a test requested as free text — the line still bills on its own
+   * name and price either way. */
+  testId: string | null;
+  testName: string;
+  price: number;
+  quantity: number;
+  amount: number;
+}
+
+export interface DiagnosticBill {
+  id: string;
+  billNo: string;
+  billDate: string;
+  patientId: string;
+  patientName: string;
+  patientNo: string;
+  totalAmount: number;
+  discount: number;
+  finalAmount: number;
+  paymentMode: PaymentMode;
+  transactionNo: string | null;
+  status: DiagnosticBillStatus;
+  remarks: string | null;
+  visitId: string | null;
+  referredBy: string | null;
+  items: DiagnosticBillItem[];
+}

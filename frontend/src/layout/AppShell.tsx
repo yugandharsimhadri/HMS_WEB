@@ -50,6 +50,7 @@ export function AppShell() {
               advance booking on, and an empty screen behind a permanent nav
               item reads as a broken feature. */}
           {general?.appointmentsEnabled && <NavLink to="/appointments">Appointments</NavLink>}
+          {general?.diagnosticsEnabled && <NavLink to="/diagnostics">Diagnostics</NavLink>}
           {general?.pharmacyEnabled !== false && (
             <>
               <NavLink to="/pharmacy">Pharmacy</NavLink>

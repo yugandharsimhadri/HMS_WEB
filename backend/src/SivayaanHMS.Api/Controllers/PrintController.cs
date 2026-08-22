@@ -20,8 +20,21 @@ namespace SivayaanHMS.Api.Controllers;
 [Route("api/print")]
 public class PrintController(
     OpdService opd, PharmacyService pharmacy, SettingsService settings,
-    IDbContextFactory<AppDbContext> factory) : ControllerBase
+    DiagnosticsService diagnostics, IDbContextFactory<AppDbContext> factory) : ControllerBase
 {
+    [HttpGet("diagnostic-bill/{billId:guid}")]
+    public async Task<IActionResult> DiagnosticBill(Guid billId, [FromQuery] bool reprint = false)
+    {
+        var bill = await diagnostics.GetBillAsync(billId);
+        if (bill is null) return NotFound();
+
+        var clinic = await settings.GetClinicAsync();
+        var theme = await settings.GetDocumentThemeAsync();
+
+        return Inline(DiagnosticBillDocument.Generate(bill, clinic, theme, reprint),
+                      $"diagnostic-bill-{bill.BillNo}.pdf");
+    }
+
     /// <summary>
     /// The appointment slip. Reachable for any appointment, not only at the
     /// moment of booking as on the desktop — a patient who loses the slip is

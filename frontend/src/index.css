@@ -774,3 +774,11 @@ tbody tr:hover {
 .sub-heading:first-of-type {
   margin-top: 4px;
 }
+
+/* A field a save was turned away for. Cleared the moment it is filled in —
+   a field left red once it is right is a lie. */
+input.field-missing,
+select.field-missing {
+  border-color: var(--danger);
+  outline: 1px solid var(--danger);
+}
