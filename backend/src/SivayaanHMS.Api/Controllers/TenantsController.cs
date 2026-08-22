@@ -48,13 +48,12 @@ public partial class TenantsController(DbContextOptions<AppDbContext> dbOptions,
         await db.SaveChangesAsync();
 
         var logger = loggerFactory.CreateLogger("TenantProvisioning");
-        await TenantProvisioner.ProvisionAsync(db, logger);
+        var admin = await TenantProvisioner.ProvisionAsync(db, slug, logger);
 
-        // The seeder always creates "Admin" with a fixed starter password
-        // that every clinic would otherwise share (see UserSeeder) — reset
-        // it to the one the signer-up actually chose before handing the
-        // account over. MustChangePassword stays true either way.
-        var admin = await db.Users.FirstAsync(u => u.Username == UserSeeder.DefaultAdminUsername);
+        // The seeder gives every clinic the same starter password (see
+        // UserSeeder) — reset it to the one the signer-up actually chose
+        // before handing the account over. MustChangePassword stays true
+        // either way.
         var (hash, salt) = PasswordHasher.Hash(request.AdminPassword);
         admin.PasswordHash = hash;
         admin.PasswordSalt = salt;

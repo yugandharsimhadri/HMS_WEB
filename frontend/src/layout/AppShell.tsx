@@ -23,7 +23,13 @@ export function AppShell() {
   return (
     <div className="shell">
       <aside className="shell-nav">
-        <div className="shell-brand">Sivayaan HMS</div>
+        <div className="shell-brand">
+          Sivayaan HMS
+          {/* Which clinic this session belongs to. A person who works at two
+              of them has two usernames and two sessions, and needs to be able
+              to tell at a glance which one they are looking at. */}
+          {session?.clinicName && <div className="shell-clinic">{session.clinicName}</div>}
+        </div>
         <nav>
           {general?.opdEnabled !== false && (
             <NavLink to="/" end>

@@ -114,9 +114,13 @@ public class AuthService(IDbContextFactory<AppDbContext> factory, IClock clock, 
 
         await using var db = await factory.CreateDbContextAsync();
 
-        // Same case-insensitive comparison LoginAsync uses — "Admin" and
-        // "admin" must not become two different accounts.
-        if (await db.Users.AnyAsync(u => u.Username.ToLower() == username.ToLower() && !u.IsDeleted && u.Id != user.Id))
+        // IgnoreQueryFilters: a username is unique across the whole platform
+        // now, not within one clinic (see UserName), so the check has to see
+        // past this tenant's filter — otherwise it would happily hand out a
+        // name another clinic already holds and the unique index would throw
+        // instead, with a message nobody can act on.
+        if (await db.Users.IgnoreQueryFilters()
+                .AnyAsync(u => u.Username.ToLower() == username.ToLower() && !u.IsDeleted && u.Id != user.Id))
             throw new InvalidOperationException($"'{username}' is already in use.");
 
         var entity = user.Id == Guid.Empty ? null : await db.Users.FirstOrDefaultAsync(u => u.Id == user.Id);

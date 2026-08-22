@@ -6,7 +6,6 @@ import { ApiError } from '../api/client';
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
-  const [clinicSlug, setClinicSlug] = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +16,9 @@ export function LoginPage() {
     setError(null);
     setBusy(true);
     try {
-      await login(clinicSlug.trim().toLowerCase(), username, password);
+      // The clinic rides along inside the username ("reception@twinkle"),
+      // so there is nothing else to ask for here.
+      await login(username.trim(), password);
       navigate('/');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not sign in. Try again.');
@@ -33,16 +34,25 @@ export function LoginPage() {
         <p className="auth-subtitle">Sign in to your clinic</p>
 
         <label>
-          Clinic URL
-          <input value={clinicSlug} onChange={(e) => setClinicSlug(e.target.value)} placeholder="your-clinic" required />
-        </label>
-        <label>
           Username
-          <input value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="you@your-clinic"
+            autoComplete="username"
+            required
+            autoFocus
+          />
         </label>
         <label>
           Password
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            required
+          />
         </label>
 
         {error && <p className="auth-error">{error}</p>}

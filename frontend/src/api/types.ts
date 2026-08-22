@@ -6,6 +6,7 @@ export interface LoginResponse {
   username: string;
   role: string;
   mustChangePassword: boolean;
+  clinicName: string;
 }
 
 export interface RegisterTenantResponse {

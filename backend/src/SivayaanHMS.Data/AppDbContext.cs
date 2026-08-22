@@ -446,7 +446,13 @@ public class AppDbContext : DbContext
 
         b.Entity<User>(e =>
         {
-            e.HasIndex(x => new { x.TenantId, x.Username }).IsUnique();
+            // Globally unique, not per-tenant: a username carries its own
+            // clinic ("reception@twinkle" — see UserName), which is what lets
+            // sign-in take a username and a password and nothing else. The
+            // index is what makes that a guarantee rather than a convention,
+            // and it is deliberately outside the tenant filter so two clinics
+            // cannot both claim the same string.
+            e.HasIndex(x => x.Username).IsUnique();
             e.Ignore(x => x.Display);
         });
 

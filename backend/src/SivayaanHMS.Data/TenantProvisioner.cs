@@ -27,7 +27,10 @@ namespace SivayaanHMS.Data;
 /// </summary>
 public static class TenantProvisioner
 {
-    public static async Task ProvisionAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
+    /// <summary>Returns the admin account it seeded, so signup can hand the
+    /// person the username they are about to sign in with.</summary>
+    public static async Task<User> ProvisionAsync(
+        AppDbContext db, string clinicSlug, ILogger logger, CancellationToken ct = default)
     {
         await SeedStarterDataAsync(db);
         await ImportProfileSeeder.SeedAsync(db, ct);
@@ -35,9 +38,10 @@ public static class TenantProvisioner
         await VaccineMasterSeeder.SeedAsync(db, ct);
         await DentistProcedureSeeder.SeedAsync(db, ct);
         await PathologyLabSeeder.SeedAsync(db, ct);
-        await UserSeeder.SeedAsync(db, logger, ct);
+        var admin = await UserSeeder.SeedAsync(db, clinicSlug, logger, ct);
 
         logger.LogInformation("Tenant {TenantId} provisioned.", db.TenantId);
+        return admin;
     }
 
     private static async Task SeedStarterDataAsync(AppDbContext db)

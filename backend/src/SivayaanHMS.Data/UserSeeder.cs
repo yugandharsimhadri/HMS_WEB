@@ -18,27 +18,43 @@ namespace SivayaanHMS.Data;
 /// </summary>
 public static class UserSeeder
 {
-    public const string DefaultAdminUsername = "Admin";
+    /// <summary>The part before the clinic — the seeded account is
+    /// "admin@your-clinic", not a bare "Admin".</summary>
+    public const string DefaultAdminLocalPart = "admin";
+
     private const string DefaultAdminPassword = "HMSAdmin@123";
 
-    public static async Task SeedAsync(AppDbContext db, ILogger logger, CancellationToken ct = default)
+    /// <summary>
+    /// Seeds the one account every clinic starts with. The username is
+    /// scoped to the clinic's own slug, so it is unique across the whole
+    /// platform and sign-in can resolve the clinic from it — see
+    /// <see cref="UserName"/>.
+    /// </summary>
+    public static async Task<User> SeedAsync(
+        AppDbContext db, string clinicSlug, ILogger logger, CancellationToken ct = default)
     {
-        if (await db.Users.AnyAsync(u => u.Username == DefaultAdminUsername, ct)) return;
+        var username = UserName.For(DefaultAdminLocalPart, clinicSlug);
+
+        var existing = await db.Users.FirstOrDefaultAsync(u => u.Username == username, ct);
+        if (existing is not null) return existing;
 
         var (hash, salt) = PasswordHasher.Hash(DefaultAdminPassword);
 
-        db.Users.Add(new User
+        var admin = new User
         {
-            Username = DefaultAdminUsername,
+            Username = username,
             DisplayName = "Admin",
             PasswordHash = hash,
             PasswordSalt = salt,
             Role = UserRole.Admin,
             IsActive = true,
             MustChangePassword = true
-        });
+        };
 
+        db.Users.Add(admin);
         await db.SaveChangesAsync(ct);
-        logger.LogInformation("Seeded the default Admin account.");
+
+        logger.LogInformation("Seeded the default admin account {Username}.", username);
+        return admin;
     }
 }

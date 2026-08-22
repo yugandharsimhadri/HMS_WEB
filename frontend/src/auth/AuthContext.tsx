@@ -7,6 +7,9 @@ interface Session {
   username: string;
   role: string;
   mustChangePassword: boolean;
+  /** Shown in the shell so a person working across two clinics can see at a
+   * glance which one they are signed into. */
+  clinicName: string;
 }
 
 const SESSION_KEY = 'sivayaanhms.session';
@@ -19,7 +22,9 @@ function loadSession(): Session | null {
 interface AuthContextValue {
   session: Session | null;
   isAuthenticated: boolean;
-  login: (clinicSlug: string, username: string, password: string) => Promise<void>;
+  /** Username carries its own clinic ("reception@twinkle"), so there is no
+   * separate clinic argument — it is asked for at registration only. */
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
 }
 
@@ -28,10 +33,15 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(() => (getToken() ? loadSession() : null));
 
-  const login = async (clinicSlug: string, username: string, password: string) => {
-    const result = await api.post<LoginResponse>('/api/auth/login', { clinicSlug, username, password });
+  const login = async (username: string, password: string) => {
+    const result = await api.post<LoginResponse>('/api/auth/login', { username, password });
     persistToken(result.token);
-    const next: Session = { username: result.username, role: result.role, mustChangePassword: result.mustChangePassword };
+    const next: Session = {
+      username: result.username,
+      role: result.role,
+      mustChangePassword: result.mustChangePassword,
+      clinicName: result.clinicName,
+    };
     localStorage.setItem(SESSION_KEY, JSON.stringify(next));
     setSession(next);
   };

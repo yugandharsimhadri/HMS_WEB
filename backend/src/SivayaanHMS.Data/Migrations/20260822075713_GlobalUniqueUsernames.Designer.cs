@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SivayaanHMS.Data;
 
@@ -10,9 +11,11 @@ using SivayaanHMS.Data;
 namespace SivayaanHMS.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260822075713_GlobalUniqueUsernames")]
+    partial class GlobalUniqueUsernames
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.11");
@@ -61,7 +64,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("AnesthesiaTypeMasters", (string)null);
+                    b.ToTable("AnesthesiaTypeMasters");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Appointment", b =>
@@ -152,7 +155,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "AppointmentNo")
                         .IsUnique();
 
-                    b.ToTable("Appointments", (string)null);
+                    b.ToTable("Appointments");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Batch", b =>
@@ -230,7 +233,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("ProductId", "BatchNo");
 
-                    b.ToTable("Batches", (string)null);
+                    b.ToTable("Batches");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Counter", b =>
@@ -278,7 +281,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "Name")
                         .IsUnique();
 
-                    b.ToTable("Counters", (string)null);
+                    b.ToTable("Counters");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DentalCase", b =>
@@ -361,7 +364,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("ProcedureId");
 
-                    b.ToTable("DentalCases", (string)null);
+                    b.ToTable("DentalCases");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DentalCaseReplacement", b =>
@@ -420,7 +423,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("ReplacementId");
 
-                    b.ToTable("DentalCaseReplacements", (string)null);
+                    b.ToTable("DentalCaseReplacements");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DentalPackageItem", b =>
@@ -471,7 +474,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("ProcedureId");
 
-                    b.ToTable("DentalPackageItems", (string)null);
+                    b.ToTable("DentalPackageItems");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DentalPackageMaster", b =>
@@ -521,7 +524,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("DentalPackageMasters", (string)null);
+                    b.ToTable("DentalPackageMasters");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DentalPayment", b =>
@@ -582,7 +585,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "ReceiptNo")
                         .IsUnique();
 
-                    b.ToTable("DentalPayments", (string)null);
+                    b.ToTable("DentalPayments");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DentalReplacementMaster", b =>
@@ -633,7 +636,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("DentalReplacementMasters", (string)null);
+                    b.ToTable("DentalReplacementMasters");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DentalSitting", b =>
@@ -701,7 +704,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("DoctorId");
 
-                    b.ToTable("DentalSittings", (string)null);
+                    b.ToTable("DentalSittings");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DiagnosticBill", b =>
@@ -792,7 +795,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "BillNo")
                         .IsUnique();
 
-                    b.ToTable("DiagnosticBills", (string)null);
+                    b.ToTable("DiagnosticBills");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DiagnosticBillItem", b =>
@@ -851,7 +854,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("TestId");
 
-                    b.ToTable("DiagnosticBillItems", (string)null);
+                    b.ToTable("DiagnosticBillItems");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DiagnosticTest", b =>
@@ -902,7 +905,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("DiagnosticTests", (string)null);
+                    b.ToTable("DiagnosticTests");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Doctor", b =>
@@ -956,7 +959,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Doctors", (string)null);
+                    b.ToTable("Doctors");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.GrowthMeasurement", b =>
@@ -1022,7 +1025,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("VisitId");
 
-                    b.ToTable("GrowthMeasurements", (string)null);
+                    b.ToTable("GrowthMeasurements");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.H1RegisterEntry", b =>
@@ -1081,7 +1084,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("H1Register", (string)null);
+                    b.ToTable("H1Register");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.ImportProfile", b =>
@@ -1144,7 +1147,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "Name")
                         .IsUnique();
 
-                    b.ToTable("ImportProfiles", (string)null);
+                    b.ToTable("ImportProfiles");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabAnalyte", b =>
@@ -1204,7 +1207,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("LabAnalytes", (string)null);
+                    b.ToTable("LabAnalytes");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabAnalyteReferenceRange", b =>
@@ -1269,7 +1272,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("AnalyteId");
 
-                    b.ToTable("LabAnalyteReferenceRanges", (string)null);
+                    b.ToTable("LabAnalyteReferenceRanges");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabOrder", b =>
@@ -1374,7 +1377,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "OrderNo")
                         .IsUnique();
 
-                    b.ToTable("LabOrders", (string)null);
+                    b.ToTable("LabOrders");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabOrderReport", b =>
@@ -1433,7 +1436,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("ReportId");
 
-                    b.ToTable("LabOrderReports", (string)null);
+                    b.ToTable("LabOrderReports");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabPackageMaster", b =>
@@ -1480,7 +1483,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("LabPackageMasters", (string)null);
+                    b.ToTable("LabPackageMasters");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabPackageReport", b =>
@@ -1524,7 +1527,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("ReportId");
 
-                    b.ToTable("LabPackageReports", (string)null);
+                    b.ToTable("LabPackageReports");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabReport", b =>
@@ -1578,7 +1581,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("LabReports", (string)null);
+                    b.ToTable("LabReports");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabReportAnalyte", b =>
@@ -1625,7 +1628,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("ReportId");
 
-                    b.ToTable("LabReportAnalytes", (string)null);
+                    b.ToTable("LabReportAnalytes");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabResult", b =>
@@ -1700,7 +1703,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("OrderReportId");
 
-                    b.ToTable("LabResults", (string)null);
+                    b.ToTable("LabResults");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Patient", b =>
@@ -1774,7 +1777,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "PatientNo")
                         .IsUnique();
 
-                    b.ToTable("Patients", (string)null);
+                    b.ToTable("Patients");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.PediatricProfile", b =>
@@ -1833,7 +1836,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("PatientId")
                         .IsUnique();
 
-                    b.ToTable("PediatricProfiles", (string)null);
+                    b.ToTable("PediatricProfiles");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.PrescriptionItem", b =>
@@ -1896,7 +1899,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("VisitId");
 
-                    b.ToTable("PrescriptionItems", (string)null);
+                    b.ToTable("PrescriptionItems");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Procedure", b =>
@@ -1950,7 +1953,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("Department", "Name");
 
-                    b.ToTable("Procedures", (string)null);
+                    b.ToTable("Procedures");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.ProcedureBill", b =>
@@ -2038,7 +2041,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "BillNo")
                         .IsUnique();
 
-                    b.ToTable("ProcedureBills", (string)null);
+                    b.ToTable("ProcedureBills");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.ProcedureBillItem", b =>
@@ -2097,7 +2100,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("ProcedureId");
 
-                    b.ToTable("ProcedureBillItems", (string)null);
+                    b.ToTable("ProcedureBillItems");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Product", b =>
@@ -2189,7 +2192,7 @@ namespace SivayaanHMS.Data.Migrations
                         .IsUnique()
                         .HasFilter("\"IsDeleted\" = 0");
 
-                    b.ToTable("Products", (string)null);
+                    b.ToTable("Products");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.ReminderLog", b =>
@@ -2248,7 +2251,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("PatientId");
 
-                    b.ToTable("ReminderLogs", (string)null);
+                    b.ToTable("ReminderLogs");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Sale", b =>
@@ -2351,7 +2354,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "BillNo")
                         .IsUnique();
 
-                    b.ToTable("Sales", (string)null);
+                    b.ToTable("Sales");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.SaleItem", b =>
@@ -2444,7 +2447,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("SaleId");
 
-                    b.ToTable("SaleItems", (string)null);
+                    b.ToTable("SaleItems");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Setting", b =>
@@ -2489,7 +2492,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "Key")
                         .IsUnique();
 
-                    b.ToTable("Settings", (string)null);
+                    b.ToTable("Settings");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.StockAdjustment", b =>
@@ -2561,7 +2564,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("ProductId");
 
-                    b.ToTable("StockAdjustments", (string)null);
+                    b.ToTable("StockAdjustments");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.StockEntry", b =>
@@ -2640,7 +2643,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "EntryNo")
                         .IsUnique();
 
-                    b.ToTable("StockEntries", (string)null);
+                    b.ToTable("StockEntries");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.StockEntryItem", b =>
@@ -2708,7 +2711,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("StockEntryId");
 
-                    b.ToTable("StockEntryItems", (string)null);
+                    b.ToTable("StockEntryItems");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Tenant", b =>
@@ -2736,7 +2739,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("Slug")
                         .IsUnique();
 
-                    b.ToTable("Tenants", (string)null);
+                    b.ToTable("Tenants");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.User", b =>
@@ -2801,7 +2804,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("Username")
                         .IsUnique();
 
-                    b.ToTable("Users", (string)null);
+                    b.ToTable("Users");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.VaccinationRecord", b =>
@@ -2890,7 +2893,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("VaccineId");
 
-                    b.ToTable("VaccinationRecords", (string)null);
+                    b.ToTable("VaccinationRecords");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.VaccineMaster", b =>
@@ -2946,7 +2949,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("Name");
 
-                    b.ToTable("VaccineMasters", (string)null);
+                    b.ToTable("VaccineMasters");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.VendorProductCode", b =>
@@ -2996,7 +2999,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "VendorProfile", "Code")
                         .IsUnique();
 
-                    b.ToTable("VendorProductCodes", (string)null);
+                    b.ToTable("VendorProductCodes");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Visit", b =>
@@ -3115,7 +3118,7 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("TenantId", "VisitNo")
                         .IsUnique();
 
-                    b.ToTable("Visits", (string)null);
+                    b.ToTable("Visits");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.VisitDiagnosticRequest", b =>
@@ -3166,7 +3169,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("VisitId");
 
-                    b.ToTable("VisitDiagnosticRequests", (string)null);
+                    b.ToTable("VisitDiagnosticRequests");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Appointment", b =>

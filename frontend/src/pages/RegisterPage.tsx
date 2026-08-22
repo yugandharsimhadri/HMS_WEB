@@ -24,7 +24,9 @@ export function RegisterPage() {
         adminPassword: password,
       });
       // Straight into the new clinic - no separate "now go log in" step.
-      await login(result.slug, result.adminUsername, password);
+      // adminUsername comes back fully qualified ("admin@your-clinic"),
+      // which is the only form sign-in accepts.
+      await login(result.adminUsername, password);
       navigate('/');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not register the clinic. Try again.');
@@ -54,12 +56,21 @@ export function RegisterPage() {
             title="Lowercase letters, numbers and hyphens, at least 3 characters"
           />
         </label>
+        {/* The clinic is asked for here and nowhere else — from now on it
+            travels inside the username, so say plainly what that will be. */}
+        {slug.trim() && (
+          <p className="hint">
+            You will sign in as <strong>admin@{slug.trim().toLowerCase()}</strong>
+          </p>
+        )}
+
         <label>
           Admin password
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
             required
             minLength={8}
           />

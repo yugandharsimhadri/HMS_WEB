@@ -141,6 +141,19 @@ select {
   margin-bottom: 24px;
 }
 
+.shell-clinic {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.shell-user span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .shell-nav nav {
   display: flex;
   flex-direction: column;
