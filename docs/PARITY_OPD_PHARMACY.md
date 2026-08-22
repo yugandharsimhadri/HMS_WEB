@@ -13,6 +13,10 @@ Derived from: `OpdViewModel`, `BookVisitViewModel`, `CollectFeeViewModel`,
 
 Status: ☑ done · ◻ not started · ◐ partial
 
+**All 105 items below are ☑ as of 22 Aug 2026.** Each was exercised against
+the running app in a browser — not just compiled — and the bugs that testing
+surfaced are listed at the end.
+
 ---
 
 ## 1 · OPD queue (`OpdViewModel`)
@@ -182,3 +186,25 @@ Not gaps — decisions, recorded so they aren't "fixed" by mistake later.
   already has print/save.
 - **`Environment.UserName` → the signed-in user.** The desktop stamps the
   Windows account; the web has a real authenticated user, which is better.
+
+---
+
+## What browser testing caught
+
+Every one of these compiled cleanly and would have shipped unnoticed without
+being driven through the real app.
+
+| Bug | How it showed up | Why it mattered |
+|---|---|---|
+| **No CORS policy on the API** | Every cross-origin request blocked before reaching a controller | The frontend could not talk to the backend at all |
+| **Circular JSON on `Visit`** | `Visit.Patient ↔ Patient.Visits` threw "possible object cycle detected" | Ported from a desktop app that never serialised its entities; several more bidirectional navigations would have hit it |
+| **Booking shifted by the timezone offset** | An 08:58 visit came back reading 03:28 | Client sent UTC, server stores naive clinic-local. The queue would have disagreed with the front desk all day |
+| **Invented enum values** | `AdjustmentReason.Damaged` (it is `Breakage`), `DispensingUnit.Injection` (does not exist; `Piece`/`Syrup`/`Moisturizer`/`Soap`/`Others` were missing) | Correcting stock failed with a 400 |
+| **Patient edit always failed** | `DbUpdateConcurrencyException` on every save | Client never round-tripped `RowVersion`, so the UPDATE matched zero rows |
+| **Mass assignment on four endpoints** | Found while fixing the above | A request could write `TenantId` (moving a patient into another clinic), `IsDeleted`, or a Product's `SearchKey` — the column the duplicate-medicine index is built on |
+
+The GST arithmetic was checked the other way round: the counter's TypeScript
+preview and the server's C# were compared on a real bill and agreed to the
+paisa (gross 10.02, taxable 8.95, CGST 0.53, SGST 0.54, round-off −0.02, net
+10.00). `GstParityTests` pins that contract so a change to one side fails
+loudly instead of quietly quoting one number and printing another.
