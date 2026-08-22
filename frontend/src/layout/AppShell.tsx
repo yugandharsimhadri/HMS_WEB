@@ -12,7 +12,16 @@ export function AppShell() {
   useEffect(() => {
     // Mirrors the desktop: a module switched off under Settings -> Features
     // disappears from the nav entirely, not just greyed out.
-    void api.get<GeneralSettings>('/api/settings/general').then(setGeneral).catch(() => {});
+    const read = () =>
+      void api.get<GeneralSettings>('/api/settings/general').then(setGeneral).catch(() => {});
+
+    read();
+
+    // Re-read when Features is saved. Reading only on mount meant the nav
+    // kept the module set the shell started with, so turning a module on
+    // appeared to do nothing at all until the next full page load.
+    window.addEventListener('sivayaanhms:general-settings-changed', read);
+    return () => window.removeEventListener('sivayaanhms:general-settings-changed', read);
   }, []);
 
   const onLogout = () => {
@@ -37,6 +46,10 @@ export function AppShell() {
             </NavLink>
           )}
           <NavLink to="/patients">Patients</NavLink>
+          {/* Off by default — a clinic that only takes walk-ins never turns
+              advance booking on, and an empty screen behind a permanent nav
+              item reads as a broken feature. */}
+          {general?.appointmentsEnabled && <NavLink to="/appointments">Appointments</NavLink>}
           {general?.pharmacyEnabled !== false && (
             <>
               <NavLink to="/pharmacy">Pharmacy</NavLink>

@@ -430,6 +430,11 @@ function ModulesTab() {
     setError(null);
     try {
       await api.post('/api/settings/general', general);
+      // The sidebar decides which modules to show from this same call, and
+      // it read it once when the shell mounted. Without this it keeps
+      // showing the old set until a full page reload — which nobody does,
+      // so switching a module on looked like it had silently failed.
+      window.dispatchEvent(new CustomEvent('sivayaanhms:general-settings-changed'));
       flash();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'At least one module must stay on.');
