@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, openPdf } from '../api/client';
 import type { CatalogueEntry, GeneralSettings, Visit } from '../api/types';
 import { DOSE_OPTIONS, describePacks, unitsForCourse } from '../clinical/doseMath';
+import { medicineDisplayName } from '../pharmacy/packing';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
 
@@ -179,6 +180,9 @@ export function ConsultationPage() {
       .filter(
         (p) =>
           p.name.toLowerCase().includes(term) ||
+          // So typing "cetzine 5" narrows to the 5 mg rather than listing all
+          // five strengths and leaving the choice to a glance.
+          medicineDisplayName(p).toLowerCase().includes(term) ||
           (p.manufacturer ?? '').toLowerCase().includes(term),
       )
       .slice(0, 8);
@@ -221,7 +225,14 @@ export function ConsultationPage() {
     // Either a catalogue medicine, or whatever was typed. A typed name is
     // written on the prescription and nowhere else — it never becomes a
     // medicine in our pharmacy.
-    const name = pickedMedicine?.name ?? medicineSearch;
+    //
+    // The strength is appended, because it is no longer part of the name:
+    // five Cetirizine records all called "Cetzine" would otherwise every one
+    // print as "Cetzine", and a prescription that does not say the dose is
+    // not a prescription.
+    const name = pickedMedicine
+      ? medicineDisplayName(pickedMedicine)
+      : medicineSearch;
 
     if (!name.trim()) {
       setStatus('Choose a medicine, or type its name.');
@@ -424,7 +435,12 @@ export function ConsultationPage() {
                         setMedicineSearch(p.name);
                       }}
                     >
-                      {p.name} {p.packSize ? `(${p.packSize})` : ''} — stock {p.stockOnHand}
+                      {/* Strength in bold, ahead of the pack. This is the
+                          list a dose is chosen from, so telling 5 mg from
+                          10 mg matters more here than anywhere. */}
+                      {p.name}
+                      {p.strength && <strong> {p.strength}</strong>}
+                      {p.packSize ? ` (${p.packSize})` : ''} — stock {p.stockOnHand}
                     </button>
                   </li>
                 ))}

@@ -17,11 +17,13 @@ public record SaleHeaderRequest(
 
 public record SaveSaleRequest(SaleHeaderRequest Sale, List<SaleLine> Lines);
 
-/// <summary>What the medicine editor may set — the catalogue fields and
-/// nothing else.</summary>
-/// <summary><paramref name="Strength"/> is its own field, not part of the
-/// name: one drug in five strengths is the normal case, and the name alone
-/// cannot order them — see Product.Strength.</summary>
+/// <summary>
+/// What the medicine editor may set — the catalogue fields and nothing else.
+///
+/// <paramref name="Strength"/> is its own field rather than part of the name:
+/// one drug in five strengths is the ordinary case, and the name alone cannot
+/// order them. See Product.Strength.
+/// </summary>
 public record SaveProductRequest(
     Guid? Id, string Name, string? GenericName, string? Manufacturer, string? Composition,
     string? Storage, string? Strength, string? PackSize, string HsnCode, decimal GstRate,

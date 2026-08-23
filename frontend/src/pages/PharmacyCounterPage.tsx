@@ -4,7 +4,7 @@ import type { Batch, PaymentMode, PharmacyProfile, Product, Sale, Visit } from '
 import { nextBatchMrp } from '../api/types';
 import { billAmounts, lineAmounts, unitPrice } from '../clinical/gst';
 import { describePacks } from '../clinical/doseMath';
-import { unitWordFor } from '../pharmacy/packing';
+import { medicineDisplayName, unitWordFor } from '../pharmacy/packing';
 import { QuickStockDialog } from '../pharmacy/QuickStockDialog';
 import { EditQuantityDialog } from '../pharmacy/EditQuantityDialog';
 import { describeCombo, useHotkey } from '../shell/hotkeys';
@@ -164,7 +164,7 @@ export function PharmacyCounterPage() {
       ...allocations.map((a) => ({
         productId: product.id,
         batchId: a.batch.id,
-        productName: product.name,
+        productName: medicineDisplayName(product),
         batchNo: a.batch.batchNo,
         expiryDate: a.batch.expiryDate,
         hsnCode: product.hsnCode,
@@ -356,7 +356,7 @@ export function PharmacyCounterPage() {
         next = [
           ...next.filter((l) => l.productId !== p.id),
           ...result.allocations.map((a) => ({
-            productId: p.id, batchId: a.batch.id, productName: p.name, batchNo: a.batch.batchNo,
+            productId: p.id, batchId: a.batch.id, productName: medicineDisplayName(p), batchNo: a.batch.batchNo,
             expiryDate: a.batch.expiryDate, hsnCode: p.hsnCode,
             gstRate: gstRegistered ? p.gstRate : 0, schedule: p.schedule,
             available: a.batch.qtyOnHand, unitsPerPack: a.batch.unitsPerPack,
