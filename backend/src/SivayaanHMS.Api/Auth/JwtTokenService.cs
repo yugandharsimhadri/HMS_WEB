@@ -27,6 +27,36 @@ public class JwtTokenService(IOptions<JwtOptions> options)
             new Claim(TenantClaimTypes.TenantId, tenantId.ToString())
         };
 
+        return Write(claims, _options.ExpiryMinutes);
+    }
+
+    /// <summary>
+    /// The support token. Note what is absent: no tenant claim, so
+    /// HttpCurrentTenantContext resolves Guid.Empty and every query
+    /// AppDbContext filters reads back nothing. That is belt as well as
+    /// braces — ClinicPolicy already turns these tokens away at the door —
+    /// but it means a route that ever forgets to name its policy still
+    /// cannot show one clinic's records to support staff.
+    ///
+    /// Deliberately shorter-lived than a clinic session. This token can
+    /// reset any clinic admin's password on the platform, so it should last
+    /// a support call, not a working day.
+    /// </summary>
+    public string IssuePlatformToken(string username)
+    {
+        var claims = new[]
+        {
+            new Claim(ClaimTypes.Name, username),
+            new Claim(ClaimTypes.Role, TenantClaimTypes.PlatformAdminRole)
+        };
+
+        return Write(claims, PlatformTokenMinutes);
+    }
+
+    private const int PlatformTokenMinutes = 60;
+
+    private string Write(Claim[] claims, int expiryMinutes)
+    {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key));
         var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -34,7 +64,7 @@ public class JwtTokenService(IOptions<JwtOptions> options)
             issuer: _options.Issuer,
             audience: _options.Audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddMinutes(_options.ExpiryMinutes),
+            expires: DateTime.UtcNow.AddMinutes(expiryMinutes),
             signingCredentials: credentials);
 
         return new JwtSecurityTokenHandler().WriteToken(token);

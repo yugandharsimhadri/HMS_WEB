@@ -7,6 +7,13 @@ using SivayaanHMS.Data;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Loaded last so it overrides appsettings.json, and git-ignored so it never
+// leaves the machine. This is where the platform-support password lives in
+// development — see docs/PLATFORM_ADMIN.md for the one line to put in it.
+// Optional: the app runs fine without it, with EnterpriseAdmin simply unable
+// to sign in, which is the correct failure for a missing credential.
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
+
 // ── Database ─────────────────────────────────────────────────────────────
 // AddDbContextFactory rather than AddDbContext: every domain service takes
 // IDbContextFactory<AppDbContext> and opens a short-lived context per call
@@ -83,7 +90,41 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddAuthorization();
+// ── Platform support identity ────────────────────────────────────────────
+// EnterpriseAdmin belongs to no clinic. Its password comes from config, not
+// source: the desktop could compile it in because the binary sat on one
+// clinic's PC, but on a server it is a single key to every clinic on the
+// estate, and source is the one place a secret is certain to be cloned,
+// pushed and kept forever in history.
+builder.Services.Configure<PlatformAdminOptions>(
+    builder.Configuration.GetSection(PlatformAdminOptions.SectionName));
+builder.Services.AddSingleton<PlatformAdminService>();
+
+var platformAdmin = builder.Configuration.GetSection(PlatformAdminOptions.SectionName)
+    .Get<PlatformAdminOptions>() ?? new PlatformAdminOptions();
+
+if (!builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(platformAdmin.Password))
+    throw new InvalidOperationException(
+        "PlatformAdmin:Password is not configured. This account can reset any clinic admin's password " +
+        "on the platform — set one via the PlatformAdmin__Password environment variable or a secret " +
+        "store before running outside Development.");
+
+// ── Authorization ────────────────────────────────────────────────────────
+// Two audiences that must never overlap. The clinic policy is the *default*,
+// so a bare [Authorize] anywhere in this API means "a signed-in user of some
+// clinic" — and a support token, which carries no tenant claim, fails it.
+// That keeps EnterpriseAdmin out of patient data by construction, rather
+// than by every controller author remembering to say so.
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(TenantClaimTypes.ClinicPolicy, policy =>
+        policy.RequireAuthenticatedUser().RequireClaim(TenantClaimTypes.TenantId));
+
+    options.AddPolicy(TenantClaimTypes.PlatformAdminPolicy, policy =>
+        policy.RequireAuthenticatedUser().RequireRole(TenantClaimTypes.PlatformAdminRole));
+
+    options.DefaultPolicy = options.GetPolicy(TenantClaimTypes.ClinicPolicy)!;
+});
 
 // Enums as strings ("Male", not 1) - a JSON API read by a TypeScript
 // frontend should never make someone go look up what 1 means in a C# enum.

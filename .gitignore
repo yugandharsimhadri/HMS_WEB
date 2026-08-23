@@ -14,6 +14,14 @@ frontend/dist-ssr/
 *.db-shm
 *.db-wal
 
+## Local secrets
+# appsettings.Local.json holds the platform-support password and anything
+# else that must not be committed. Program.cs loads it last, so it overrides
+# appsettings.json. Never track it: the EnterpriseAdmin credential can reset
+# any clinic admin's password across the whole platform, and a secret pushed
+# to git history stays there whatever gets deleted afterwards.
+appsettings.Local.json
+
 ## IDE
 .vs/
 .vscode/

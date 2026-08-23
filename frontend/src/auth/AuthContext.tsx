@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import { getToken, setToken as persistToken } from '../api/client';
 import type { LoginResponse } from '../api/types';
 
-interface Session {
+export interface Session {
   username: string;
   role: string;
   mustChangePassword: boolean;
@@ -11,6 +11,17 @@ interface Session {
    * glance which one they are signed into. */
   clinicName: string;
 }
+
+/**
+ * The support identity, which belongs to no clinic.
+ *
+ * This constant only decides which screen the browser shows. It grants
+ * nothing: a support token carries no tenant claim, so the API's default
+ * authorization policy turns it away from every clinic route regardless of
+ * what the browser believes. Editing this value in devtools changes the
+ * menu, not the data.
+ */
+export const PLATFORM_ADMIN_ROLE = 'EnterpriseAdmin';
 
 const SESSION_KEY = 'sivayaanhms.session';
 
@@ -22,9 +33,19 @@ function loadSession(): Session | null {
 interface AuthContextValue {
   session: Session | null;
   isAuthenticated: boolean;
+  /** True when signed in as platform support rather than as a clinic's user.
+   * Drives routing only — see PLATFORM_ADMIN_ROLE. */
+  isPlatformAdmin: boolean;
   /** Username carries its own clinic ("reception@twinkle"), so there is no
-   * separate clinic argument — it is asked for at registration only. */
-  login: (username: string, password: string) => Promise<void>;
+   * separate clinic argument — it is asked for at registration only.
+   * Returns the new session so the caller can route on it without waiting
+   * for a re-render. */
+  login: (username: string, password: string) => Promise<Session>;
+  /** Clears the must-change flag after the user has actually chosen a new
+   * password, so the forced-change gate lets them through. The server has
+   * already cleared its own copy; this keeps the browser in step without a
+   * round trip. */
+  passwordChanged: () => void;
   logout: () => void;
 }
 
@@ -44,6 +65,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(next));
     setSession(next);
+    return next;
+  };
+
+  const passwordChanged = () => {
+    setSession((current) => {
+      if (!current) return current;
+      const next = { ...current, mustChangePassword: false };
+      localStorage.setItem(SESSION_KEY, JSON.stringify(next));
+      return next;
+    });
   };
 
   const logout = () => {
@@ -53,7 +84,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ session, isAuthenticated: session !== null, login, logout }),
+    () => ({
+      session,
+      isAuthenticated: session !== null,
+      isPlatformAdmin: session?.role === PLATFORM_ADMIN_ROLE,
+      login,
+      passwordChanged,
+      logout,
+    }),
     [session],
   );
 

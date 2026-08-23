@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { PLATFORM_ADMIN_ROLE, useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 
 export function LoginPage() {
@@ -18,8 +18,13 @@ export function LoginPage() {
     try {
       // The clinic rides along inside the username ("reception@twinkle"),
       // so there is nothing else to ask for here.
-      await login(username.trim(), password);
-      navigate('/');
+      const session = await login(username.trim(), password);
+
+      // Support staff sign in through the same box but land somewhere else
+      // entirely — they belong to no clinic, so there is no clinic shell to
+      // show them. The API enforces that independently; this only picks the
+      // screen.
+      navigate(session.role === PLATFORM_ADMIN_ROLE ? '/platform' : '/');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not sign in. Try again.');
     } finally {

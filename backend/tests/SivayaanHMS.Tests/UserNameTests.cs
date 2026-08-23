@@ -78,6 +78,48 @@ public class UserNameTests
             () => Seed(testDb, Guid.NewGuid(), "admin@twinkle"));
     }
 
+    // ── What a person may choose at signup ──────────────────────────────
+    // Registration asks for the local part only and appends the clinic
+    // itself, so these rules decide what half of every username at a clinic
+    // will look like for as long as it exists.
+
+    [Theory]
+    [InlineData("Reception", "reception")]          // folded, since sign-in folds too
+    [InlineData("  dr.rao  ", "dr.rao")]            // trimmed
+    [InlineData("front_desk-2", "front_desk-2")]
+    public void Accepts_and_folds_a_chosen_username(string input, string expected)
+    {
+        Assert.True(UserName.TryNormaliseLocalPart(input, out var localPart, out var error));
+        Assert.Equal(expected, localPart);
+        Assert.Null(error);
+    }
+
+    [Theory]
+    [InlineData("")]                 // nothing typed
+    [InlineData("ab")]               // too short to be worth having
+    [InlineData("-leading")]         // must start with a letter or number
+    [InlineData("has space")]
+    [InlineData("dr@sunrise")]       // the clinic is appended, never typed
+    [InlineData("someone@gmail.com")]
+    public void Rejects_a_username_that_would_not_survive_being_read_aloud(string input)
+    {
+        Assert.False(UserName.TryNormaliseLocalPart(input, out _, out var error));
+
+        // The message is the point: this is read by someone mid-signup who
+        // needs to know what to type instead, not that they were wrong.
+        Assert.False(string.IsNullOrWhiteSpace(error));
+    }
+
+    [Fact]
+    public void Typing_the_clinic_into_the_username_says_so_specifically()
+    {
+        UserName.TryNormaliseLocalPart("admin@twinkle", out _, out var error);
+
+        // The likeliest signup mistake by far, given every example of a
+        // username in this product contains an "@".
+        Assert.Contains("automatically", error);
+    }
+
     private static async Task Seed(TestDb testDb, Guid tenantId, string username)
     {
         await using var db = testDb.CreateContext(tenantId);

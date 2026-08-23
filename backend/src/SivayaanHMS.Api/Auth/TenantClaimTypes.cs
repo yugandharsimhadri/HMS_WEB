@@ -8,4 +8,17 @@ public static class TenantClaimTypes
     /// authenticated request is scoped to exactly this tenant — see
     /// HttpCurrentTenantContext.</summary>
     public const string TenantId = "tenant_id";
+
+    /// <summary>The role name carried by a platform-support token. It is
+    /// deliberately not a member of <c>UserRole</c>: no clinic can ever
+    /// assign it to one of its own users, because the enum a clinic's user
+    /// editor writes from does not contain it.</summary>
+    public const string PlatformAdminRole = "EnterpriseAdmin";
+
+    /// <summary>Authorization policy names. <see cref="ClinicPolicy"/> is
+    /// the default for the whole API — a bare [Authorize] means "a signed-in
+    /// user of some clinic", which a platform-support token is not.</summary>
+    public const string ClinicPolicy = "Clinic";
+
+    public const string PlatformAdminPolicy = "PlatformAdmin";
 }

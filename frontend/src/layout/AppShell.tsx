@@ -69,6 +69,9 @@ export function AppShell() {
         </nav>
         <div className="shell-user">
           <span>{session?.username}</span>
+          {/* Somewhere to change your password without needing to be locked
+              out and phone support first. */}
+          <NavLink to="/change-password" className="shell-user-link">Change password</NavLink>
           <button onClick={onLogout}>Sign out</button>
         </div>
       </aside>

@@ -173,13 +173,28 @@ select {
   color: #fff;
 }
 
+/* Three items now (name, change password, sign out), so it stacks rather
+   than squeezing them onto one line in a narrow sidebar. */
 .shell-user {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
   font-size: 13px;
   border-top: 1px solid var(--border);
   padding-top: 12px;
+}
+
+.shell-user-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.shell-user-link:hover {
+  background: var(--border);
+  color: var(--text);
 }
 
 .shell-user button {
@@ -514,6 +529,84 @@ button.danger:hover {
 .badge.unpaid {
   background: #fff7ed;
   color: #b45309;
+}
+
+/* ── Platform support console ───────────────────────────────────────────
+   Its own screen rather than a page inside the clinic shell: support staff
+   are not clinic users, and there is nothing here to navigate to. Wider and
+   plainer than the application on purpose — this is an operations tool. */
+
+.platform-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 28px 32px 64px;
+}
+
+.platform-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.platform-head h1 {
+  margin: 0 0 4px;
+  font-size: 22px;
+}
+
+.platform-head .hint {
+  max-width: 70ch;
+}
+
+.licence-active {
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.licence-expiring {
+  background: #fff7ed;
+  color: #b45309;
+}
+
+/* Loud on purpose: this clinic cannot sign in at all right now. */
+.licence-expired {
+  background: #fef2f2;
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.licence-no-expiry {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.admin-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 6px 0;
+}
+
+.admin-row + .admin-row {
+  border-top: 1px solid #eef2f7;
+}
+
+/* Shown once and never recoverable, so it is sized to be read aloud from
+   across a desk without squinting. */
+.issued-password {
+  border: 2px solid #047857;
+  background: #f0fdf4;
+}
+
+.issued-value {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 30px;
+  letter-spacing: 2px;
+  margin: 8px 0;
+  user-select: all;
 }
 
 .complaint {

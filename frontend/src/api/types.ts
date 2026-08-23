@@ -15,6 +15,40 @@ export interface RegisterTenantResponse {
   adminUsername: string;
 }
 
+// ── Platform support console ────────────────────────────────────────────
+// Registration metadata only. Note what is absent: no patient, visit or bill
+// type, and no endpoint that would return one — support staff have no
+// business inside a clinic's records. See PlatformController.
+
+export interface PlatformAdminAccount {
+  userId: string;
+  username: string;
+  displayName: string;
+  isActive: boolean;
+  lastLoginOn: string | null;
+}
+
+export type LicenseStatus = 'Active' | 'Expiring' | 'Expired' | 'No expiry';
+
+export interface PlatformClinic {
+  tenantId: string;
+  slug: string;
+  clinicName: string;
+  createdAt: string;
+  isActive: boolean;
+  licenseExpiresOn: string | null;
+  daysRemaining: number;
+  licenseStatus: LicenseStatus;
+  admins: PlatformAdminAccount[];
+}
+
+export interface ResetPasswordResponse {
+  username: string;
+  /** Shown once and never retrievable again — it is stored hashed the
+   * instant it is issued. Losing it means issuing another. */
+  temporaryPassword: string;
+}
+
 export type Gender = 'Male' | 'Female' | 'Other';
 
 export interface Patient {

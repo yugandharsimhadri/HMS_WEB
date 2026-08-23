@@ -8,17 +8,16 @@ namespace SivayaanHMS.Data;
 public enum LoginOutcome
 {
     Success,
-    EnterpriseRecovery,
     Failed
 }
 
-/// <summary>Result of a login attempt. EnterpriseRecovery is not a normal
-/// sign-in — the caller must route it to the password-reset screen, never to
-/// the application shell.</summary>
+/// <summary>Result of a sign-in by one clinic's user. The platform support
+/// identity never reaches this class — it belongs to no clinic, so it is
+/// checked before a tenant has even been resolved (see PlatformAdminService
+/// in the API layer).</summary>
 public record LoginResult(LoginOutcome Outcome, User? User, string? Message)
 {
     public static LoginResult Success(User user) => new(LoginOutcome.Success, user, null);
-    public static LoginResult EnterpriseRecovery() => new(LoginOutcome.EnterpriseRecovery, null, null);
     public static LoginResult Failed(string message) => new(LoginOutcome.Failed, null, message);
 }
 
@@ -38,40 +37,22 @@ public record LoginResult(LoginOutcome Outcome, User? User, string? Message)
 /// themselves resolves to two different users, correctly, without this
 /// class needing to know that.
 /// </summary>
-public class AuthService(IDbContextFactory<AppDbContext> factory, IClock clock, ILogger<AuthService> logger)
+public class AuthService(IDbContextFactory<AppDbContext> factory, IClock clock)
 {
     /// <summary>
-    /// The support/recovery identity. Never a row in the Users table — a
-    /// constant checked directly here — so it can never be listed, edited,
-    /// renamed or deleted from any screen, and its password never changes
-    /// through this application. Known only to the people who build and
-    /// support this software; a clinic's own Admin cannot see or use it.
+    /// The support identity's name, kept here only so a clinic can never
+    /// create a user that shadows it. It is not authenticated by this class:
+    /// it belongs to no clinic, carries no tenant, and is checked before a
+    /// tenant is resolved at all — see PlatformAdminService in the API
+    /// layer, which also holds its (configured, not compiled-in) password.
     ///
-    /// TODO(SaaS): on the desktop this was a fixed recovery door into the
-    /// one clinic on the machine. On a multi-tenant server it needs to carry
-    /// (or be handed) which tenant it is recovering — today it resolves
-    /// within whatever tenant the caller's AppDbContext already points at,
-    /// same as every other login. Revisit before this ships as a real
-    /// support workflow.
+    /// A clinic's own Admin cannot see, use, or create it.
     /// </summary>
     public const string EnterpriseAdminUsername = "EnterpriseAdmin";
-
-    private static readonly Lazy<(string Hash, string Salt)> EnterpriseAdminCredential =
-        new(() => PasswordHasher.Hash("SivAyAAn@HMS"));
 
     public async Task<LoginResult> LoginAsync(string username, string password)
     {
         username = username?.Trim() ?? string.Empty;
-
-        if (string.Equals(username, EnterpriseAdminUsername, StringComparison.OrdinalIgnoreCase))
-        {
-            var (hash, salt) = EnterpriseAdminCredential.Value;
-            if (!PasswordHasher.Verify(password, hash, salt))
-                return LoginResult.Failed("Incorrect username or password.");
-
-            logger.LogInformation("EnterpriseAdmin signed in for password recovery.");
-            return LoginResult.EnterpriseRecovery();
-        }
 
         await using var db = await factory.CreateDbContextAsync();
 
@@ -148,40 +129,43 @@ public class AuthService(IDbContextFactory<AppDbContext> factory, IClock clock, 
         await db.SaveChangesAsync();
     }
 
-    /// <summary>The signed-in user setting their own new password, typically
-    /// right after signing in with a temporary one.</summary>
-    public async Task ChangeOwnPasswordAsync(Guid userId, string newPassword)
+    /// <summary>
+    /// The signed-in user setting their own new password, having proved they
+    /// know the current one.
+    ///
+    /// The current-password check is not ceremony: the commonest path here is
+    /// straight after signing in with a temporary password that a support
+    /// agent read out loud, and an unauthenticated-in-practice endpoint that
+    /// changes passwords is worth more to an attacker than the session it
+    /// sits behind. Returns false rather than throwing, because "you typed
+    /// your old password wrong" is an ordinary outcome, not a fault.
+    /// </summary>
+    public async Task<bool> ChangeOwnPasswordAsync(Guid userId, string currentPassword, string newPassword)
     {
         await using var db = await factory.CreateDbContextAsync();
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId)
+        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId && !u.IsDeleted)
                     ?? throw new InvalidOperationException("User not found.");
+
+        if (!PasswordHasher.Verify(currentPassword, user.PasswordHash, user.PasswordSalt))
+            return false;
 
         var (hash, salt) = PasswordHasher.Hash(newPassword);
         user.PasswordHash = hash;
         user.PasswordSalt = salt;
+
+        // Cleared here and nowhere else — this is the only route by which a
+        // temporary password stops being the account's password.
         user.MustChangePassword = false;
 
         await db.SaveChangesAsync();
+        return true;
     }
 
-    /// <summary>EnterpriseAdmin resetting a locked-out user's password —
-    /// reached only after an EnterpriseRecovery login, never from inside the
-    /// application shell. Always leaves MustChangePassword set, so the
-    /// temporary password handed out here is only ever good for one sign-in.</summary>
-    public async Task<string> ResetPasswordAsync(Guid userId, string temporaryPassword)
-    {
-        await using var db = await factory.CreateDbContextAsync();
-        var user = await db.Users.FirstOrDefaultAsync(u => u.Id == userId)
-                    ?? throw new InvalidOperationException("User not found.");
-
-        var (hash, salt) = PasswordHasher.Hash(temporaryPassword);
-        user.PasswordHash = hash;
-        user.PasswordSalt = salt;
-        user.MustChangePassword = true;
-
-        await db.SaveChangesAsync();
-
-        logger.LogInformation("Password reset via EnterpriseAdmin for user '{Username}'.", user.Username);
-        return user.Username;
-    }
+    // Note there is deliberately no "set this user's password" method here
+    // beyond the two above. Admin creating or renaming a user goes through
+    // SaveUserAsync (which always forces a change on next login), and
+    // platform support goes through PlatformController, which does its own
+    // role check before touching anything. A general-purpose password setter
+    // on this class would be reachable from any caller that already has an
+    // AuthService, which is most of them.
 }

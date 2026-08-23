@@ -29,11 +29,20 @@ public static class UserSeeder
     /// scoped to the clinic's own slug, so it is unique across the whole
     /// platform and sign-in can resolve the clinic from it — see
     /// <see cref="UserName"/>.
+    ///
+    /// <paramref name="adminLocalPart"/> is the name the owner chose when
+    /// they registered. It falls back to <see cref="DefaultAdminLocalPart"/>
+    /// only for callers with nobody to ask — tests and tooling — since a
+    /// clinic signing up is asked directly, and starting someone off with an
+    /// account named by our convention rather than their own is a poor
+    /// first impression.
     /// </summary>
     public static async Task<User> SeedAsync(
-        AppDbContext db, string clinicSlug, ILogger logger, CancellationToken ct = default)
+        AppDbContext db, string clinicSlug, ILogger logger,
+        string? adminLocalPart = null, CancellationToken ct = default)
     {
-        var username = UserName.For(DefaultAdminLocalPart, clinicSlug);
+        var localPart = string.IsNullOrWhiteSpace(adminLocalPart) ? DefaultAdminLocalPart : adminLocalPart;
+        var username = UserName.For(localPart, clinicSlug);
 
         var existing = await db.Users.FirstOrDefaultAsync(u => u.Username == username, ct);
         if (existing is not null) return existing;

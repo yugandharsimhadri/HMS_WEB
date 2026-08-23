@@ -1451,4 +1451,18 @@ public class Tenant
     public string ClinicName { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; } = DateTime.Now;
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// The date this clinic's subscription runs out, or null for a clinic on
+    /// no fixed term. Checked at sign-in only — never mid-session — so a
+    /// licence that lapses overnight locks the door in the morning rather
+    /// than interrupting a consultation already in progress.
+    ///
+    /// Nothing is deleted or hidden when it passes: the clinic's records
+    /// remain entirely theirs, they simply cannot sign in until
+    /// EnterpriseAdmin extends the date. A date rather than a timestamp,
+    /// because a licence expires at the end of its last day in the clinic's
+    /// own reckoning, not at midnight UTC.
+    /// </summary>
+    public DateTime? LicenseExpiresOn { get; set; }
 }

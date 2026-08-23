@@ -18,10 +18,52 @@ import { DentistPage } from './pages/DentistPage';
 import { PathologyLabPage } from './pages/PathologyLabPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ReportsPage } from './pages/ReportsPage';
+import { PlatformConsolePage } from './pages/PlatformConsolePage';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
 
+/**
+ * The clinic application. A support session is bounced to its own console
+ * rather than shown an empty shell — its token carries no clinic, so every
+ * screen behind here would load nothing and report errors nobody can act on.
+ */
 function ProtectedRoute({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
-  return isAuthenticated ? <>{children}</> : <Navigate to="/login" replace />;
+  const { isAuthenticated, isPlatformAdmin, session } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (isPlatformAdmin) return <Navigate to="/platform" replace />;
+
+  // Wraps the whole clinic shell, so typing a URL does not get round it.
+  // Someone holding a support-issued temporary password has a password their
+  // support agent also knows; nothing else in the application should happen
+  // until that stops being true.
+  if (session?.mustChangePassword) return <Navigate to="/change-password" replace />;
+
+  return <>{children}</>;
+}
+
+/**
+ * The support console. Guarded both ways — a clinic's own users have no
+ * business here either, and land back in their clinic.
+ *
+ * Neither guard is a security boundary. Both exist to show people the screen
+ * that will actually work; the API decides what is permitted from the
+ * token's own claims, on every request.
+ */
+/**
+ * Signed in as a clinic user, and that is all this screen needs. Platform
+ * support has no clinic password to change, so it goes back to its console.
+ */
+function ChangePasswordGate({ children }: { children: ReactNode }) {
+  const { isAuthenticated, isPlatformAdmin } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (isPlatformAdmin) return <Navigate to="/platform" replace />;
+  return <>{children}</>;
+}
+
+function PlatformRoute({ children }: { children: ReactNode }) {
+  const { isAuthenticated, isPlatformAdmin } = useAuth();
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!isPlatformAdmin) return <Navigate to="/" replace />;
+  return <>{children}</>;
 }
 
 function AppRoutes() {
@@ -29,6 +71,25 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      {/* Outside ProtectedRoute deliberately — it is the one clinic screen a
+          must-change-password session is allowed to reach, and putting it
+          inside would bounce it to itself forever. */}
+      <Route
+        path="/change-password"
+        element={
+          <ChangePasswordGate>
+            <ChangePasswordPage />
+          </ChangePasswordGate>
+        }
+      />
+      <Route
+        path="/platform"
+        element={
+          <PlatformRoute>
+            <PlatformConsolePage />
+          </PlatformRoute>
+        }
+      />
       <Route
         path="/"
         element={

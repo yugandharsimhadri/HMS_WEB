@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+
 namespace SivayaanHMS.Data;
 
 /// <summary>
@@ -13,9 +15,52 @@ namespace SivayaanHMS.Data;
 ///
 /// The clinic is asked for once, at registration, and never again.
 /// </summary>
-public static class UserName
+public static partial class UserName
 {
     public const char Separator = '@';
+
+    /// <summary>
+    /// What a person may choose as the part before the clinic. Deliberately
+    /// narrower than the separator rule needs: no spaces or capitals, so a
+    /// username read aloud over a phone to a locked-out receptionist can only
+    /// be typed back one way. The separator itself is excluded — a local part
+    /// containing one would still resolve (TrySplit takes the last), but it
+    /// reads as an email address and invites people to type their email.
+    /// </summary>
+    [GeneratedRegex("^[a-z0-9][a-z0-9._-]{2,31}$")]
+    private static partial Regex ValidLocalPart();
+
+    /// <summary>
+    /// Checks a chosen local part and explains the rule when it fails, rather
+    /// than returning a bare false — this is read by someone mid-signup who
+    /// needs to know what to type instead.
+    /// </summary>
+    public static bool TryNormaliseLocalPart(string? raw, out string localPart, out string? error)
+    {
+        localPart = (raw ?? string.Empty).Trim().ToLowerInvariant();
+        error = null;
+
+        if (localPart.Length == 0)
+        {
+            error = "Choose a username.";
+            return false;
+        }
+
+        if (localPart.Contains(Separator))
+        {
+            error = $"Leave the '{Separator}' out — your clinic is added to your username automatically.";
+            return false;
+        }
+
+        if (!ValidLocalPart().IsMatch(localPart))
+        {
+            error = "A username is 3–32 characters: lowercase letters, numbers, dots, hyphens or underscores, " +
+                    "starting with a letter or number.";
+            return false;
+        }
+
+        return true;
+    }
 
     /// <summary>Builds the stored username from the part a person chooses
     /// and the clinic they belong to.</summary>

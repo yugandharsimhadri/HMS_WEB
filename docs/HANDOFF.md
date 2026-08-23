@@ -60,6 +60,29 @@ Diagnostics, Pediatrics, Dentist, Pathology Lab, Dashboard and Reports**.
 | Dashboard | `docs/PARITY_DASHBOARD.md` | 30 |
 | Reports | `docs/PARITY_REPORTS.md` | 46 |
 
+**Platform support** is also done, and is the one part with no desktop
+equivalent at all — a SaaS needs somebody who can put a locked-out clinic
+owner back in without being able to read that clinic's patients. See
+`docs/PLATFORM_ADMIN.md`; the short version is that `EnterpriseAdmin` signs in
+through the ordinary login page, lands on `/platform`, and can do exactly two
+things: reset a clinic admin's password and move a licence date. Its password
+is **not in the repo** — set it in the git-ignored
+`appsettings.Local.json` or via `PlatformAdmin__Password`, or the account
+simply cannot sign in.
+
+Two things there are worth knowing before touching auth:
+
+- `ClinicPolicy` is now the API's **default** authorization policy, so a bare
+  `[Authorize]` means "a signed-in user of *some clinic*". A support token
+  carries no tenant claim and fails it. Do not replace `[Authorize]` with
+  `[Authorize(Policy = ...)]` on a clinic controller without understanding
+  which of the two you are opting into.
+- A clinic signs up with a **full name** (may duplicate freely) and a short
+  **clinic code** (must be unique — it lives inside every username there).
+  Deriving the code from the name was the obvious shortcut and is wrong: it
+  refuses the second "City Hospital" on the platform for no reason a customer
+  would accept.
+
 Every PDF the desktop had is now ported. `SivayaanHMS.Printing` holds
 prescription, fee receipt, tax invoice, appointment slip, diagnostic bill,
 procedure bill, vaccination history, dental receipt, lab report, and the
@@ -216,6 +239,7 @@ with `PendingModelChangesWarning`.
 | File | When |
 |---|---|
 | `docs/PARITY_OPD_PHARMACY.md` | The pattern to copy — and the bug post-mortem |
+| `docs/PLATFORM_ADMIN.md` | The support identity: how to set its password, and what stops it reading clinic data |
 | `docs/architecture/SAAS_MIGRATION.md` | Why the port is shaped this way; what is still owed |
 | `docs/architecture/BUSINESS_RULES.md` | Invariants the system must enforce |
 | `docs/architecture/SERVICE_REFERENCE.md` | The nine domain services |
