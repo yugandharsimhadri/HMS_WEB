@@ -115,6 +115,15 @@ export const IconReports = (p: P) => (
   </svg>
 );
 
+export const IconMasters = (p: P) => (
+  <svg {...box} {...p}>
+    <path d="M3.4 7.2h17.2M3.4 12h17.2M3.4 16.8h17.2" />
+    <circle cx="8.4" cy="7.2" r="2" />
+    <circle cx="15.6" cy="12" r="2" />
+    <circle cx="8.4" cy="16.8" r="2" />
+  </svg>
+);
+
 export const IconSettings = (p: P) => (
   <svg {...box} {...p}>
     <circle cx="12" cy="12" r="3.1" />

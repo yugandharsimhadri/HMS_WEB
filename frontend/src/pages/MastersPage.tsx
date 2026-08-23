@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type {
   AnesthesiaTypeMaster, DentalPackageMaster, DentalReplacementMaster, GeneralSettings,
@@ -12,6 +12,8 @@ import { AnesthesiaTypeEditorDialog } from '../masters/AnesthesiaTypeEditorDialo
 import { LabAnalyteEditorDialog } from '../masters/LabAnalyteEditorDialog';
 import { LabReportEditorDialog } from '../masters/LabReportEditorDialog';
 import { LabPackageEditorDialog } from '../masters/LabPackageEditorDialog';
+import { ShortcutHints } from '../shell/ShortcutHints';
+import { useHotkey } from '../shell/hotkeys';
 
 type TabId =
   | 'vaccines' | 'procedures'
@@ -54,6 +56,17 @@ export function MastersPage() {
 
   // `undefined` = closed, `null` = new, a row = editing that row.
   const [editing, setEditing] = useState<unknown | undefined>(undefined);
+
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // F2 adds whatever the open tab is a master of, so one key covers all
+  // eight lists rather than each needing its own.
+  const G = 'Masters';
+  useHotkey('f2', 'Add to this master', G, () => setEditing(null));
+  useHotkey('f3', 'Search this master', G, () => {
+    searchRef.current?.focus();
+    searchRef.current?.select();
+  }, { whileTyping: true });
 
   useEffect(() => {
     void api.get<GeneralSettings>('/api/settings/general').then(setGeneral).catch(() => {});
@@ -167,9 +180,9 @@ export function MastersPage() {
         </div>
         <div className="inline-form">
           {tab !== 'anesthesia' && (
-            <input placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input ref={searchRef} placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
           )}
-          <button type="button" onClick={() => setEditing(null)}>{newLabel}</button>
+          <button type="button" className="primary" onClick={() => setEditing(null)}>{newLabel}</button>
         </div>
       </div>
 
@@ -421,6 +434,8 @@ export function MastersPage() {
           onSaved={afterSave}
         />
       )}
+
+      <ShortcutHints keys={[['f2', 'add'], ['f3', 'search']]} />
     </div>
   );
 }

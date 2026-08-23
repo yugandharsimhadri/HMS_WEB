@@ -849,6 +849,33 @@ tbody tr.row-flagged:hover { background: var(--c-warn-weak); }
 }
 .chips li button:hover { background: var(--c-crit-weak); color: var(--c-crit); }
 
+/* A filter, not navigation — the department pill on the procedure master
+   narrows one list rather than moving between screens, so it reads as a
+   toggle rather than a tab. (From the Masters screen; retoned onto the
+   current tokens, since the ones it was written against were renamed.) */
+.pill {
+  background: transparent;
+  color: var(--c-text-3);
+  border: 1px solid var(--c-line-strong);
+  border-radius: 999px;
+  height: var(--ctl-h);
+  padding: 0 13px;
+  font-size: 12.5px;
+  font-weight: 500;
+  box-shadow: none;
+}
+.pill:hover { background: var(--c-surface-3); color: var(--c-text); border-color: var(--c-line-strong); }
+.pill.active {
+  background: var(--c-accent);
+  border-color: var(--c-accent);
+  color: var(--c-accent-text);
+  font-weight: 600;
+}
+
+/* Dimmed, not hidden: a deactivated master still has to be findable, since
+   reactivating it is the only way back. */
+.row-inactive td { opacity: 0.55; }
+
 /* Dialogs */
 .overlay {
   position: fixed;

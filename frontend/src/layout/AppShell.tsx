@@ -9,7 +9,8 @@ import { ANYWHERE, describeCombo, useHotkey } from '../shell/hotkeys';
 import {
   IconCalendar, IconDashboard, IconDensity, IconDentist, IconDiagnostics, IconHelp,
   IconInventory, IconKey, IconLab, IconMedicines, IconMoon, IconPatients, IconPediatrics,
-  IconPharmacy, IconQueue, IconReports, IconSearch, IconSettings, IconSignOut, IconSun,
+  IconMasters, IconPharmacy, IconQueue, IconReports, IconSearch, IconSettings, IconSignOut,
+  IconSun,
 } from '../shell/icons';
 
 /** Where the local overrides live. The clinic's own default still comes from
@@ -110,6 +111,10 @@ export function AppShell() {
       { to: '/inventory', label: 'Inventory', group: 'Go to', icon: IconInventory, show: general?.pharmacyEnabled !== false, end: false, keywords: 'stock batch expiry' },
       { sep: true as const, show: true },
       { to: '/reports', label: 'Reports', group: 'Go to', icon: IconReports, show: true, end: false, keywords: 'gst export excel' },
+      // Next to Settings rather than inside it: masters are set up in one
+      // sitting, then edited occasionally for years, which is a different
+      // job from configuring the clinic once.
+      { to: '/masters', label: 'Masters', group: 'Go to', icon: IconMasters, show: true, end: false, keywords: 'vaccine procedure package analyte anaesthesia replacement' },
       { to: '/settings', label: 'Settings', group: 'Go to', icon: IconSettings, show: true, end: false, keywords: 'features doctors clinic' },
     ];
   }, [general]);
