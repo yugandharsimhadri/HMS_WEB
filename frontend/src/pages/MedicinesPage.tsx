@@ -15,6 +15,8 @@ export function MedicinesPage() {
   const [search, setSearch] = useState('');
   const [products, setProducts] = useState<Product[]>([]);
   const [editing, setEditing] = useState<Product | null | undefined>(undefined); // undefined = closed
+  /** The medicine whose shared details a new strength is being copied from. */
+  const [basedOn, setBasedOn] = useState<Product | null>(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -65,7 +67,7 @@ export function MedicinesPage() {
         <table>
           <thead>
             <tr>
-              <th>Name</th><th>Maker</th><th>Pack</th><th>Rack</th><th>Per pack</th>
+              <th>Name</th><th>Strength</th><th>Maker</th><th>Pack</th><th>Rack</th><th>Per pack</th>
               <th>GST</th><th>Schedule</th><th>Stock</th><th></th>
             </tr>
           </thead>
@@ -77,6 +79,7 @@ export function MedicinesPage() {
                   {!p.isActive && <span className="hint"> · inactive</span>}
                   {p.genericName && <div className="hint">{p.genericName}</div>}
                 </td>
+                <td>{p.strength ?? ''}</td>
                 <td>{p.manufacturer ?? ''}</td>
                 <td>{p.packSize ?? ''}</td>
                 {/* Where it physically is. The desktop carries it here
@@ -89,12 +92,18 @@ export function MedicinesPage() {
                 <td>{p.gstRate}%</td>
                 <td>{p.schedule === 'None' ? '' : p.schedule}</td>
                 <td>{p.stockOnHand}</td>
-                <td>
+                <td className="row-actions">
                   <button type="button" className="ghost" onClick={() => setEditing(p)}>Edit</button>
+                  {/* The common case after adding one strength is adding the
+                      next. This carries over everything the variants share so
+                      only the strength and pack have to be typed. */}
+                  <button type="button" className="ghost" onClick={() => setBasedOn(p)}>
+                    + Another strength
+                  </button>
                 </td>
               </tr>
             ))}
-            {products.length === 0 && <tr><td colSpan={8}>No medicines match.</td></tr>}
+            {products.length === 0 && <tr><td colSpan={10}>No medicines match.</td></tr>}
           </tbody>
         </table>
       </section>
@@ -108,6 +117,24 @@ export function MedicinesPage() {
           onSaved={async (message) => {
             setEditing(undefined);
             await find(search);
+            setStatus(message);
+          }}
+        />
+      )}
+
+      {basedOn && (
+        <MedicineEditorDialog
+          existing={null}
+          basedOn={basedOn}
+          onClose={() => setBasedOn(null)}
+          onSaved={async (message) => {
+            setBasedOn(null);
+            // Searched by the drug rather than left on the old filter, so the
+            // new strength appears next to its siblings — which is the whole
+            // point of having added it.
+            const term = basedOn.genericName || basedOn.name;
+            setSearch(term);
+            await find(term);
             setStatus(message);
           }}
         />

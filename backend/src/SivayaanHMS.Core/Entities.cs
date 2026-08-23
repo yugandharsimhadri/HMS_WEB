@@ -353,6 +353,30 @@ public class Product : BaseEntity
     /// </summary>
     public string? Storage { get; set; }
 
+    /// <summary>
+    /// How much of the drug is in one unit — "5 mg", "10 mg", "50 mg/5 ml".
+    ///
+    /// Its own field rather than part of the name, because one drug in five
+    /// strengths is the normal case and the name alone cannot order them: a
+    /// plain alphabetical sort puts "Cetirizine 10mg" above "Cetirizine 5mg",
+    /// which puts the adult dose at the top of the list a counter picks a
+    /// child's dose from. <see cref="StrengthValue"/> is what fixes that.
+    ///
+    /// Each strength stays its own Product. Batches, MRP, GST, HSN and stock
+    /// are all per-strength, so a parent "Cetirizine" record would own nothing
+    /// and could not be dispensed.
+    /// </summary>
+    public string? Strength { get; set; }
+
+    /// <summary>
+    /// The leading number in <see cref="Strength"/>, for ordering — 5 from
+    /// "5 mg", 100 from "100 ml". Null when there is no number to find.
+    ///
+    /// Stored rather than computed so the database can sort by it; SQLite
+    /// cannot order by a C# expression. Kept in step in PharmacyService.
+    /// </summary>
+    public decimal? StrengthValue { get; set; }
+
     /// <summary>Printed pack, e.g. "10 TAB" or "100 ML". Free text — shops describe packs their own way.</summary>
     public string? PackSize { get; set; }
 
@@ -401,16 +425,23 @@ public class Product : BaseEntity
     /// </summary>
     public string SearchKey { get; set; } = "";
 
-    public static string KeyFor(string? name, string? manufacturer, string? packSize)
+    /// <summary>
+    /// Strength is part of the key, and has to be: a clinic that names all
+    /// five Cetirizine records "Cetirizine" and separates them by strength
+    /// alone would otherwise have the second one refused as a duplicate of
+    /// the first. Two records genuinely identical in name, maker, pack *and*
+    /// strength really are the same medicine twice.
+    /// </summary>
+    public static string KeyFor(string? name, string? manufacturer, string? packSize, string? strength = null)
     {
         static string Norm(string? value) =>
             string.Join(' ', (value ?? "").Trim().ToLowerInvariant()
                                           .Split(' ', StringSplitOptions.RemoveEmptyEntries));
 
-        return $"{Norm(name)}|{Norm(manufacturer)}|{Norm(packSize)}";
+        return $"{Norm(name)}|{Norm(manufacturer)}|{Norm(packSize)}|{Norm(strength)}";
     }
 
-    public string BuildKey() => KeyFor(Name, Manufacturer, PackSize);
+    public string BuildKey() => KeyFor(Name, Manufacturer, PackSize, Strength);
 
     public ICollection<Batch> Batches { get; set; } = [];
 

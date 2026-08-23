@@ -170,7 +170,7 @@ export function InventoryPage() {
           <h2>Medicines</h2>
           <table>
             <thead>
-              <tr><th>Name</th><th>Maker</th><th>Pack</th><th>Per pack</th><th>On hand</th><th>Rack</th></tr>
+              <tr><th>Name</th><th>Strength</th><th>Maker</th><th>Pack</th><th>Per pack</th><th>On hand</th><th>Rack</th></tr>
             </thead>
             <tbody>
               {products.map((p) => (
@@ -180,6 +180,7 @@ export function InventoryPage() {
                   className={selected?.id === p.id ? 'selected-row' : undefined}
                 >
                   <td>{p.name}</td>
+                  <td>{p.strength ?? ""}</td>
                   <td>{p.manufacturer ?? ''}</td>
                   <td>{p.packSize ?? ''}</td>
                   <td>{p.unitsPerPack}</td>
@@ -187,7 +188,7 @@ export function InventoryPage() {
                   <td>{p.rackLocation ?? ''}</td>
                 </tr>
               ))}
-              {products.length === 0 && <tr><td colSpan={6}>No medicines match.</td></tr>}
+              {products.length === 0 && <tr><td colSpan={7}>No medicines match.</td></tr>}
             </tbody>
           </table>
         </section>

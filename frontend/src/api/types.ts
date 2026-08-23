@@ -269,6 +269,12 @@ export interface Product {
   manufacturer: string | null;
   composition: string | null;
   storage: string | null;
+  /** "5 mg", "100 ml". Its own field so five strengths of one drug can be
+   * told apart at a counter, and sorted 5 before 10 rather than "10" first
+   * because "1" sorts before "5". */
+  strength: string | null;
+  /** The leading number in `strength` — what the server actually sorts by. */
+  strengthValue: number | null;
   packSize: string | null;
   unitsPerPack: number;
   allowLooseSale: boolean;
@@ -942,4 +948,9 @@ export interface CatalogueEntry {
   schedule: DrugSchedule;
   stockOnHand: number;
   nextBatchMrp: number | null;
+  /** "5 mg", "100 ml". Its own field so five strengths of one drug can be
+   * told apart, and sorted 5 before 10 rather than alphabetically. */
+  strength: string | null;
+  /** The leading number in `strength`, which the server sorts by. */
+  strengthValue: number | null;
 }

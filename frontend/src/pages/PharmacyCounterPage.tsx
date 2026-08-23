@@ -619,7 +619,13 @@ export function PharmacyCounterPage() {
                   onMouseEnter={() => setHighlight(i)}
                   onClick={() => pick(p)}
                 >
-                  {p.name} {p.packSize ? `(${p.packSize})` : ''} — stock {p.stockOnHand}
+                  {/* Strength in bold and ahead of the pack: it is the one
+                      thing that distinguishes five Cetirizine rows from each
+                      other, and picking the wrong one is a wrong dose rather
+                      than a wrong price. */}
+                  {p.name}
+                  {p.strength && <strong> {p.strength}</strong>}
+                  {p.packSize ? ` (${p.packSize})` : ''} — stock {p.stockOnHand}
                   {p.schedule !== 'None' && <span className="hint"> · Schedule {p.schedule}</span>}
                 </button>
               </li>

@@ -5,6 +5,17 @@ import { DISPENSING_UNITS, unitsFromPacking, unitWordFor } from './packing';
 
 interface Props {
   existing: Product | null;
+  /**
+   * A medicine to copy the shared details from, when adding another strength
+   * or pack of something already in the catalogue.
+   *
+   * Everything that is true of every variant — the drug, the maker, the
+   * composition, storage, GST, HSN, schedule, rack — carries over. What
+   * differs between variants is left blank, because those are the fields
+   * somebody is actually here to type. Saved as a new medicine: each strength
+   * is its own record, with its own batches and stock.
+   */
+  basedOn?: Product | null;
   onClose: () => void;
   onSaved: (message: string) => void;
 }
@@ -19,19 +30,31 @@ interface RepackPreview {
 
 const SCHEDULES: DrugSchedule[] = ['None', 'H', 'H1', 'X'];
 
-export function MedicineEditorDialog({ existing, onClose, onSaved }: Props) {
-  const [name, setName] = useState(existing?.name ?? '');
-  const [genericName, setGenericName] = useState(existing?.genericName ?? '');
-  const [manufacturer, setManufacturer] = useState(existing?.manufacturer ?? '');
-  const [composition, setComposition] = useState(existing?.composition ?? '');
-  const [storage, setStorage] = useState(existing?.storage ?? '');
+export function MedicineEditorDialog({ existing, basedOn, onClose, onSaved }: Props) {
+  // What every variant of one drug shares, so adding a second strength does
+  // not mean retyping the maker, composition, GST and schedule.
+  const seed = existing ?? basedOn ?? null;
+
+  const [name, setName] = useState(seed?.name ?? '');
+  const [genericName, setGenericName] = useState(seed?.genericName ?? '');
+  const [manufacturer, setManufacturer] = useState(seed?.manufacturer ?? '');
+  const [composition, setComposition] = useState(seed?.composition ?? '');
+  const [storage, setStorage] = useState(seed?.storage ?? '');
+
+  // The two that differ between variants start blank when copying — they are
+  // the fields somebody opened this to type.
+  const [strength, setStrength] = useState(existing?.strength ?? '');
   const [packSize, setPackSize] = useState(existing?.packSize ?? '');
-  const [hsnCode, setHsnCode] = useState(existing?.hsnCode ?? '3004');
-  const [gstRate, setGstRate] = useState(String(existing?.gstRate ?? 0));
-  const [schedule, setSchedule] = useState<DrugSchedule>(existing?.schedule ?? 'None');
-  const [rackLocation, setRackLocation] = useState(existing?.rackLocation ?? '');
-  const [reorderLevel, setReorderLevel] = useState(String(existing?.reorderLevel ?? 0));
-  const [isActive, setIsActive] = useState(existing?.isActive ?? true);
+
+  const [hsnCode, setHsnCode] = useState(seed?.hsnCode ?? '3004');
+  const [gstRate, setGstRate] = useState(String(seed?.gstRate ?? 0));
+  const [schedule, setSchedule] = useState<DrugSchedule>(seed?.schedule ?? 'None');
+  const [rackLocation, setRackLocation] = useState(seed?.rackLocation ?? '');
+  const [reorderLevel, setReorderLevel] = useState(String(seed?.reorderLevel ?? 0));
+  const [isActive, setIsActive] = useState(seed?.isActive ?? true);
+
+  // Not copied: units-per-pack and the dispensing unit follow the pack, and a
+  // syrup copied from a tablet must not inherit "15 per pack".
   const [unitsPerPack, setUnitsPerPack] = useState(existing?.unitsPerPack ?? 1);
   const [allowLooseSale, setAllowLooseSale] = useState(existing?.allowLooseSale ?? true);
   const [dispensingUnit, setDispensingUnit] = useState<DispensingUnit>(existing?.dispensingUnit ?? 'Tablet');
@@ -90,6 +113,7 @@ export function MedicineEditorDialog({ existing, onClose, onSaved }: Props) {
         manufacturer: manufacturer.trim() || null,
         composition: composition.trim() || null,
         storage: storage.trim() || null,
+        strength: strength.trim() || null,
         packSize: packSize.trim() || null,
         hsnCode: hsnCode.trim() || '3004',
         gstRate: Number(gstRate) || 0,
@@ -166,7 +190,11 @@ export function MedicineEditorDialog({ existing, onClose, onSaved }: Props) {
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Medicine">
       <div className="overlay-card wide">
         <div className="overlay-head">
-          <h2>{existing ? `Medicine — ${existing.name}` : 'New medicine'}</h2>
+          <h2>
+            {existing ? `Medicine — ${existing.name}`
+              : basedOn ? `Another strength or pack of ${basedOn.name}`
+              : 'New medicine'}
+          </h2>
           <button type="button" className="ghost" onClick={onClose}>Close</button>
         </div>
 
@@ -184,6 +212,17 @@ export function MedicineEditorDialog({ existing, onClose, onSaved }: Props) {
           </div>
 
           <div className="settings-row">
+            {/* Its own field rather than part of the name, so five strengths
+                of one drug can be told apart and sorted 5 before 10 — see
+                Product.Strength. */}
+            <label>
+              Strength
+              <input
+                placeholder="e.g. 5 mg, 100 ml, 250mg/5ml"
+                value={strength}
+                onChange={(e) => setStrength(e.target.value)}
+              />
+            </label>
             <label>Pack size<input placeholder="e.g. 15 TAB" value={packSize} onChange={(e) => setPackSize(e.target.value)} /></label>
             <label>
               Units in one pack

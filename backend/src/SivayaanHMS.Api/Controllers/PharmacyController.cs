@@ -19,10 +19,13 @@ public record SaveSaleRequest(SaleHeaderRequest Sale, List<SaleLine> Lines);
 
 /// <summary>What the medicine editor may set — the catalogue fields and
 /// nothing else.</summary>
+/// <summary><paramref name="Strength"/> is its own field, not part of the
+/// name: one drug in five strengths is the normal case, and the name alone
+/// cannot order them — see Product.Strength.</summary>
 public record SaveProductRequest(
     Guid? Id, string Name, string? GenericName, string? Manufacturer, string? Composition,
-    string? Storage, string? PackSize, string HsnCode, decimal GstRate, DrugSchedule Schedule,
-    string? RackLocation, int ReorderLevel, bool IsActive, int UnitsPerPack,
+    string? Storage, string? Strength, string? PackSize, string HsnCode, decimal GstRate,
+    DrugSchedule Schedule, string? RackLocation, int ReorderLevel, bool IsActive, int UnitsPerPack,
     bool AllowLooseSale, DispensingUnit DispensingUnit);
 public record QuickAddStockRequest(int Packs, decimal Mrp, string? BatchNo, DateTime? Expiry, decimal PurchaseRate);
 
@@ -89,6 +92,7 @@ public class PharmacyController(PharmacyService pharmacy) : ControllerBase
         product.Manufacturer = NullIfBlank(request.Manufacturer);
         product.Composition = NullIfBlank(request.Composition);
         product.Storage = NullIfBlank(request.Storage);
+        product.Strength = NullIfBlank(request.Strength);
         product.PackSize = NullIfBlank(request.PackSize);
         product.HsnCode = string.IsNullOrWhiteSpace(request.HsnCode) ? "3004" : request.HsnCode.Trim();
         product.GstRate = request.GstRate;

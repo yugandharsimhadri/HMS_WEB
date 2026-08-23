@@ -58,6 +58,12 @@ public class CatalogueEntry
     public string Name { get; init; } = string.Empty;
     public string? GenericName { get; init; }
     public string? Manufacturer { get; init; }
+
+    /// <summary>Carried into every picker: strength is what tells five
+    /// Cetirizine rows apart, and picking the wrong one is a wrong dose.</summary>
+    public string? Strength { get; init; }
+    public decimal? StrengthValue { get; init; }
+
     public string? PackSize { get; init; }
     public int UnitsPerPack { get; init; }
     public bool AllowLooseSale { get; init; }
@@ -89,10 +95,24 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
             q = q.Where(p => EF.Functions.Like(p.Name, pattern)
                           || (p.GenericName != null && EF.Functions.Like(p.GenericName, pattern))
                           || (p.Manufacturer != null && EF.Functions.Like(p.Manufacturer, pattern))
+                          || (p.Strength != null && EF.Functions.Like(p.Strength, pattern))
                           || (p.RackLocation != null && EF.Functions.Like(p.RackLocation, pattern)));
         }
 
-        return await q.OrderBy(p => p.Name).Take(take).ToListAsync();
+        // Name, then strength *numerically*, then pack.
+        //
+        // Ordering by name alone put "Cetirizine 10mg" above "Cetirizine 5mg",
+        // because "1" sorts before "5" — the adult dose at the top of the list
+        // a counter picks a child's dose from. StrengthValue is what makes the
+        // weaker one come first. Rows with no strength sort last, since a null
+        // is not a zero-strength medicine.
+        return await q
+            .OrderBy(p => p.Name)
+            .ThenBy(p => p.StrengthValue == null)
+            .ThenBy(p => p.StrengthValue)
+            .ThenBy(p => p.PackSize)
+            .Take(take)
+            .ToListAsync();
     }
 
     public async Task SaveProductAsync(Product product)
@@ -115,6 +135,11 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
 
         product.SearchKey = key;
 
+        // Kept in step here rather than computed on read, because the database
+        // has to be able to sort by it and SQLite cannot order by a C#
+        // expression.
+        product.StrengthValue = StrengthParser.Value(product.Strength);
+
         if (product.Id != Guid.Empty && await db.Products.AnyAsync(p => p.Id == product.Id))
         {
             var existing = await db.Products.FirstAsync(p => p.Id == product.Id);
@@ -125,6 +150,8 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
             existing.Composition = product.Composition;
             existing.Storage = product.Storage;
             existing.PackSize = product.PackSize;
+            existing.Strength = product.Strength;
+            existing.StrengthValue = product.StrengthValue;
             existing.HsnCode = product.HsnCode;
             existing.GstRate = product.GstRate;
             existing.Schedule = product.Schedule;
@@ -815,13 +842,20 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
 
         return await db.Products.AsNoTracking()
             .Where(p => !p.IsDeleted && p.IsActive)
+            // Same ordering as the counter search, and for the same reason:
+            // 5 mg has to come before 10 mg wherever a dose is picked.
             .OrderBy(p => p.Name)
+            .ThenBy(p => p.StrengthValue == null)
+            .ThenBy(p => p.StrengthValue)
+            .ThenBy(p => p.PackSize)
             .Select(p => new CatalogueEntry
             {
                 Id = p.Id,
                 Name = p.Name,
                 GenericName = p.GenericName,
                 Manufacturer = p.Manufacturer,
+                Strength = p.Strength,
+                StrengthValue = p.StrengthValue,
                 PackSize = p.PackSize,
                 UnitsPerPack = p.UnitsPerPack,
                 AllowLooseSale = p.AllowLooseSale,
