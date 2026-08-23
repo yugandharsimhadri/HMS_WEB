@@ -13,7 +13,24 @@ eight master editors have since been built — see 1.2).
 
 ## 1. Blocking for a real clinic
 
-### 1.1 No user management — a clinic cannot give staff a login
+### 1.1 ~~No user management~~ — **DONE**
+
+*Closed. Settings → Staff logins, Admin-only via `ClinicAdminPolicy`.*
+
+Two things worth carrying forward from building it:
+
+- The admin-only gate needed a **new policy**, not `[Authorize(Roles = "Admin")]`.
+  A bare `Roles` attribute *replaces* the default clinic policy rather than
+  adding to it, which would have dropped the tenant requirement that keeps a
+  support token out. `ClinicAdminPolicy` requires both.
+- It surfaced a **guard that had silently died**: `SaveUserAsync` compared the
+  whole username against `"EnterpriseAdmin"`, which stopped matching anything
+  once usernames gained their `@clinic` suffix, so `enterpriseadmin@twinkle`
+  was accepted. It granted nothing — support is matched before any tenant is
+  resolved — but existed only to be mistaken for the support account. Now
+  checks the local part, pinned by `ReservedUsernameTests`.
+
+The original finding, kept for the reasoning:
 
 Registration creates exactly one Admin. There is no second account and no way
 to make one.
@@ -82,7 +99,19 @@ missed is that the *data* was ported faithfully — only the two ends were not.
 
 ---
 
-## 2. Ported but unreachable
+## 2. ~~Ported but unreachable~~ — **DONE**
+
+*Both closed. Settings → Data health, and Inventory → Import a bill.*
+
+Import is **two uploads of the same file**, not a cached preview: the server
+re-parses on commit so what it writes is always something it derived itself.
+Data health repair takes **product ids only** and re-scans server-side —
+posting findings back would let a caller name any units-per-pack it liked and
+have stock repacked to it.
+
+Both are Admin-only; each moves stock in bulk.
+
+The original finding:
 
 Both services are registered in `Program.cs` and called by nothing — dead DI
 registrations. The hard part (parsing, diagnosis logic) is already done; each
@@ -134,11 +163,15 @@ commitment, and right now nothing anywhere makes it.
 ## Suggested order
 
 1. ~~**Masters**~~ — done.
-2. **User management** — blocks multi-staff use, which is most clinics.
-3. **Logo** (upload + printing) — visible on every document a clinic hands a
-   patient.
-4. **Data health**, then **bill import**.
-5. Dark theme, About.
+2. ~~**User management**~~ — done.
+3. ~~**Data health**, **bill import**~~ — done.
+4. ~~Dark theme~~ — done (Ctrl+J; `GeneralSettings.Theme` is finally read).
+5. **Logo** (upload + printing) — the last customer-visible gap: it is on
+   every document a clinic hands a patient.
+6. About screen.
+
+Still open beyond this list: **backup/export** (section 4), which is a
+policy decision rather than a queue item.
 
 Backup/export should be decided in parallel — it is a policy question, not a
 queue item.

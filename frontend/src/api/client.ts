@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL as string;
+export const API_URL = import.meta.env.VITE_API_URL as string;
 const TOKEN_KEY = 'sivayaanhms.token';
 
 export function getToken(): string | null {

@@ -6,8 +6,9 @@ import type {
 } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { StaffEditorDialog } from '../settings/StaffEditorDialog';
+import { DataHealthTab } from '../settings/DataHealthTab';
 
-type Tab = 'clinic' | 'pharmacy' | 'doctors' | 'staff' | 'branding' | 'modules';
+type Tab = 'clinic' | 'pharmacy' | 'doctors' | 'staff' | 'branding' | 'modules' | 'health';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'clinic', label: 'Clinic' },
@@ -19,6 +20,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'staff', label: 'Staff logins' },
   { id: 'branding', label: 'Document branding' },
   { id: 'modules', label: 'Features' },
+  { id: 'health', label: 'Data health' },
 ];
 
 function SavedNotice({ shown }: { shown: boolean }) {
@@ -60,6 +62,7 @@ export function SettingsPage() {
       {tab === 'staff' && <StaffTab />}
       {tab === 'branding' && <BrandingTab />}
       {tab === 'modules' && <ModulesTab />}
+      {tab === 'health' && <DataHealthTab />}
     </div>
   );
 }

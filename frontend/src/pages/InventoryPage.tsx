@@ -4,6 +4,7 @@ import type { Batch, Product } from '../api/types';
 import { unitsFromPacking, unitWordFor } from '../pharmacy/packing';
 import { ReceiveStockDialog } from '../pharmacy/ReceiveStockDialog';
 import { CorrectStockDialog } from '../pharmacy/CorrectStockDialog';
+import { ImportBillDialog } from '../pharmacy/ImportBillDialog';
 import { useHotkey } from '../shell/hotkeys';
 import { ShortcutHints } from '../shell/ShortcutHints';
 
@@ -35,6 +36,7 @@ export function InventoryPage() {
 
   const [receiving, setReceiving] = useState(false);
   const [correcting, setCorrecting] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   const searchRef = useRef<HTMLInputElement>(null);
 
@@ -133,6 +135,11 @@ export function InventoryPage() {
             onClick={() => (selected ? setReceiving(true) : setStatus('Choose the medicine you are receiving.'))}
           >
             Receive stock
+          </button>
+          {/* Next to Receive stock because it is the same job done in bulk —
+              a delivery of two hundred lines is not one somebody keys in. */}
+          <button type="button" className="ghost" onClick={() => setImporting(true)}>
+            Import a bill
           </button>
           <button
             type="button"
@@ -260,6 +267,22 @@ export function InventoryPage() {
             setSearch('');
             await find('');
             setStatus(`${message} The screen is clear for the next line.`);
+          }}
+        />
+      )}
+
+      {importing && (
+        <ImportBillDialog
+          onClose={() => setImporting(false)}
+          onImported={async (message) => {
+            setImporting(false);
+            // A bill can touch two hundred medicines, so nothing narrower
+            // than a full reload would show what actually changed.
+            setSelected(null);
+            setSearch('');
+            await find('');
+            await loadAdjustments();
+            setStatus(message);
           }}
         />
       )}

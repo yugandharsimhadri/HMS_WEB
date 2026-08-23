@@ -15,6 +15,92 @@ export interface RegisterTenantResponse {
   adminUsername: string;
 }
 
+// ── Data health ─────────────────────────────────────────────────────────
+
+export type HealthProblem =
+  | 'PackSizeDisagrees' | 'BatchPackDisagrees' | 'UnitNotSet' | 'Duplicate';
+
+export interface HealthFinding {
+  productId: string;
+  productName: string;
+  problem: HealthProblem;
+  problemLabel: string;
+  current: string;
+  proposed: string;
+  explanation: string;
+  quantityBefore: number;
+  quantityAfter: number;
+  /** The one to read first — a repair that moves a count is a different
+   * decision from one that only relabels. */
+  changesStock: boolean;
+  /** False for duplicates: which of two records to keep is a judgement about
+   * the clinic's own catalogue. */
+  canRepairAutomatically: boolean;
+}
+
+export interface RepairResult {
+  repaired: number;
+  remainingFindings: number;
+}
+
+// ── Purchase bill import ────────────────────────────────────────────────
+
+export interface ImportProfile {
+  id: string;
+  name: string;
+}
+
+export type ImportSeverity = 'Info' | 'Warning' | 'Error';
+
+export interface ImportIssue {
+  severity: ImportSeverity;
+  line: number;
+  field: string;
+  message: string;
+}
+
+export interface ImportLine {
+  sourceLine: number;
+  productName: string;
+  packSize: string | null;
+  batchNo: string;
+  expiry: string;
+  quantity: number;
+  freeQuantity: number;
+  rate: number;
+  mrp: number;
+  status: string;
+  unitsPerPack: number;
+  /** Nobody stated the pack size, so `unitsReceived` is a guess — and a wrong
+   * guess prices singles as whole packs. */
+  unitsAssumed: boolean;
+  unitsReceived: number;
+}
+
+export interface ImportPreview {
+  fileName: string;
+  profileName: string;
+  billNo: string;
+  billDate: string;
+  supplierName: string | null;
+  netAmount: number;
+  alreadyImported: boolean;
+  blockedReason: string | null;
+  canImport: boolean;
+  newMedicines: number;
+  needsChecking: number;
+  totalUnits: number;
+  lines: ImportLine[];
+  issues: ImportIssue[];
+}
+
+export interface ImportResult {
+  entryNo: string;
+  lines: number;
+  productsCreated: number;
+  unitsAdded: number;
+}
+
 // ── Staff logins (a clinic's own users) ─────────────────────────────────
 
 export type UserRole = 'Admin' | 'Doctor' | 'Pharmacy' | 'Diagnosis';
