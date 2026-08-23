@@ -834,3 +834,10 @@ button.kpi:hover { border-color: var(--accent, #0f766e); }
 .donut-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .donut-legend li { display: flex; align-items: center; gap: 8px; font-size: 14px; }
 .donut-legend .swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+/* A report row worth noticing — expired stock, say. The row also carries the
+   reason in words in its own column, so this tint is reinforcement and never
+   the only signal. */
+tbody tr.row-flagged {
+  background: var(--danger-bg, #fdeceb);
+}

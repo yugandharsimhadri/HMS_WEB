@@ -85,3 +85,40 @@ export const api = {
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
 };
+
+/**
+ * Downloads a server-generated file (a workbook, say) under its own name.
+ *
+ * Not `window.open`: these endpoints are behind `[Authorize]` and a plain
+ * navigation carries no Authorization header. Not `openPdf` either — that
+ * hands the bytes to the browser's viewer, which is right for a PDF and
+ * useless for an .xlsx. This fetches with the token and drives a download,
+ * taking the filename from the server's Content-Disposition so the file is
+ * named the same way the desktop names it.
+ */
+export async function downloadFile(path: string, fallbackName: string): Promise<void> {
+  const token = getToken();
+  const headers = new Headers();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+
+  const response = await fetch(`${API_URL}${path}`, { headers });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new ApiError(text || response.statusText, response.status);
+  }
+
+  const disposition = response.headers.get('content-disposition') ?? '';
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  const name = match ? decodeURIComponent(match[1]) : fallbackName;
+
+  const url = URL.createObjectURL(await response.blob());
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = name;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}

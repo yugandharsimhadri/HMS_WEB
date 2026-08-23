@@ -1,0 +1,493 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using SivayaanHMS.Core;
+using SivayaanHMS.Data;
+using SivayaanHMS.Printing;
+
+namespace SivayaanHMS.Api.Controllers;
+
+/// <summary>The summary cards above the day book — collected, split by mode,
+/// and the OPD side, which is not pharmacy revenue and never mixed into it.</summary>
+public record DayBookSummary(
+    decimal TotalCollected, decimal CashTotal, decimal UpiTotal,
+    decimal TaxableTotal, decimal CgstTotal, decimal SgstTotal, decimal NetTotal,
+    decimal ConsultationTotal, int VisitCount);
+
+/// <summary>
+/// The clinic's own working reports: a day book, a GST summary, an OPD
+/// register, four stock views and the Schedule H1 register.
+///
+/// Every report is built as one <see cref="ReportTable"/> and handed to
+/// whichever renderer is asked for — the screen, a PDF, or a workbook. The
+/// desktop keeps a bespoke builder per report for each of those three
+/// surfaces and a comment explaining that their naming is shared "so both
+/// always agree with what is on screen"; building the rows once means they
+/// cannot disagree at all.
+/// </summary>
+[ApiController]
+[Authorize]
+[Route("api/reports")]
+public class ReportsController(
+    PharmacyService pharmacy,
+    OpdService opd,
+    DiagnosticsService diagnostics,
+    SettingsService settings) : ControllerBase
+{
+    // ── The report itself ──────────────────────────────────────────────────
+
+    [HttpGet("{kind}")]
+    public async Task<ActionResult<ReportTable>> Get(
+        ReportKind kind,
+        [FromQuery] DateTime? date, [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] int expiringDays = 90,
+        [FromQuery] bool includeZeroStock = false,
+        [FromQuery] string? search = null)
+        => Ok(await BuildAsync(kind, date ?? DateTime.Today, from ?? DateTime.Today, to ?? DateTime.Today,
+                               expiringDays, includeZeroStock, search));
+
+    /// <summary>The cards above the day book. Separate from the table because
+    /// they are not rows of it — and because the OPD figure deliberately sits
+    /// beside pharmacy revenue rather than inside it.</summary>
+    [HttpGet("day-book/summary")]
+    public async Task<ActionResult<DayBookSummary>> DayBookSummaryFor([FromQuery] DateTime? date)
+    {
+        var on = date ?? DateTime.Today;
+
+        var completed = (await pharmacy.GetSalesAsync(on))
+            .Where(s => s.Status == SaleStatus.Completed)
+            .ToList();
+        var visits = await opd.GetVisitsAsync(on);
+
+        var collected = completed.Sum(s => s.NetAmount);
+
+        return Ok(new DayBookSummary(
+            collected,
+            completed.Where(s => s.PaymentMode == PaymentMode.Cash).Sum(s => s.NetAmount),
+            completed.Where(s => s.PaymentMode == PaymentMode.Upi).Sum(s => s.NetAmount),
+            completed.Sum(s => s.TaxableAmount),
+            completed.Sum(s => s.CgstAmount),
+            completed.Sum(s => s.SgstAmount),
+            collected,
+            visits.Where(v => v.FeePaid).Sum(v => v.Fee),
+            visits.Count(v => v.Status != VisitStatus.Cancelled)));
+    }
+
+    /// <summary>
+    /// Looks a bill up across every date. A walk-in coming back for a copy
+    /// rarely remembers which day they bought on — only the name or the
+    /// number.
+    /// </summary>
+    [HttpGet("find-bill")]
+    public async Task<ActionResult<ReportTable>> FindBill([FromQuery] string? term)
+    {
+        if (string.IsNullOrWhiteSpace(term))
+            return Ok(await BuildAsync(ReportKind.DayBook, DateTime.Today, DateTime.Today, DateTime.Today, 90, false, null));
+
+        var sales = await pharmacy.SearchSalesAsync(term);
+        return Ok(new ReportTable(
+            ReportKind.DayBook,
+            "Day Book",
+            $"{sales.Count} bill(s) matching “{term}”, across all dates",
+            DayBookColumns(),
+            sales.OrderByDescending(s => s.BillDate).Select(DayBookRow).ToList(),
+            []));
+    }
+
+    // ── Exports ────────────────────────────────────────────────────────────
+
+    [HttpGet("{kind}/pdf")]
+    public async Task<IActionResult> Pdf(
+        ReportKind kind,
+        [FromQuery] DateTime? date, [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] int expiringDays = 90,
+        [FromQuery] bool includeZeroStock = false,
+        [FromQuery] string? search = null)
+    {
+        if (kind == ReportKind.StockRegister)
+            return BadRequest("PDF export is not available for the Stock Register — use Export Excel instead.");
+
+        var d = date ?? DateTime.Today;
+        var f = from ?? DateTime.Today;
+        var t = to ?? DateTime.Today;
+
+        var table = await BuildAsync(kind, d, f, t, expiringDays, includeZeroStock, search);
+        if (table.Rows.Count == 0) return BadRequest("No data available to export.");
+
+        var clinic = await settings.GetClinicAsync();
+        return File(ReportPdfBuilder.Generate(table, clinic.Name), "application/pdf",
+                    ReportNaming.FileName(kind, d, f, t, "pdf"));
+    }
+
+    [HttpGet("{kind}/excel")]
+    public async Task<IActionResult> Excel(
+        ReportKind kind,
+        [FromQuery] DateTime? date, [FromQuery] DateTime? from, [FromQuery] DateTime? to,
+        [FromQuery] int expiringDays = 90,
+        [FromQuery] bool includeZeroStock = false,
+        [FromQuery] string? search = null)
+    {
+        var d = date ?? DateTime.Today;
+        var f = from ?? DateTime.Today;
+        var t = to ?? DateTime.Today;
+
+        var table = await BuildAsync(kind, d, f, t, expiringDays, includeZeroStock, search);
+        if (table.Rows.Count == 0) return BadRequest("No data available to export.");
+
+        var clinic = await settings.GetClinicAsync();
+        return File(ReportExcelBuilder.Generate(table, clinic.Name),
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    ReportNaming.FileName(kind, d, f, t, "xlsx"));
+    }
+
+    // ── Builders ───────────────────────────────────────────────────────────
+
+    private async Task<ReportTable> BuildAsync(
+        ReportKind kind, DateTime date, DateTime from, DateTime to,
+        int expiringDays, bool includeZeroStock, string? search)
+    {
+        // A backwards range is a slip, not an error worth refusing — the
+        // desktop quietly swaps the ends, and so does this.
+        var (start, end) = from <= to ? (from, to) : (to, from);
+
+        var label = ReportNaming.DateLabel(kind, date, start, end);
+        var title = ReportNaming.Title(kind);
+
+        return kind switch
+        {
+            ReportKind.DayBook => await DayBookAsync(date, title, label),
+            ReportKind.GstSummary => await GstSummaryAsync(start, end, title, label),
+            ReportKind.OpdRegister => await OpdRegisterAsync(date, title, label),
+            ReportKind.ExpiringSoon => await ExpiringAsync(expiringDays, title, label),
+            ReportKind.LowStock => await LowStockAsync(title, label),
+            ReportKind.StockRegister => await StockRegisterAsync(includeZeroStock, search, title, label),
+            ReportKind.ScheduleH1 => await H1Async(start, end, title, label),
+            _ => new ReportTable(kind, title, label, [], [], [])
+        };
+    }
+
+    private static List<ReportColumn> DayBookColumns() =>
+    [
+        new("Time", ReportAlign.Left, ReportFormat.Time, 0.7),
+        new("Bill No", ReportAlign.Left, ReportFormat.Text, 1.0),
+        new("Customer", ReportAlign.Left, ReportFormat.Text, 1.8),
+        new("Mode", ReportAlign.Left, ReportFormat.Text, 0.7),
+        new("Taxable", ReportAlign.Right, ReportFormat.Money, 1.0),
+        new("CGST", ReportAlign.Right, ReportFormat.Money, 0.9),
+        new("SGST", ReportAlign.Right, ReportFormat.Money, 0.9),
+        new("Net", ReportAlign.Right, ReportFormat.Money, 1.0),
+    ];
+
+    private static ReportRow DayBookRow(Sale s) => new(
+        [s.BillDate, s.BillNo, s.CustomerName, s.PaymentMode.ToString(),
+         s.TaxableAmount, s.CgstAmount, s.SgstAmount, s.NetAmount]);
+
+    /// <summary>
+    /// The day book shows **completed bills only**. A cancelled or returned
+    /// sale is not revenue, and leaving it in would double count against the
+    /// summary cards, which already exclude it.
+    /// </summary>
+    private async Task<ReportTable> DayBookAsync(DateTime date, string title, string label)
+    {
+        var completed = (await pharmacy.GetSalesAsync(date))
+            .Where(s => s.Status == SaleStatus.Completed)
+            .OrderByDescending(s => s.BillDate)
+            .ToList();
+
+        return new ReportTable(ReportKind.DayBook, title, label,
+            DayBookColumns(),
+            completed.Select(DayBookRow).ToList(),
+            [
+                new("Taxable", completed.Sum(s => s.TaxableAmount)),
+                new("CGST", completed.Sum(s => s.CgstAmount)),
+                new("SGST", completed.Sum(s => s.SgstAmount)),
+                new("Net collected", completed.Sum(s => s.NetAmount)),
+            ]);
+    }
+
+    /// <summary>
+    /// GST is summarised per slab from the sale **items**, not per bill — one
+    /// bill can carry 5% and 12% lines at once, and a per-bill split could
+    /// not separate them.
+    /// </summary>
+    private async Task<ReportTable> GstSummaryAsync(DateTime from, DateTime to, string title, string label)
+    {
+        var completed = (await pharmacy.GetSalesAsync(from, to))
+            .Where(s => s.Status == SaleStatus.Completed)
+            .ToList();
+
+        var rows = new List<ReportRow>();
+        decimal grandTaxable = 0, grandCgst = 0, grandSgst = 0, grandTotal = 0;
+
+        foreach (var slab in completed.SelectMany(s => s.Items).GroupBy(i => i.GstRate).OrderBy(g => g.Key))
+        {
+            var taxable = slab.Sum(i => i.TaxableAmount);
+            var gst = slab.Sum(i => i.GstAmount);
+
+            // Half away-from-zero, then the other half as the remainder, so
+            // CGST + SGST is always exactly the GST collected — splitting
+            // both by rounding could leave a paisa unaccounted for.
+            var half = Math.Round(gst / 2m, 2, MidpointRounding.AwayFromZero);
+            var cgst = gst - half;
+            var sgst = half;
+            var total = taxable + gst;
+
+            rows.Add(new ReportRow([$"{slab.Key:0.##}%", taxable, cgst, sgst, total]));
+
+            grandTaxable += taxable; grandCgst += cgst; grandSgst += sgst; grandTotal += total;
+        }
+
+        return new ReportTable(ReportKind.GstSummary, title, label,
+            [
+                new("GST slab", ReportAlign.Left, ReportFormat.Text, 0.8),
+                new("Taxable", ReportAlign.Right, ReportFormat.Money),
+                new("CGST", ReportAlign.Right, ReportFormat.Money),
+                new("SGST", ReportAlign.Right, ReportFormat.Money),
+                new("Total", ReportAlign.Right, ReportFormat.Money),
+            ],
+            rows,
+            [
+                new("Taxable", grandTaxable),
+                new("CGST", grandCgst),
+                new("SGST", grandSgst),
+                new("Total", grandTotal),
+            ]);
+    }
+
+    private async Task<ReportTable> OpdRegisterAsync(DateTime date, string title, string label)
+    {
+        var visits = await opd.GetVisitsAsync(date);
+
+        return new ReportTable(ReportKind.OpdRegister, title, label,
+            [
+                new("Token", ReportAlign.Right, ReportFormat.Integer, 0.5),
+                new("Time", ReportAlign.Left, ReportFormat.Time, 0.7),
+                new("Patient", ReportAlign.Left, ReportFormat.Text, 1.6),
+                new("Doctor", ReportAlign.Left, ReportFormat.Text, 1.4),
+                new("Status", ReportAlign.Left, ReportFormat.Text, 0.9),
+                new("Fee", ReportAlign.Right, ReportFormat.Money, 0.8),
+                new("Paid", ReportAlign.Center, ReportFormat.Text, 0.6),
+                new("Receipt", ReportAlign.Left, ReportFormat.Text, 1.0),
+            ],
+            visits.OrderBy(v => v.TokenNo)
+                .Select(v => new ReportRow(
+                    [v.TokenNo, v.ScheduledOn, v.Patient.Name, v.Doctor.Name,
+                     v.Status.ToString(), v.Fee, v.FeePaid ? "Yes" : "No", v.FeeReceiptNo]))
+                .ToList(),
+            [
+                new("Collected", visits.Where(v => v.FeePaid).Sum(v => v.Fee)),
+                new("Patients seen", visits.Count(v => v.Status != VisitStatus.Cancelled), ReportFormat.Integer),
+            ]);
+    }
+
+    /// <summary>
+    /// Already-expired stock is called **"Expired"** in its own column rather
+    /// than left to a red row tint to say alone — a colour-blind or
+    /// low-vision reader gets the same signal a sighted one does, and a
+    /// printed report has no tint at all.
+    /// </summary>
+    private async Task<ReportTable> ExpiringAsync(int days, string title, string label)
+    {
+        var batches = await pharmacy.GetExpiringAsync(days);
+        var today = DateTime.Today;
+
+        return new ReportTable(ReportKind.ExpiringSoon, title, $"{label} · within {days} days",
+            [
+                new("Medicine", ReportAlign.Left, ReportFormat.Text, 2.0),
+                new("Batch", ReportAlign.Left, ReportFormat.Text, 1.0),
+                new("Expiry", ReportAlign.Left, ReportFormat.Date, 1.0),
+                new("Status", ReportAlign.Left, ReportFormat.Text, 0.9),
+                new("On hand", ReportAlign.Right, ReportFormat.Integer, 0.7),
+                new("MRP", ReportAlign.Right, ReportFormat.Money, 0.9),
+                new("Value at MRP", ReportAlign.Right, ReportFormat.Money, 1.1),
+            ],
+            batches.OrderBy(b => b.ExpiryDate)
+                .Select(b => new ReportRow(
+                    [b.Product.Name, b.BatchNo, b.ExpiryDate,
+                     b.ExpiryDate.Date < today ? "Expired" : "Expiring",
+                     b.QtyOnHand, b.Mrp, b.QtyOnHand * b.Mrp],
+                    Emphasise: b.ExpiryDate.Date < today,
+                    Note: b.ExpiryDate.Date < today ? "Expired" : null))
+                .ToList(),
+            [
+                new("Batches", batches.Count, ReportFormat.Integer),
+                new("Value at MRP", batches.Sum(b => b.QtyOnHand * b.Mrp)),
+            ]);
+    }
+
+    private async Task<ReportTable> LowStockAsync(string title, string label)
+    {
+        var products = await pharmacy.GetLowStockAsync();
+
+        return new ReportTable(ReportKind.LowStock, title, label,
+            [
+                new("Medicine", ReportAlign.Left, ReportFormat.Text, 2.2),
+                new("Manufacturer", ReportAlign.Left, ReportFormat.Text, 1.6),
+                new("On hand", ReportAlign.Right, ReportFormat.Integer, 0.8),
+                new("Reorder at", ReportAlign.Right, ReportFormat.Integer, 0.8),
+                new("Short by", ReportAlign.Right, ReportFormat.Integer, 0.8),
+                new("Rack", ReportAlign.Left, ReportFormat.Text, 0.8),
+            ],
+            products.Select(p => new ReportRow(
+                    [p.Name, p.Manufacturer, p.StockOnHand, p.ReorderLevel,
+                     Math.Max(0, p.ReorderLevel - p.StockOnHand), p.RackLocation]))
+                .ToList(),
+            [new("Medicines", products.Count, ReportFormat.Integer)]);
+    }
+
+    /// <summary>
+    /// A live snapshot of every batch on the shelf, not tied to any date
+    /// picker. The search box filters the same rows the totals are computed
+    /// from, so a filtered register's totals describe what is on screen
+    /// rather than the whole shelf.
+    /// </summary>
+    private async Task<ReportTable> StockRegisterAsync(bool includeZeroStock, string? search, string title, string label)
+    {
+        var all = await pharmacy.GetAllBatchesAsync(includeZeroStock);
+        var batches = all.Where(b => StockRegisterFilter.Matches(b, search)).ToList();
+        var summary = StockSummary.From(batches);
+
+        return new ReportTable(ReportKind.StockRegister, title, label,
+            [
+                new("Medicine", ReportAlign.Left, ReportFormat.Text, 2.0),
+                new("Batch", ReportAlign.Left, ReportFormat.Text, 1.0),
+                new("Expiry", ReportAlign.Left, ReportFormat.Date, 1.0),
+                new("On hand", ReportAlign.Right, ReportFormat.Integer, 0.7),
+                new("Purchase", ReportAlign.Right, ReportFormat.Money, 0.9),
+                new("MRP", ReportAlign.Right, ReportFormat.Money, 0.9),
+                new("Cost value", ReportAlign.Right, ReportFormat.Money, 1.0),
+                new("MRP value", ReportAlign.Right, ReportFormat.Money, 1.0),
+            ],
+            batches.OrderBy(b => b.Product.Name).ThenBy(b => b.ExpiryDate)
+                .Select(b => new ReportRow(
+                    [b.Product.Name, b.BatchNo, b.ExpiryDate, b.QtyOnHand,
+                     b.PurchaseRate, b.Mrp, b.QtyOnHand * b.PurchaseRate, b.QtyOnHand * b.Mrp]))
+                .ToList(),
+            [
+                new("Medicines", summary.TotalProducts, ReportFormat.Integer),
+                new("Batches", summary.TotalBatches, ReportFormat.Integer),
+                new("Units", summary.TotalUnits, ReportFormat.Integer),
+                new("Value at cost", summary.TotalCostValue),
+                new("Value at MRP", summary.TotalMrpValue),
+            ]);
+    }
+
+    /// <summary>
+    /// The Schedule H1 register — a statutory record of who was given which
+    /// H1 drug, on whose prescription. Kept over a range because that is how
+    /// an inspector asks for it.
+    /// </summary>
+    private async Task<ReportTable> H1Async(DateTime from, DateTime to, string title, string label)
+    {
+        var entries = await pharmacy.GetH1RegisterAsync(from, to);
+
+        return new ReportTable(ReportKind.ScheduleH1, title, label,
+            [
+                new("Date", ReportAlign.Left, ReportFormat.Date, 1.0),
+                new("Bill No", ReportAlign.Left, ReportFormat.Text, 1.0),
+                new("Medicine", ReportAlign.Left, ReportFormat.Text, 2.0),
+                new("Batch", ReportAlign.Left, ReportFormat.Text, 1.0),
+                new("Qty", ReportAlign.Right, ReportFormat.Integer, 0.6),
+                new("Patient", ReportAlign.Left, ReportFormat.Text, 1.6),
+                new("Prescriber", ReportAlign.Left, ReportFormat.Text, 1.6),
+            ],
+            entries.OrderBy(h => h.SoldOn)
+                .Select(h => new ReportRow(
+                    [h.SoldOn, h.BillNo, h.ProductName, h.BatchNo, h.Quantity, h.PatientName, h.DoctorName]))
+                .ToList(),
+            [
+                new("Entries", entries.Count, ReportFormat.Integer),
+                new("Units dispensed", entries.Sum(h => h.Quantity), ReportFormat.Integer),
+            ]);
+    }
+
+    // ── The two tabs with no export of their own ──────────────────────────
+
+    /// <summary>
+    /// Stock put on the shelf at the counter with no supplier bill behind it.
+    /// Purchases will not tie out against sales until each is matched to the
+    /// real bill, so this list is the reconciliation worklist.
+    /// </summary>
+    [HttpGet("to-reconcile")]
+    public async Task<ActionResult<ReportTable>> ToReconcile()
+    {
+        var batches = await pharmacy.GetProvisionalBatchesAsync();
+
+        return Ok(new ReportTable(ReportKind.None, "Stock to reconcile", $"{batches.Count} provisional batch(es)",
+            [
+                new("Medicine", ReportAlign.Left, ReportFormat.Text, 2.0),
+                new("Batch", ReportAlign.Left, ReportFormat.Text, 1.0),
+                new("Expiry", ReportAlign.Left, ReportFormat.Date, 1.0),
+                new("On hand", ReportAlign.Right, ReportFormat.Integer, 0.7),
+                new("Received", ReportAlign.Left, ReportFormat.Date, 1.0),
+            ],
+            batches.OrderBy(b => b.ReceivedOn)
+                .Select(b => new ReportRow([b.Product.Name, b.BatchNo, b.ExpiryDate, b.QtyOnHand, b.ReceivedOn]))
+                .ToList(),
+            [new("Batches", batches.Count, ReportFormat.Integer)]));
+    }
+
+    /// <summary>
+    /// Tail ends of opened strips — less than one full pack left. They expire
+    /// where they sit unless somebody pushes them.
+    /// </summary>
+    [HttpGet("part-packs")]
+    public async Task<ActionResult<ReportTable>> PartPacks()
+    {
+        var batches = await pharmacy.GetPartPacksAsync();
+
+        return Ok(new ReportTable(ReportKind.None, "Part packs", $"{batches.Count} open pack(s)",
+            [
+                new("Medicine", ReportAlign.Left, ReportFormat.Text, 2.0),
+                new("Batch", ReportAlign.Left, ReportFormat.Text, 1.0),
+                new("Expiry", ReportAlign.Left, ReportFormat.Date, 1.0),
+                new("Left", ReportAlign.Right, ReportFormat.Integer, 0.7),
+                new("Per pack", ReportAlign.Right, ReportFormat.Integer, 0.7),
+                new("Value at MRP", ReportAlign.Right, ReportFormat.Money, 1.0),
+            ],
+            batches.OrderBy(b => b.ExpiryDate)
+                .Select(b => new ReportRow(
+                    [b.Product.Name, b.BatchNo, b.ExpiryDate, b.QtyOnHand, b.UnitsPerPack, b.QtyOnHand * b.Mrp]))
+                .ToList(),
+            [new("Value at MRP", batches.Sum(b => b.QtyOnHand * b.Mrp))]));
+    }
+
+    // ── Diagnostics ────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Today's bills off the Date picker; revenue-by-day and the most
+    /// frequently ordered tests off the From/To range — the same split the
+    /// day book and the GST summary already use.
+    /// </summary>
+    [HttpGet("diagnostics")]
+    public async Task<ActionResult<object>> DiagnosticsReport(
+        [FromQuery] DateTime? date, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
+    {
+        if (!(await settings.GetGeneralAsync()).DiagnosticsEnabled)
+            return BadRequest("The Diagnostics module is switched off.");
+
+        var on = date ?? DateTime.Today;
+        var f = from ?? DateTime.Today;
+        var t = to ?? DateTime.Today;
+        var (start, end) = f <= t ? (f, t) : (t, f);
+
+        var todays = (await diagnostics.SearchBillsAsync(on, on)).OrderByDescending(b => b.BillDate).ToList();
+        var ranged = await diagnostics.SearchBillsAsync(start, end);
+
+        return Ok(new
+        {
+            TodayTotal = todays.Sum(b => b.FinalAmount),
+            TodaysBills = todays.Select(b => new
+            {
+                b.Id, b.BillNo, b.BillDate, b.PatientName, b.PatientNo, b.FinalAmount, Status = b.Status.ToString()
+            }),
+            Revenue = ranged.GroupBy(b => b.BillDate.Date)
+                .OrderByDescending(g => g.Key)
+                .Select(g => new { Day = g.Key, Bills = g.Count(), Amount = g.Sum(b => b.FinalAmount) }),
+            TopTests = ranged.SelectMany(b => b.Items)
+                .GroupBy(i => i.TestName)
+                .OrderByDescending(g => g.Sum(i => i.Quantity))
+                .Take(15)
+                .Select(g => new { Test = g.Key, Times = g.Sum(i => i.Quantity), Amount = g.Sum(i => i.Amount) })
+        });
+    }
+}

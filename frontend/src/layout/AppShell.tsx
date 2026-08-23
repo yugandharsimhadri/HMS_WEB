@@ -64,6 +64,7 @@ export function AppShell() {
               <NavLink to="/inventory">Inventory</NavLink>
             </>
           )}
+          <NavLink to="/reports">Reports</NavLink>
           <NavLink to="/settings">Settings</NavLink>
         </nav>
         <div className="shell-user">

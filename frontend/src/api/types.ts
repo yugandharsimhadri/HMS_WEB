@@ -668,3 +668,57 @@ export interface DashboardResponse {
   lowStock: DashboardLowStockRow[];
   recentActivity: DashboardActivityRow[];
 }
+
+// ── Reports ──────────────────────────────────────────────────────────────
+
+export type ReportKind =
+  | 'None' | 'DayBook' | 'GstSummary' | 'OpdRegister' | 'ExpiringSoon'
+  | 'LowStock' | 'StockRegister' | 'ScheduleH1';
+
+export type ReportAlign = 'Left' | 'Right' | 'Center';
+export type ReportFormat =
+  | 'Text' | 'Money' | 'Number' | 'Integer' | 'Date' | 'Time' | 'DateTime';
+
+export interface ReportColumn {
+  header: string;
+  align: ReportAlign;
+  format: ReportFormat;
+  width: number;
+}
+
+export interface ReportRow {
+  cells: (string | number | null)[];
+  emphasise: boolean;
+  /** Why the row is emphasised, in words — so the reason does not depend on
+   * seeing a colour. */
+  note: string | null;
+}
+
+export interface ReportTotal {
+  label: string;
+  value: string | number | null;
+  format: ReportFormat;
+}
+
+/** One shape for the screen, the PDF and the workbook, so the three cannot
+ * disagree about what the report says. */
+export interface ReportTable {
+  kind: ReportKind;
+  title: string;
+  dateLabel: string;
+  columns: ReportColumn[];
+  rows: ReportRow[];
+  totals: ReportTotal[];
+}
+
+export interface DayBookSummary {
+  totalCollected: number;
+  cashTotal: number;
+  upiTotal: number;
+  taxableTotal: number;
+  cgstTotal: number;
+  sgstTotal: number;
+  netTotal: number;
+  consultationTotal: number;
+  visitCount: number;
+}
