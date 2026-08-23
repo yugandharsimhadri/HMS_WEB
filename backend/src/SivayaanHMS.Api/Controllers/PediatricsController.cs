@@ -122,6 +122,23 @@ public class PediatricsController(
         return Ok(examples.Union(used).OrderBy(c => c).ToList());
     }
 
+    /// <summary>
+    /// Loads the IAP-recommended vaccines on top of whatever this clinic
+    /// already has — the ones a private paediatric practice gives that the
+    /// government's UIP schedule does not carry at all.
+    ///
+    /// Reachable here rather than only at signup, because the clinics that
+    /// need it most already exist: provisioning ran before this schedule was
+    /// offered. Idempotent, so pressing it twice adds nothing the second
+    /// time, and it never touches a row the clinic has since edited.
+    /// </summary>
+    [HttpPost("vaccines/load-iap-schedule")]
+    public async Task<ActionResult<int>> LoadIapSchedule()
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        return Ok(await VaccineMasterSeeder.SeedIapAdditionsAsync(db));
+    }
+
     [HttpPost("vaccines")]
     public async Task<ActionResult<VaccineMaster>> SaveVaccine(SaveVaccineRequest request)
     {

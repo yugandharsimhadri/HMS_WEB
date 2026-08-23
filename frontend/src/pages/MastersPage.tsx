@@ -155,6 +155,33 @@ export function MastersPage() {
     'lab-packages': '+ New package',
   }[tab];
 
+  /**
+   * Adds the vaccines IAP recommends that the government's UIP schedule does
+   * not carry — influenza, hepatitis A, varicella, HPV.
+   *
+   * Confirmed first because it writes eight rows to a clinical master, and
+   * says plainly that nothing existing is touched, since "load a schedule"
+   * otherwise sounds like it might replace the one already there.
+   */
+  const loadIap = async () => {
+    const ok = window.confirm(
+      'Add the IAP-recommended vaccines (influenza, hepatitis A, varicella, HPV) to this clinic?\n\n' +
+      'Nothing already in your list is changed or removed, and doses already given are untouched. ' +
+      'Check the ages against the current IAP schedule afterwards — they are editable.');
+    if (!ok) return;
+
+    setError(null);
+    try {
+      const added = await api.post<number>('/api/pediatrics/vaccines/load-iap-schedule', {});
+      await load();
+      setStatus(added === 0
+        ? 'Every IAP vaccine was already in your list — nothing added.'
+        : `${added} IAP vaccine(s) added. Check the ages against the current IAP schedule.`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not load the IAP schedule.');
+    }
+  };
+
   /** Deactivating is offered inline on the vaccine list because it is the
    * supported alternative to a delete the system refuses, and making someone
    * open an editor to do it hides the only route they have. */
@@ -181,6 +208,11 @@ export function MastersPage() {
         <div className="inline-form">
           {tab !== 'anesthesia' && (
             <input ref={searchRef} placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
+          )}
+          {tab === 'vaccines' && (
+            <button type="button" className="ghost" onClick={() => void loadIap()}>
+              Load IAP schedule
+            </button>
           )}
           <button type="button" className="primary" onClick={() => setEditing(null)}>{newLabel}</button>
         </div>
