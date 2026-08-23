@@ -17,7 +17,7 @@ are the frozen desktop reference — not necessarily what HMS_WEB does today.
 
 ```
 backend/
-  SivayaanHMS.sln
+  SivayaanHMS.slnx
   src/SivayaanHMS.Core   domain entities, enums, calculators (ported from Pharma.Core)
   src/SivayaanHMS.Data   EF Core + SQLite, services, migrations (ported from Pharma.Data)
   src/SivayaanHMS.Api    ASP.NET Core Web API, multi-tenant
@@ -38,5 +38,49 @@ docs/                    architecture reference, carried over from HMS_WPF at fr
 
 ## Status
 
-Scaffold only. Backend builds; no domain code ported yet. See
-`SAAS_MIGRATION.md`'s phased plan — this repo is at the start of Phase 1.
+Eleven modules are ported and at feature parity with the desktop, each
+verified by driving the running app in a browser rather than by compiling:
+
+| Module | Checklist | Items |
+|---|---|---|
+| OPD & Pharmacy, Patients, Settings | [PARITY_OPD_PHARMACY.md](docs/PARITY_OPD_PHARMACY.md) | 105 |
+| Appointments | [PARITY_APPOINTMENTS.md](docs/PARITY_APPOINTMENTS.md) | 59 |
+| Diagnostics | [PARITY_DIAGNOSTICS.md](docs/PARITY_DIAGNOSTICS.md) | 61 |
+| Pediatrics | [PARITY_PEDIATRICS.md](docs/PARITY_PEDIATRICS.md) | 67 |
+| Dentist | [PARITY_DENTIST.md](docs/PARITY_DENTIST.md) | 52 |
+| Pathology Lab | [PARITY_PATHOLOGY_LAB.md](docs/PARITY_PATHOLOGY_LAB.md) | 58 |
+| Dashboard | [PARITY_DASHBOARD.md](docs/PARITY_DASHBOARD.md) | 30 |
+| Reports | [PARITY_REPORTS.md](docs/PARITY_REPORTS.md) | 51 |
+
+Every PDF the desktop produced is ported, plus report export to PDF and
+Excel. [PERFORMANCE.md](docs/PERFORMANCE.md) records a measured pass against
+a seeded two-year dataset.
+
+**Platform support** has no desktop equivalent — a SaaS needs somebody who
+can put a locked-out clinic owner back in without being able to read that
+clinic's patients. See
+[PLATFORM_ADMIN.md](docs/PLATFORM_ADMIN.md). Its password is deliberately
+**not in this repository**: set it in the git-ignored `appsettings.Local.json`
+or via `PlatformAdmin__Password`, or the account cannot sign in at all.
+
+**Still to port:** Masters (`GeneralMasterViewModel`), Bill import
+(`ImportViewModel`), Data health (`DataHealthViewModel`). Masters is the one
+that matters — four shipped modules have master data that cannot be edited
+until it lands, which
+[HANDOFF.md](docs/HANDOFF.md) explains.
+
+## Working on this
+
+Start at [docs/HANDOFF.md](docs/HANDOFF.md). It carries the working method,
+the conventions that must not be broken, and — importantly — the fact that
+five of the desktop viewmodels being ported from exist **only** on HMS_WPF's
+unmerged `origin/Dentist_Pathology` branch, not on its `main`.
+
+```bash
+cd backend && dotnet build SivayaanHMS.slnx     # then: cd src/SivayaanHMS.Api && dotnet run
+cd frontend && npm install && npm run dev
+cd backend && dotnet test tests/SivayaanHMS.Tests
+```
+
+Register a clinic at `/register`, or sign in. Migrations apply automatically
+in Development.

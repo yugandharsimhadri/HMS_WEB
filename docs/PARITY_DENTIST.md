@@ -195,3 +195,20 @@ Masters module ships. The three rows used to drive sittings, replacements
 and a package case were inserted directly into the database for testing.
 The screen says so where each list would be, rather than showing an empty
 dropdown with no explanation.
+
+---
+
+## Verified against the view, 23 Aug 2026
+
+Every item above was written from the **viewmodel**, which gives behaviour.
+A later pass compared this module's **XAML view** — the thing that actually
+defines the controls and columns on screen — because a column set is a fact
+no viewmodel states.
+
+**No gaps.** All four grids match or exceed the desktop's columns — the case list adds started-on, total and paid alongside the desktop's WHAT / TOOTH / STATUS / BALANCE, and sittings, replacements and payments each carry more than the view shows.
+
+The comparison used:
+
+```
+git show origin/Dentist_Pathology:src/Pharma.App/Views/DentistView.xaml
+```

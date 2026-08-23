@@ -20,7 +20,7 @@ entities, and `AppointmentSlipDocument`.
 
 Status: ☑ done · ◻ not started · ◐ partial
 
-**52 of 58 items are ☑ as of 22 Aug 2026**, each driven against the running
+**53 of 59 items are ☑** (52 of 58 as of 22 Aug 2026, plus one added 23 Aug), each driven against the running
 app in a browser — not just compiled. The 6 remaining are ◐ and each says
 why. The bugs that testing surfaced are listed at the end.
 
@@ -124,6 +124,7 @@ why. The bugs that testing surfaced are listed at the end.
 |---|---|---|---|
 | 7.1 | Two sources today: OPD **follow-ups** (`Visit.FollowUpOn`) and **upcoming appointments** | Pediatrics' vaccine-due and Dentist's next-sitting plug in the same way later | ☑ appointments driven; no follow-up existed to exercise that source |
 | 7.2 | **Due within** lead-day picker — 1 / 3 / 7 / 14 / 30, default 3, and free entry outside that list | ☑ |
+| 7.2a | The list is also bounded **backwards**, by a six-week grace window | Added 23 Aug — see the correction below. The desktop has no floor, and on a database with any history that is a bug rather than a feature | ☑ |
 | 7.3 | Changing the lead days reloads | ☑ |
 | 7.4 | A negative lead-day count is clamped to 0 | ☑ |
 | 7.5 | Already-reminded rows **stay on the list**, flagged, rather than vanishing | The desk needs to see what has been done, not only what is left | ☑ |
@@ -203,3 +204,50 @@ Two smaller things worth knowing:
   and so opens on *yesterday* between midnight and 05:30 IST. This page uses
   a local-date helper instead. The OPD one is untouched here — it is a
   separate, already-signed-off module — but it is a real latent bug.
+
+---
+
+## Correction — the reminder window, 23 Aug 2026
+
+A performance pass found that `GetDueRemindersAsync` asked for follow-ups
+`< cutoff` and nothing else. **It had no lower bound**, so it returned every
+follow-up ever recorded. On a seeded two-year database that was 2,556 rows
+reaching back to September 2024, every one presented as due.
+
+That is faithful to the desktop, which has the same query. It is still
+wrong, and it is worth being precise about why the port should not have
+copied it: on the desktop this list is read by a clinic that has been
+running the software for a few months, so the absence of a floor never
+showed. On a database with real history it turns a call sheet into an
+archive, and the reminders that actually need calling are buried under
+eighteen months of ones that do not.
+
+The query now has a **six-week grace window** — long enough that a
+fortnight's holiday does not lose a follow-up, short enough that the list
+stays a call sheet. The same floor applies to the appointment source, since
+an appointment still sitting `Scheduled` from last year was never kept.
+
+On the same dataset the list went from 2,556 rows to 183, and the response
+from 757 KB to 54 KB. Items 7.1 and 7.5–7.12 are unaffected: what the list
+contains, how it sorts, and what marking one does are all unchanged.
+
+Recorded here rather than only in `PERFORMANCE.md` because it is a
+**deliberate divergence from the desktop**, and this file is where those
+belong.
+
+---
+
+## Verified against the view, 23 Aug 2026
+
+Every item above was written from the **viewmodel**, which gives behaviour.
+A later pass compared this module's **XAML view** — the thing that actually
+defines the controls and columns on screen — because a column set is a fact
+no viewmodel states.
+
+**No gaps.** The desktop's two grids carry TIME / PATIENT / DOCTOR / MODULE / STATUS and DUE / PATIENT / WHAT / REMINDED; the web carries both sets plus the appointment number and the patient's phone, which is the point of a call list. Every button on the view has a counterpart.
+
+The comparison used:
+
+```
+git show origin/Dentist_Pathology:src/Pharma.App/Views/AppointmentsView.xaml
+```

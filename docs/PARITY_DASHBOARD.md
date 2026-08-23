@@ -105,6 +105,13 @@ Status: ☑ done · ◻ not started · ◐ partial
   *shape* rules — shared scale, 2.2° gap, 58/36 radii — are the desktop's.
 - **A manual Refresh button** rather than the desktop's page-navigation
   reload, since a web page is not re-entered the same way.
+- **The daily figures are summed in the database, and the reads are issued
+  together.** Added 23 Aug during a performance pass. The screen originally
+  loaded a fortnight of sales, visits and diagnostic bills and grouped them
+  in C#, then made eleven sequential round trips. The numbers are identical —
+  what counts as revenue is unchanged, and the donut still sums to exactly
+  its own KPI — but the page now waits for the slowest query rather than the
+  sum of all of them. See `PERFORMANCE.md`.
 
 ---
 
@@ -127,3 +134,20 @@ One environment note, not an app defect: the browser automation's `navigate`
 tool drops the path and lands on the SPA root, so every route in this pass
 was reached by clicking the real nav link instead. Worth knowing for the
 next module's verification.
+
+---
+
+## Verified against the view, 23 Aug 2026
+
+Every item above was written from the **viewmodel**, which gives behaviour.
+A later pass compared this module's **XAML view** — the thing that actually
+defines the controls and columns on screen — because a column set is a fact
+no viewmodel states.
+
+**No gaps.** The activity feed's columns — TIME / BILL / PATIENT / DEPARTMENT / AMOUNT — match exactly.
+
+The comparison used:
+
+```
+git show origin/Dentist_Pathology:src/Pharma.App/Views/DashboardView.xaml
+```

@@ -195,3 +195,20 @@ Carried forward and still true: the clinic's default footer ("Medicines once
 sold are not returnable") prints on the diagnostic bill too, for the same
 reason it does on the appointment slip — the document uses `clinic.FooterText`
 exactly as the desktop does.
+
+---
+
+## Verified against the view, 23 Aug 2026
+
+Every item above was written from the **viewmodel**, which gives behaviour.
+A later pass compared this module's **XAML view** — the thing that actually
+defines the controls and columns on screen — because a column set is a fact
+no viewmodel states.
+
+**No gaps.** The bill grid (TEST / PRICE / QTY / AMOUNT) and the test master grid (TEST / CATEGORY / PRICE / ACTIVE) match exactly, and every button on the view has a counterpart.
+
+The comparison used:
+
+```
+git show origin/Dentist_Pathology:src/Pharma.App/Views/DiagnosticsView.xaml
+```

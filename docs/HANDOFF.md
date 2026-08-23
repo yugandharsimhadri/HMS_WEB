@@ -52,13 +52,13 @@ Diagnostics, Pediatrics, Dentist, Pathology Lab, Dashboard and Reports**.
 | Module | Parity doc | Items |
 |---|---|---|
 | OPD & Pharmacy | `docs/PARITY_OPD_PHARMACY.md` | 105 |
-| Appointments | `docs/PARITY_APPOINTMENTS.md` | 58 |
+| Appointments | `docs/PARITY_APPOINTMENTS.md` | 59 |
 | Diagnostics | `docs/PARITY_DIAGNOSTICS.md` | 61 |
 | Pediatrics | `docs/PARITY_PEDIATRICS.md` | 67 |
 | Dentist | `docs/PARITY_DENTIST.md` | 52 |
 | Pathology Lab | `docs/PARITY_PATHOLOGY_LAB.md` | 58 |
 | Dashboard | `docs/PARITY_DASHBOARD.md` | 30 |
-| Reports | `docs/PARITY_REPORTS.md` | 46 |
+| Reports | `docs/PARITY_REPORTS.md` | 51 |
 
 **Platform support** is also done, and is the one part with no desktop
 equivalent at all — a SaaS needs somebody who can put a locked-out clinic
@@ -266,6 +266,33 @@ The two after it, in order: **Bill import** (`ImportViewModel.cs`, 153 — the
 CSV parser is already ported as `PurchaseImportService`), then **Data
 health** (`DataHealthViewModel.cs`, 138).
 
+### Two passes worth repeating on anything you port
+
+**Compare the XAML, not just the viewmodel.** Every parity doc here was
+first written from the viewmodel, which gives behaviour. The *view* is what
+defines the controls and the columns, and a column set is a fact no
+viewmodel states. Running that comparison afterwards found real gaps —
+Reports was missing columns on six tabs, Patients was showing two of the
+desktop's six histories, and `BMI` had been computed and stored on every
+growth measurement without ever being displayed. Extract the views and diff
+them:
+
+```
+git show origin/Dentist_Pathology:src/Pharma.App/Views/<Name>View.xaml
+```
+
+**Measure against realistic data.** The dev database ships with 3 patients
+and 1 sale, on which everything is fast and nothing is revealed. Seeded to
+two years — 5,000 patients, 21,500 visits, 37,500 sale items — the GST
+report took 1.2 seconds and the reminder list returned 2,556 rows reaching
+back eighteen months. See `PERFORMANCE.md`. Two rules came out of it that
+apply to anything new:
+
+- **Aggregate in the database.** Loading a period's rows to group them in C#
+  was the single biggest cost, in four separate places.
+- **Bound every range at both ends.** The reminder query had a cutoff but no
+  floor, which is a correctness bug that only shows once there is history.
+
 ### What the last seven modules taught
 
 Worth reading before starting, because each of these cost real time to find:
@@ -286,3 +313,8 @@ Worth reading before starting, because each of these cost real time to find:
 - **Verify empty-vs-broken before writing "it works".** A control that looks
   dead may just have no data behind it — the Reports zero-stock toggle
   looked broken and was not.
+- **A GUID written by hand must be uppercase.** EF Core stores them as
+  uppercase text and SQLite compares text case-sensitively, so a
+  lowercase id inserted by a script or a fixture silently fails every
+  lookup-by-id while list queries keep working. This cost real time to
+  find during the performance pass.

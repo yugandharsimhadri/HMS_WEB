@@ -183,3 +183,20 @@ exactly the ₹1200 package price. Each report keeps its identity, so its
 analytes are still known for result entry — which is the whole reason the
 desktop reaches the package price through `Discount` rather than by
 rewriting prices.
+
+---
+
+## Verified against the view, 23 Aug 2026
+
+Every item above was written from the **viewmodel**, which gives behaviour.
+A later pass compared this module's **XAML view** — the thing that actually
+defines the controls and columns on screen — because a column set is a fact
+no viewmodel states.
+
+**No gaps.** The order list and the result-entry grid both match, the latter exactly: REPORT / ANALYTE / RESULT / UNITS / RANGE / FLAG.
+
+The comparison used:
+
+```
+git show origin/Dentist_Pathology:src/Pharma.App/Views/PathologyLabView.xaml
+```
