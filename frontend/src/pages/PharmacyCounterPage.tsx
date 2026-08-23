@@ -8,6 +8,7 @@ import { unitWordFor } from '../pharmacy/packing';
 import { QuickStockDialog } from '../pharmacy/QuickStockDialog';
 import { EditQuantityDialog } from '../pharmacy/EditQuantityDialog';
 import { describeCombo, useHotkey } from '../shell/hotkeys';
+import { ShortcutHints } from '../shell/ShortcutHints';
 
 interface Allocation {
   batch: Batch;
@@ -720,17 +721,7 @@ export function PharmacyCounterPage() {
         </div>
       </section>
 
-      {/* The keys, in front of the person who would use them. */}
-      <p className="hint" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span><span className="kbd">{describeCombo('f2')}</span> new bill</span>
-        <span><span className="kbd">{describeCombo('f3')}</span> find medicine</span>
-        <span><span className="kbd">{describeCombo('arrowup')}</span> <span className="kbd">{describeCombo('arrowdown')}</span> <span className="kbd">{describeCombo('enter')}</span> choose</span>
-        <span><span className="kbd">{describeCombo('f6')}</span> load prescription</span>
-        <span><span className="kbd">{describeCombo('f7')}</span> quick stock</span>
-        <span><span className="kbd">{describeCombo('f4')}</span> save</span>
-        <span><span className="kbd">{describeCombo('f8')}</span> save &amp; print</span>
-        <span><span className="kbd">?</span> all shortcuts</span>
-      </p>
+      <ShortcutHints keys={[['f2', 'new bill'], ['f3', 'find medicine'], ['arrowup arrowdown enter', 'choose'], ['f6', 'load prescription'], ['f7', 'quick stock'], ['f4', 'save'], ['f8', 'save & print']]} />
 
       {quickStockFor && (
         <QuickStockDialog

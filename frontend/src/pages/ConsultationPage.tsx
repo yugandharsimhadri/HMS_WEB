@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, openPdf } from '../api/client';
 import type { CatalogueEntry, GeneralSettings, Visit } from '../api/types';
 import { DOSE_OPTIONS, describePacks, unitsForCourse } from '../clinical/doseMath';
+import { ShortcutHints } from '../shell/ShortcutHints';
+import { useHotkey } from '../shell/hotkeys';
 
 interface RxLine {
   productId: string | null;
@@ -309,6 +311,18 @@ export function ConsultationPage() {
     }
   };
 
+  // F3 is the medicine box here: during a consultation that is the field
+  // being typed into over and over.
+  const G = 'Consultation';
+  const medicineRef = useRef<HTMLInputElement>(null);
+  useHotkey('f3', 'Search medicines', G, () => {
+    medicineRef.current?.focus();
+    medicineRef.current?.select();
+  }, { whileTyping: true });
+  useHotkey('f4', 'Save the consultation', G, () => { if (!saving) void save(); });
+  useHotkey('f8', 'Save and print', G, () => { if (!saving) void print(); });
+  useHotkey('f9', 'Mark the visit completed', G, () => { if (!saving) void complete(); });
+
   const save = async () => {
     if (await persist(false)) setStatus('Consultation saved.');
   };
@@ -354,7 +368,7 @@ export function ConsultationPage() {
           </p>
         </div>
         <div className="inline-form">
-          <button type="button" onClick={save} disabled={saving}>Save</button>
+          <button type="button" className="primary" onClick={save} disabled={saving}>Save</button>
           <button type="button" onClick={complete} disabled={saving}>Complete</button>
           <button type="button" className="ghost" onClick={print}>Save &amp; print</button>
           <button type="button" className="ghost" onClick={close}>Close</button>
@@ -391,6 +405,7 @@ export function ConsultationPage() {
         <div className="rx-entry">
           <div className="patient-picker">
             <input
+              ref={medicineRef}
               placeholder="Medicine — type to search, or write one we don't stock"
               value={medicineSearch}
               onChange={(e) => {
@@ -546,6 +561,8 @@ export function ConsultationPage() {
           <label>Review on<input type="date" value={followUpOn} onChange={(e) => setFollowUpOn(e.target.value)} /></label>
         </div>
       </section>
+
+      <ShortcutHints keys={[['f3', 'search medicines'], ['f4', 'save'], ['f9', 'complete'], ['f8', 'save & print']]} />
     </div>
   );
 }

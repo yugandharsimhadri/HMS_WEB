@@ -16,6 +16,9 @@ import { PatientEditorDialog } from '../opd/PatientEditorDialog';
 import { GrowthChart } from '../pediatrics/GrowthChart';
 import { RecordGrowthDialog, type GrowthDraft } from '../pediatrics/RecordGrowthDialog';
 import { RecordVaccinationDialog, type VaccinationDraft } from '../pediatrics/RecordVaccinationDialog';
+import { PatientPicker } from '../shell/PatientPicker';
+import { ShortcutHints } from '../shell/ShortcutHints';
+import { useHotkey } from '../shell/hotkeys';
 
 /** One line on the bill being built. A vaccine line carries the draft dose
  * it will record once the bill saves — removing the line drops both, which
@@ -163,6 +166,15 @@ export function PediatricsPage() {
     setReferredBy('');
     setError(null);
   };
+
+  // Same meanings as the queue and the counter: F2 starts a new one, F4
+  // takes the money, F8 finishes. F6 and F7 are this screen's own work.
+  const G = 'Pediatrics';
+  useHotkey('f2', 'Start a new bill', G, newBill);
+  useHotkey('f6', 'Record growth', G, () => { if (patient) setRecordingGrowth(true); });
+  useHotkey('f7', 'Add a procedure', G, () => { if (patient) setAddingProcedure(true); });
+  useHotkey('f4', 'Save the bill', G, () => { if (lines.length > 0) void saveBill(false); });
+  useHotkey('f8', 'Save and print', G, () => { if (lines.length > 0) void saveBill(true); });
 
   const setLine = (key: string, patch: Partial<BillRow>) =>
     setLines((current) => current.map((l) => (l.key === key ? { ...l, ...patch } : l)));
@@ -355,27 +367,14 @@ export function PediatricsPage() {
             </button>
           </div>
         ) : (
-          <div className="patient-picker">
-            <div className="inline-form">
-              <input
-                placeholder="Name or phone number"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <button type="button" onClick={() => setAddingPatient(true)}>+ New patient</button>
-            </div>
-            {matches.length > 0 && (
-              <ul className="pick-list">
-                {matches.map((p) => (
-                  <li key={p.id}>
-                    <button type="button" onClick={() => selectPatient(p)}>
-                      {p.name} · {p.patientNo} · {p.age}{p.gender.charAt(0)}{p.phone && ` · ${p.phone}`}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <PatientPicker
+            group={G}
+            search={search}
+            onSearchChange={setSearch}
+            matches={matches}
+            onPick={selectPatient}
+            onNewPatient={() => setAddingPatient(true)}
+          />
         )}
       </section>
 
@@ -688,6 +687,8 @@ export function PediatricsPage() {
           onSave={(draft) => void recordGrowth(draft)}
         />
       )}
+
+      <ShortcutHints keys={[['f2', 'new bill'], ['f3', 'find patient'], ['f6', 'record growth'], ['f7', 'add procedure'], ['f4', 'save'], ['f8', 'save & print']]} />
 
       {addingPatient && (
         <PatientEditorDialog

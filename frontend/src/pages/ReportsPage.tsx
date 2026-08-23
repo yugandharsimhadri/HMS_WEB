@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, downloadFile, openPdf } from '../api/client';
+import { ShortcutHints } from '../shell/ShortcutHints';
+import { useHotkey } from '../shell/hotkeys';
 import type {
   DayBookSummary,
   DiagnosticsReport,
@@ -144,6 +146,13 @@ export function ReportsPage() {
       setBusy(false);
     }
   };
+
+  // Nothing here is saved, so F4 has no meaning on this screen and is left
+  // unbound rather than given a second job.
+  const G = 'Reports';
+  useHotkey('f9', 'Refresh this report', G, () => { void load(tab); });
+  useHotkey('f7', 'Export to Excel', G, () => { void exportAs('excel'); });
+  useHotkey('f8', 'Export to PDF', G, () => { void exportAs('pdf'); });
 
   const exportAs = async (format: 'pdf' | 'excel') => {
     if (tab.kind === 'None') return;
@@ -462,6 +471,8 @@ export function ReportsPage() {
         )}
       </section>
       )}
+
+      <ShortcutHints keys={[['f9', 'refresh'], ['f7', 'export excel'], ['f8', 'export pdf']]} />
     </div>
   );
 }

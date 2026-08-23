@@ -9,6 +9,9 @@ import type {
   Patient,
   ReminderItem,
 } from '../api/types';
+import { PatientPicker } from '../shell/PatientPicker';
+import { ShortcutHints } from '../shell/ShortcutHints';
+import { useHotkey } from '../shell/hotkeys';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
 
 /** Today as a naive local date, deliberately NOT `toISOString().slice(0,10)`
@@ -256,6 +259,13 @@ export function AppointmentsPage() {
     }
   };
 
+  // F2 clears the form for the next booking, F4 books, F8 books and prints
+  // the slip -- the same three meanings as every other screen.
+  const G = 'Appointments';
+  useHotkey('f2', 'Start a new booking', G, () => resetBooking());
+  useHotkey('f4', 'Book the appointment', G, () => { if (!busy) void book(false); });
+  useHotkey('f8', 'Book and print the slip', G, () => { if (!busy) void book(true); });
+
   const book = async (print: boolean) => {
     setBookingError(null);
 
@@ -461,27 +471,19 @@ export function AppointmentsPage() {
                 </button>
               </div>
             ) : (
-              <div className="patient-picker">
-                <div className="inline-form">
-                  <input
-                    placeholder="Name or phone number"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                  <button type="button" onClick={() => setAddingPatient(true)}>+ New patient</button>
-                </div>
-                {matches.length > 0 && (
-                  <ul className="pick-list">
-                    {matches.map((p) => (
-                      <li key={p.id}>
-                        <button type="button" onClick={() => { setPatient(p); setSearch(''); setMatches([]); }}>
-                          {p.name} · {p.age}{p.gender.charAt(0)}{p.phone && ` · ${p.phone}`}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+              <PatientPicker
+                group={G}
+                search={search}
+                onSearchChange={setSearch}
+                matches={matches}
+                onPick={(p) => { setPatient(p); setSearch(''); setMatches([]); }}
+                onNewPatient={() => setAddingPatient(true)}
+                label={(p) => (
+                  <>
+                    {p.name} · {p.age}{p.gender.charAt(0)}{p.phone && ` · ${p.phone}`}
+                  </>
                 )}
-              </div>
+              />
             )}
           </section>
 
@@ -535,7 +537,7 @@ export function AppointmentsPage() {
               </div>
             </div>
             <div className="settings-actions">
-              <button type="button" disabled={busy} onClick={() => void book(false)}>Book appointment</button>
+              <button type="button" className="primary" disabled={busy} onClick={() => void book(false)}>Book appointment</button>
               <button type="button" disabled={busy} onClick={() => void book(true)}>Book &amp; print</button>
               <button type="button" className="ghost" onClick={resetBooking}>Clear</button>
             </div>
@@ -597,6 +599,8 @@ export function AppointmentsPage() {
           </section>
         </>
       )}
+
+      <ShortcutHints keys={[['f2', 'new booking'], ['f3', 'find patient'], ['f4', 'book'], ['f8', 'book & print']]} />
 
       {addingPatient && (
         <PatientEditorDialog

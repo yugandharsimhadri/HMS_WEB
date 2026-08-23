@@ -10,6 +10,9 @@ import type {
   PaymentMode,
   Patient,
 } from '../api/types';
+import { PatientPicker } from '../shell/PatientPicker';
+import { ShortcutHints } from '../shell/ShortcutHints';
+import { useHotkey } from '../shell/hotkeys';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
 
 const PAYMENT_MODES: PaymentMode[] = ['Cash', 'Upi', 'Card'];
@@ -201,6 +204,13 @@ export function PathologyLabPage() {
    * each report is worth, and each report's analytes still have to be known
    * for result entry.
    */
+  const G = 'Pathology Lab';
+  useHotkey('f2', 'Start a new order', G, () => newOrderForm());
+  useHotkey('f7', 'Apply a package', G, () => { if (patient) void applyPackage(); });
+  useHotkey('f4', 'Save the order', G, () => { if (patient) void saveOrder(); });
+  useHotkey('f6', 'Mark sample collected', G, () => markCollected());
+  useHotkey('f8', 'Save the results', G, () => saveResults());
+
   const applyPackage = async () => {
     const pkg = packages.find((p) => p.id === packageToApply);
     if (!pkg) return;
@@ -363,27 +373,14 @@ export function PathologyLabPage() {
             <button type="button" className="ghost" onClick={changePatient}>Change patient</button>
           </div>
         ) : (
-          <div className="patient-picker">
-            <div className="inline-form">
-              <input
-                placeholder="Name or phone number"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <button type="button" onClick={() => setAddingPatient(true)}>+ New patient</button>
-            </div>
-            {matches.length > 0 && (
-              <ul className="pick-list">
-                {matches.map((p) => (
-                  <li key={p.id}>
-                    <button type="button" onClick={() => selectPatient(p)}>
-                      {p.name} · {p.patientNo} · {p.age}{p.gender.charAt(0)}{p.phone && ` · ${p.phone}`}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <PatientPicker
+            group={G}
+            search={search}
+            onSearchChange={setSearch}
+            matches={matches}
+            onPick={selectPatient}
+            onNewPatient={() => setAddingPatient(true)}
+          />
         )}
       </section>
 
@@ -568,6 +565,8 @@ export function PathologyLabPage() {
           {groupedRows.length === 0 && <p className="hint">This order has no analytes to enter.</p>}
         </section>
       )}
+
+      <ShortcutHints keys={[['f2', 'new order'], ['f3', 'find patient'], ['f7', 'apply package'], ['f6', 'sample collected'], ['f4', 'save order'], ['f8', 'save results']]} />
 
       {addingPatient && (
         <PatientEditorDialog

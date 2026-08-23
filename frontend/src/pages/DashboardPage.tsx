@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type { DashboardResponse } from '../api/types';
+import { useHotkey } from '../shell/hotkeys';
+import { ShortcutHints } from '../shell/ShortcutHints';
 
 const money = (n: number) => `₹${n.toFixed(2)}`;
 
@@ -50,6 +52,8 @@ export function DashboardPage() {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useHotkey('f9', 'Refresh the figures', 'Dashboard', () => { if (!busy) void load(); });
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -161,7 +165,7 @@ export function DashboardPage() {
           <p className="hint">{today}</p>
         </div>
         <div className="inline-form">
-          <button type="button" disabled={busy} onClick={() => void load()}>Refresh</button>
+          <button type="button" disabled={busy} onClick={() => void load()}>Refresh <span className="kbd">F9</span></button>
         </div>
       </div>
 
@@ -293,6 +297,8 @@ export function DashboardPage() {
           </table>
         </section>
       </div>
+
+      <ShortcutHints keys={[['f9', 'refresh'], ['mod+k', 'search anything']]} />
     </div>
   );
 }

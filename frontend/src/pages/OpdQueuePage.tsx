@@ -6,6 +6,7 @@ import { describeSession, isInSession, SESSIONS } from '../opd/session';
 import { BookVisitDialog } from '../opd/BookVisitDialog';
 import { CollectFeeDialog } from '../opd/CollectFeeDialog';
 import { describeCombo, useHotkey } from '../shell/hotkeys';
+import { ShortcutHints } from '../shell/ShortcutHints';
 
 /** How a status should read at a glance. The word still appears — colour
  *  alone would fail a colour-blind receptionist and a monochrome screen. */
@@ -404,16 +405,7 @@ export function OpdQueuePage() {
         {column('Completed', completed)}
       </div>
 
-      {/* The keys, in front of the person who would use them. A shortcut
-          nobody can find is not a feature; ? opens the full sheet. */}
-      <p className="hint" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        <span><span className="kbd">{describeCombo('arrowup')}</span> <span className="kbd">{describeCombo('arrowdown')}</span> move</span>
-        <span><span className="kbd">{describeCombo('enter')}</span> consult</span>
-        <span><span className="kbd">{describeCombo('f4')}</span> fee</span>
-        <span><span className="kbd">{describeCombo('f6')}</span> arrived</span>
-        <span><span className="kbd">{describeCombo('f8')}</span> complete</span>
-        <span><span className="kbd">?</span> all shortcuts</span>
-      </p>
+      <ShortcutHints keys={[['arrowup arrowdown', 'move'], ['enter', 'consult'], ['f4', 'fee'], ['f6', 'arrived'], ['f8', 'complete'], ['f2', 'book visit']]} />
 
       {booking && (
         <BookVisitDialog

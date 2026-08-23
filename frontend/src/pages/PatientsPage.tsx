@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, openPdf } from '../api/client';
 import type {
   DiagnosticBill, GeneralSettings, GrowthMeasurement, Patient, Sale,
   VaccinationRecord, Visit,
 } from '../api/types';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
+import { useHotkey } from '../shell/hotkeys';
+import { ShortcutHints } from '../shell/ShortcutHints';
 
 /**
  * Patient register: search, everything on record behind each patient, and
@@ -32,6 +34,15 @@ export function PatientsPage() {
   const [editing, setEditing] = useState<Patient | null | undefined>(undefined);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const G = 'Patients';
+  useHotkey('f2', 'Add a patient', G, () => setEditing(null));
+  useHotkey('f3', 'Find a patient', G, () => {
+    searchRef.current?.focus();
+    searchRef.current?.select();
+  }, { whileTyping: true });
 
   const find = useCallback(async (term: string, keepId?: string) => {
     try {
@@ -91,6 +102,7 @@ export function PatientsPage() {
         <div className="inline-form">
           <form className="inline-form" onSubmit={onSearch}>
             <input
+              ref={searchRef}
               placeholder="Name, phone or patient no."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -100,7 +112,7 @@ export function PatientsPage() {
           <button type="button" disabled={!selected} onClick={() => selected && setEditing(selected)}>
             Edit
           </button>
-          <button type="button" onClick={() => setEditing(null)}>+ New patient</button>
+          <button type="button" className="primary" onClick={() => setEditing(null)}>+ New patient</button>
         </div>
       </div>
 
@@ -279,6 +291,8 @@ export function PatientsPage() {
           )}
         </section>
       </div>
+
+      <ShortcutHints keys={[['f2', 'new patient'], ['f3', 'find']]} />
 
       {editing !== undefined && (
         <PatientEditorDialog

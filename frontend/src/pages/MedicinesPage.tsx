@@ -1,7 +1,9 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Product } from '../api/types';
 import { MedicineEditorDialog } from '../pharmacy/MedicineEditorDialog';
+import { useHotkey } from '../shell/hotkeys';
+import { ShortcutHints } from '../shell/ShortcutHints';
 
 /**
  * The medicine catalogue — what a medicine is, not how much of it there is.
@@ -15,6 +17,15 @@ export function MedicinesPage() {
   const [editing, setEditing] = useState<Product | null | undefined>(undefined); // undefined = closed
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  const G = 'Medicines';
+  useHotkey('f2', 'Add a medicine', G, () => setEditing(null));
+  useHotkey('f3', 'Find a medicine', G, () => {
+    searchRef.current?.focus();
+    searchRef.current?.select();
+  }, { whileTyping: true });
 
   const find = useCallback(async (term: string) => {
     try {
@@ -40,10 +51,10 @@ export function MedicinesPage() {
         </div>
         <div className="inline-form">
           <form className="inline-form" onSubmit={onSearch}>
-            <input placeholder="Name, maker or rack" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input ref={searchRef} placeholder="Name, maker or rack" value={search} onChange={(e) => setSearch(e.target.value)} />
             <button type="submit" className="ghost">Search</button>
           </form>
-          <button type="button" onClick={() => setEditing(null)}>+ New medicine</button>
+          <button type="button" className="primary" onClick={() => setEditing(null)}>+ New medicine</button>
         </div>
       </div>
 
@@ -87,6 +98,8 @@ export function MedicinesPage() {
           </tbody>
         </table>
       </section>
+
+      <ShortcutHints keys={[['f2', 'new medicine'], ['f3', 'find']]} />
 
       {editing !== undefined && (
         <MedicineEditorDialog

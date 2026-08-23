@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError, openPdf } from '../api/client';
 import type {
   DiagnosticBill,
@@ -8,6 +8,9 @@ import type {
   Patient,
   Visit,
 } from '../api/types';
+import { PatientPicker } from '../shell/PatientPicker';
+import { ShortcutHints } from '../shell/ShortcutHints';
+import { useHotkey } from '../shell/hotkeys';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
 import { TestEditorDialog } from '../diagnostics/TestEditorDialog';
 import { TestPickerDialog } from '../diagnostics/TestPickerDialog';
@@ -166,6 +169,16 @@ export function DiagnosticsPage() {
    * operator finding out only after Save fails. */
   const canEdit = billStatus !== 'Completed';
 
+  // F3 here means the test search, not the patient box: on this screen the
+  // tests are what gets typed over and over. The patient picker keeps its
+  // own arrows and Enter.
+  const G = 'Diagnostics';
+  const testSearchRef = useRef<HTMLInputElement>(null);
+  useHotkey('f3', 'Search tests', G, () => {
+    testSearchRef.current?.focus();
+    testSearchRef.current?.select();
+  }, { whileTyping: true });
+
   const newBill = () => {
     setLines([]);
     setSearch('');
@@ -249,6 +262,11 @@ export function DiagnosticsPage() {
   };
 
   // ── Save ───────────────────────────────────────────────────────────────
+
+  useHotkey('f2', 'Start a new bill', G, () => newBill());
+  useHotkey('f6', 'Load tests requested in consultation', G, () => { if (patient) void loadFromConsultation(); });
+  useHotkey('f4', 'Save the bill', G, () => { if (!busy && canEdit) void save(false); });
+  useHotkey('f8', 'Save and print', G, () => { if (!busy && canEdit) void save(true); });
 
   const save = async (print: boolean) => {
     setError(null);
@@ -416,27 +434,14 @@ export function DiagnosticsPage() {
                 )}
               </div>
             ) : (
-              <div className="patient-picker">
-                <div className="inline-form">
-                  <input
-                    placeholder="Name or phone number"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                  <button type="button" onClick={() => setAddingPatient(true)}>+ New patient</button>
-                </div>
-                {matches.length > 0 && (
-                  <ul className="pick-list">
-                    {matches.map((p) => (
-                      <li key={p.id}>
-                        <button type="button" onClick={() => { setPatient(p); setSearch(''); setMatches([]); setError(null); }}>
-                          {p.name} · {p.patientNo} · {p.age}{p.gender.charAt(0)}{p.phone && ` · ${p.phone}`}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+              <PatientPicker
+                group={G}
+                search={search}
+                onSearchChange={setSearch}
+                matches={matches}
+                onPick={(p) => { setPatient(p); setSearch(''); setMatches([]); setError(null); }}
+                onNewPatient={() => setAddingPatient(true)}
+              />
             )}
           </section>
 
@@ -569,7 +574,7 @@ export function DiagnosticsPage() {
             </div>
 
             <div className="settings-actions">
-              <button type="button" disabled={busy || !canEdit} onClick={() => void save(false)}>Save</button>
+              <button type="button" className="primary" disabled={busy || !canEdit} onClick={() => void save(false)}>Save</button>
               <button type="button" disabled={busy || !canEdit} onClick={() => void save(true)}>Save &amp; print</button>
               {billId && (
                 <button type="button" className="ghost" onClick={() => void openPdf(`/api/print/diagnostic-bill/${billId}?reprint=true`)}>
@@ -624,6 +629,7 @@ export function DiagnosticsPage() {
 
           <div className="inline-form">
             <input
+              ref={testSearchRef}
               placeholder="Search tests"
               value={masterSearch}
               onChange={(e) => setMasterSearch(e.target.value)}
@@ -697,6 +703,8 @@ export function DiagnosticsPage() {
           }}
         />
       )}
+
+      <ShortcutHints keys={[['f2', 'new bill'], ['f3', 'search tests'], ['f6', 'load requested tests'], ['f4', 'save'], ['f8', 'save & print']]} />
 
       {addingPatient && (
         <PatientEditorDialog

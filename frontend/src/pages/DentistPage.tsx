@@ -12,6 +12,9 @@ import type {
   Patient,
   Procedure,
 } from '../api/types';
+import { PatientPicker } from '../shell/PatientPicker';
+import { ShortcutHints } from '../shell/ShortcutHints';
+import { useHotkey } from '../shell/hotkeys';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
 
 const PAYMENT_MODES: PaymentMode[] = ['Cash', 'Upi', 'Card'];
@@ -147,6 +150,12 @@ export function DentistPage() {
       setError(err instanceof ApiError ? err.message : 'That did not go through.');
     }
   };
+
+  // Same meanings as the other counters where they apply. A dental case is
+  // opened rather than billed, so F2 opens the case and F7 adds a sitting.
+  const G = 'Dentist';
+  useHotkey('f2', 'Open a case', G, () => { if (patient) openCase(); });
+  useHotkey('f7', 'Add a sitting', G, () => { if (selectedCase) addSitting(); });
 
   // ── Actions ────────────────────────────────────────────────────────────
 
@@ -290,27 +299,14 @@ export function DentistPage() {
             <button type="button" className="ghost" onClick={changePatient}>Change patient</button>
           </div>
         ) : (
-          <div className="patient-picker">
-            <div className="inline-form">
-              <input
-                placeholder="Name or phone number"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <button type="button" onClick={() => setAddingPatient(true)}>+ New patient</button>
-            </div>
-            {matches.length > 0 && (
-              <ul className="pick-list">
-                {matches.map((p) => (
-                  <li key={p.id}>
-                    <button type="button" onClick={() => selectPatient(p)}>
-                      {p.name} · {p.patientNo} · {p.age}{p.gender.charAt(0)}{p.phone && ` · ${p.phone}`}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <PatientPicker
+            group={G}
+            search={search}
+            onSearchChange={setSearch}
+            matches={matches}
+            onPick={selectPatient}
+            onNewPatient={() => setAddingPatient(true)}
+          />
         )}
       </section>
 
@@ -628,6 +624,8 @@ export function DentistPage() {
           )}
         </>
       )}
+
+      <ShortcutHints keys={[['f2', 'open case'], ['f3', 'find patient'], ['f7', 'add sitting']]} />
 
       {addingPatient && (
         <PatientEditorDialog

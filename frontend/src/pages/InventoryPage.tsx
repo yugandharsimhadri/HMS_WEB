@@ -1,9 +1,11 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Batch, Product } from '../api/types';
 import { unitsFromPacking, unitWordFor } from '../pharmacy/packing';
 import { ReceiveStockDialog } from '../pharmacy/ReceiveStockDialog';
 import { CorrectStockDialog } from '../pharmacy/CorrectStockDialog';
+import { useHotkey } from '../shell/hotkeys';
+import { ShortcutHints } from '../shell/ShortcutHints';
 
 interface StockAdjustment {
   id: string;
@@ -33,6 +35,18 @@ export function InventoryPage() {
 
   const [receiving, setReceiving] = useState(false);
   const [correcting, setCorrecting] = useState(false);
+
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Receiving and correcting both need a medicine chosen first, so both
+  // keys refuse quietly rather than opening a dialog about nothing.
+  const G = 'Inventory';
+  useHotkey('f3', 'Find a medicine', G, () => {
+    searchRef.current?.focus();
+    searchRef.current?.select();
+  }, { whileTyping: true });
+  useHotkey('f6', 'Receive stock', G, () => { if (selected) setReceiving(true); });
+  useHotkey('f7', 'Correct stock', G, () => { if (selected) setCorrecting(true); });
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -111,7 +125,7 @@ export function InventoryPage() {
           </p>
         </div>
         <form className="inline-form" onSubmit={onSearch}>
-          <input placeholder="Find a medicine" value={search} onChange={(e) => setSearch(e.target.value)} />
+          <input ref={searchRef} placeholder="Find a medicine" value={search} onChange={(e) => setSearch(e.target.value)} />
           <button type="submit" className="ghost">Search</button>
           <button
             type="button"
@@ -230,6 +244,8 @@ export function InventoryPage() {
           </tbody>
         </table>
       </section>
+
+      <ShortcutHints keys={[['f3', 'find'], ['f6', 'receive stock'], ['f7', 'correct stock']]} />
 
       {receiving && selected && (
         <ReceiveStockDialog

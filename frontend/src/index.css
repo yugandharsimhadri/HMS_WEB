@@ -1094,11 +1094,42 @@ button.kpi:hover { border-color: var(--c-accent); background: var(--c-surface); 
 }
 .picker-results li button:hover { background: var(--c-accent-weak); color: var(--c-accent); border: 0; }
 
-/* The arrow keys' current match. Same treatment as hover on purpose: the
-   keyboard and the mouse should not point at a row in two different ways. */
-.picker-results li button.active-match { background: var(--c-accent-weak); color: var(--c-accent); }
 
-.pick-list { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
+.pick-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* Rows in a result list read as rows, not as a stack of buttons. */
+.pick-list li button {
+  width: 100%;
+  height: auto;
+  min-height: 30px;
+  padding: 6px 9px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  box-shadow: none;
+  justify-content: flex-start;
+  text-align: left;
+  font-weight: 400;
+  font-size: 13px;
+}
+.pick-list li button:hover { background: var(--c-surface-3); border: 0; }
+
+/* The arrow keys' current row, matching the mouse's hover exactly: the
+   keyboard and the pointer must not point at a row in two different ways. */
+.pick-list li button.active-match,
+.picker-results li button.active-match {
+  background: var(--c-accent-weak);
+  color: var(--c-accent);
+}
 button.pick {
   justify-content: flex-start;
   text-align: left;
@@ -1154,6 +1185,18 @@ button.pick.selected { background: var(--c-accent-weak); color: var(--c-accent);
 .licence-expiring { color: var(--c-warn); font-weight: 600; }
 .licence-expired { color: var(--c-crit); font-weight: 600; }
 .licence-no-expiry { color: var(--c-text-3); }
+
+/* The keycap strip at the foot of a screen. */
+.shortcut-hints {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 12px;
+  color: var(--c-text-3);
+}
+.shortcut-hints > span { display: inline-flex; align-items: center; gap: 5px; }
 
 /* ------------------------------------------------------------- responsive */
 
