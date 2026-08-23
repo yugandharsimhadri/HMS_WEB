@@ -65,6 +65,10 @@ export function AppShell() {
             </>
           )}
           <NavLink to="/reports">Reports</NavLink>
+          {/* Next to Settings rather than inside it: masters are set up in one
+              sitting, then edited occasionally for years, which is a different
+              job from configuring the clinic once. */}
+          <NavLink to="/masters">Masters</NavLink>
           <NavLink to="/settings">Settings</NavLink>
         </nav>
         <div className="shell-user">

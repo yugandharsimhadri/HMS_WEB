@@ -494,13 +494,25 @@ export type DentalCaseStatus = 'Planned' | 'InProgress' | 'Completed' | 'Cancell
 export interface DentalPackageMaster {
   id: string;
   name: string;
+  description: string | null;
   packagePrice: number;
   active: boolean;
+}
+
+/** What a package includes. Loaded only when a package is opened for
+ * editing — the list needs the price, not the contents. */
+export interface DentalPackageItem {
+  id: string;
+  packageId: string;
+  procedureId: string | null;
+  procedureName: string;
+  quantity: number;
 }
 
 export interface DentalReplacementMaster {
   id: string;
   name: string;
+  category: string;
   unitCost: number;
   active: boolean;
 }
@@ -592,6 +604,26 @@ export interface LabAnalyte {
   decimalPlaces: number;
   sequenceOrder: number;
   active: boolean;
+}
+
+/**
+ * One reference range for an analyte. Every bound is optional because real
+ * ranges are ragged — some apply to one sex, some only above an age, and
+ * some are not numeric at all, where `textRange` ("Non-reactive") takes over
+ * the printed range column.
+ */
+export interface LabAnalyteReferenceRange {
+  id: string;
+  analyteId: string;
+  /** Null applies to everyone. */
+  gender: Gender | null;
+  minAgeYears: number | null;
+  maxAgeYears: number | null;
+  lowValue: number | null;
+  highValue: number | null;
+  textRange: string | null;
+  /** What a human reads on the report — "Adult male", "Child 1–5y". */
+  label: string;
 }
 
 export interface LabReport {

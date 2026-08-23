@@ -40,6 +40,23 @@ public record SaveProcedureBillRequest(
 public record SaveProcedureRequest(
     Guid? Id, string Name, string? Category, ProcedureDepartment Department, decimal Price, bool Active);
 
+/// <summary>
+/// One row of the vaccine master — the schedule this clinic actually
+/// follows, which is not the same everywhere.
+///
+/// <paramref name="RecommendedAgeDays"/> is in days rather than months
+/// because the early schedule is measured in weeks — BCG at birth, OPV at 6,
+/// 10 and 14 weeks — and months cannot express it. <paramref name="DoseNumber"/>
+/// separates the second OPV from the first: they are two master rows rather
+/// than one row given twice, which is what lets "what is due next" be
+/// answered per dose.
+/// </summary>
+public record SaveVaccineRequest(
+    Guid? Id, string Name, int DoseNumber, int RecommendedAgeDays,
+    string? Category, int SequenceOrder, bool Active);
+
+public record SetActiveRequest(bool Active);
+
 public record RecordGrowthRequest(
     DateTime MeasuredOn, decimal? WeightKg, decimal? HeightCm, decimal? HeadCircumferenceCm);
 
@@ -92,6 +109,86 @@ public class PediatricsController(
         [FromQuery] bool activeOnly = true)
         => Ok(await bills.SearchProceduresAsync(department, term, activeOnly));
 
+    /// <summary>Suggestions for the editor's category box, the clinic's own
+    /// vocabulary included — a closed list would not survive contact with a
+    /// state schedule, and a bare box invites eight spellings of one word.</summary>
+    [HttpGet("vaccines/categories")]
+    public async Task<ActionResult<List<string>>> VaccineCategories()
+    {
+        string[] examples =
+            ["Universal Immunization Programme", "Optional", "Travel", "Catch-up"];
+
+        var used = await pediatrics.GetVaccineCategoriesAsync();
+        return Ok(examples.Union(used).OrderBy(c => c).ToList());
+    }
+
+    [HttpPost("vaccines")]
+    public async Task<ActionResult<VaccineMaster>> SaveVaccine(SaveVaccineRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest("Vaccine name is required.");
+
+        await using var db = await factory.CreateDbContextAsync();
+
+        var vaccine = request.Id is { } id
+            ? await db.VaccineMasters.AsNoTracking().FirstOrDefaultAsync(v => v.Id == id)
+            : null;
+
+        vaccine ??= new VaccineMaster();
+
+        vaccine.Name = request.Name.Trim();
+
+        // A dose number below 1 would sort ahead of the first dose and never
+        // match a "dose 1 given" record, so it is clamped rather than trusted.
+        vaccine.DoseNumber = Math.Max(1, request.DoseNumber);
+        vaccine.RecommendedAgeDays = Math.Max(0, request.RecommendedAgeDays);
+        vaccine.Category = string.IsNullOrWhiteSpace(request.Category) ? "Others" : request.Category.Trim();
+        vaccine.SequenceOrder = request.SequenceOrder;
+        vaccine.Active = request.Active;
+
+        try
+        {
+            await pediatrics.SaveVaccineAsync(vaccine);
+            return Ok(vaccine);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("vaccines/{id:guid}/active")]
+    public async Task<IActionResult> SetVaccineActive(Guid id, SetActiveRequest request)
+    {
+        await pediatrics.SetVaccineActiveAsync(id, request.Active);
+        return NoContent();
+    }
+
+    /// <summary>Refused once a dose has been given from it — the child's
+    /// immunisation card points at this row, and deleting it is what would
+    /// strip a recorded dose of the vaccine it was. Deactivating is the
+    /// supported alternative and is what the refusal says.</summary>
+    [HttpPost("vaccines/{id:guid}/remove")]
+    public async Task<IActionResult> DeleteVaccine(Guid id)
+    {
+        try
+        {
+            await pediatrics.DeleteVaccineAsync(id);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// The procedure master, shared by every department and filtered by
+    /// <c>Department</c> — one master with a departmental pill, exactly as
+    /// the desktop's GeneralMasterViewModel has it, not three separate
+    /// catalogues that would drift apart. A dentist procedure is saved
+    /// through here too.
+    /// </summary>
     [HttpPost("procedures")]
     public async Task<ActionResult<Procedure>> SaveProcedure(SaveProcedureRequest request)
     {

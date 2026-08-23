@@ -29,6 +29,31 @@ public record AddReplacementRequest(Guid ReplacementId, int Quantity);
 
 public record RecordDentalPaymentRequest(decimal Amount, PaymentMode PaymentMode, string? TransactionNo);
 
+/// <summary>One procedure inside a package, and how many times it is
+/// included — a package with two cleanings is one line of quantity 2, not
+/// two lines.</summary>
+public record DentalPackageItemRequest(Guid? ProcedureId, string ProcedureName, int Quantity);
+
+/// <summary>
+/// A package quotes a course of treatment at one price. That price is set
+/// here directly rather than summed from the items, because quoting a
+/// discount against the à-la-carte total is the whole point of offering a
+/// package — the items say what is included, not what it costs.
+/// </summary>
+public record SaveDentalPackageRequest(
+    Guid? Id, string Name, string? Description, decimal PackagePrice, bool Active,
+    List<DentalPackageItemRequest> Items);
+
+/// <summary>A crown, a bridge, an implant — priced per unit, because one
+/// case may need several of the same thing.</summary>
+public record SaveDentalReplacementRequest(
+    Guid? Id, string Name, string? Category, decimal UnitCost, bool Active);
+
+/// <summary><paramref name="DefaultCost"/> is a default, not a fixed price:
+/// a sitting may override it, since how much anaesthetic a patient actually
+/// needed is not knowable when the master is written.</summary>
+public record SaveAnesthesiaTypeRequest(Guid? Id, string Name, decimal DefaultCost, bool Active);
+
 /// <summary>
 /// The Dentist module: cases, the sittings and replacements that accumulate
 /// against them, and the instalments paid off them.
@@ -37,8 +62,10 @@ public record RecordDentalPaymentRequest(decimal Amount, PaymentMode PaymentMode
 /// visits and is paid in parts, so cost and payment both hang off the case
 /// and the balance is derived, never stored.
 ///
-/// The four dental masters belong to the Masters module; this exposes reads
-/// of them so a case can be opened, not editors.
+/// The dental masters live here too — packages, replacements and anaesthesia
+/// types — since a clinic that cannot price its own crowns is stuck with
+/// whatever the seeder guessed. They are edited from the Masters screen,
+/// which composes them alongside the pediatric and lab masters.
 /// </summary>
 [ApiController]
 [Authorize]
@@ -61,6 +88,149 @@ public class DentistController(
     [HttpGet("replacements")]
     public async Task<ActionResult<List<DentalReplacementMaster>>> Replacements([FromQuery] string? term)
         => Ok(await dentist.SearchReplacementsAsync(term, activeOnly: true));
+
+    /// <summary>What a package includes, for the editor to load — the list
+    /// screen shows only the package and its price.</summary>
+    [HttpGet("packages/{id:guid}/items")]
+    public async Task<ActionResult<List<DentalPackageItem>>> PackageItems(Guid id)
+        => Ok(await dentist.GetPackageItemsAsync(id));
+
+    [HttpPost("packages")]
+    public async Task<ActionResult<DentalPackageMaster>> SavePackage(SaveDentalPackageRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest("Package name is required.");
+
+        await using var db = await factory.CreateDbContextAsync();
+
+        var package = request.Id is { } id
+            ? await db.DentalPackageMasters.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id)
+            : null;
+
+        package ??= new DentalPackageMaster();
+
+        package.Name = request.Name.Trim();
+        package.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+        package.PackagePrice = request.PackagePrice;
+        package.Active = request.Active;
+
+        // Quantity clamped to at least 1: a package line included zero times
+        // is not a line, and would price the package against nothing.
+        var items = (request.Items ?? [])
+            .Where(i => !string.IsNullOrWhiteSpace(i.ProcedureName))
+            .Select(i => new DentalPackageItem
+            {
+                ProcedureId = i.ProcedureId,
+                ProcedureName = i.ProcedureName.Trim(),
+                Quantity = Math.Max(1, i.Quantity),
+            })
+            .ToList();
+
+        try
+        {
+            return Ok(await dentist.SavePackageAsync(package, items));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>Refused once a case has been opened against it — that case
+    /// quotes this package by name and price, and deleting the row is what
+    /// would strip it of what was agreed. Deactivate instead.</summary>
+    [HttpPost("packages/{id:guid}/remove")]
+    public async Task<IActionResult> DeletePackage(Guid id)
+    {
+        try
+        {
+            await dentist.DeletePackageAsync(id);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("replacements")]
+    public async Task<ActionResult<DentalReplacementMaster>> SaveReplacement(SaveDentalReplacementRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest("Replacement name is required.");
+
+        await using var db = await factory.CreateDbContextAsync();
+
+        var replacement = request.Id is { } id
+            ? await db.DentalReplacementMasters.AsNoTracking().FirstOrDefaultAsync(r => r.Id == id)
+            : null;
+
+        replacement ??= new DentalReplacementMaster();
+
+        replacement.Name = request.Name.Trim();
+        replacement.Category = string.IsNullOrWhiteSpace(request.Category) ? "Others" : request.Category.Trim();
+        replacement.UnitCost = request.UnitCost;
+        replacement.Active = request.Active;
+
+        try
+        {
+            await dentist.SaveReplacementAsync(replacement);
+            return Ok(replacement);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    [HttpPost("replacements/{id:guid}/remove")]
+    public async Task<IActionResult> DeleteReplacement(Guid id)
+    {
+        try
+        {
+            await dentist.DeleteReplacementAsync(id);
+            return NoContent();
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// No delete, deliberately — matching the desktop. An anaesthesia type is
+    /// referenced by every sitting that used it, and unlike a package there is
+    /// no natural "has this been used" guard that is cheap to ask. Deactivating
+    /// takes it out of the picker, which is the actual requirement.
+    /// </summary>
+    [HttpPost("anesthesia-types")]
+    public async Task<ActionResult<AnesthesiaTypeMaster>> SaveAnesthesiaType(SaveAnesthesiaTypeRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest("Anesthesia type name is required.");
+
+        await using var db = await factory.CreateDbContextAsync();
+
+        var type = request.Id is { } id
+            ? await db.AnesthesiaTypeMasters.AsNoTracking().FirstOrDefaultAsync(a => a.Id == id)
+            : null;
+
+        type ??= new AnesthesiaTypeMaster();
+
+        type.Name = request.Name.Trim();
+        type.DefaultCost = request.DefaultCost;
+        type.Active = request.Active;
+
+        try
+        {
+            await dentist.SaveAnesthesiaTypeAsync(type);
+            return Ok(type);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
+    }
 
     [HttpGet("anesthesia-types")]
     public async Task<ActionResult<List<AnesthesiaTypeMaster>>> AnesthesiaTypes()

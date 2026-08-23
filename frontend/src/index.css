@@ -373,6 +373,34 @@ button.danger:hover {
   background: transparent;
 }
 
+/* A filter, not navigation — the department pill on the procedure master
+   narrows one list rather than moving between screens, so it reads as a
+   toggle rather than a tab. */
+.pill {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 13px;
+}
+
+.pill:hover {
+  background: var(--bg);
+}
+
+.pill.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* Dimmed, not hidden: a deactivated master still has to be findable, since
+   reactivating it is the only way back. */
+.row-inactive td {
+  opacity: 0.55;
+}
+
 .settings-form {
   display: flex;
   flex-direction: column;

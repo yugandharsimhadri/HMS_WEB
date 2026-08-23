@@ -20,6 +20,7 @@ import { DashboardPage } from './pages/DashboardPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { PlatformConsolePage } from './pages/PlatformConsolePage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { MastersPage } from './pages/MastersPage';
 
 /**
  * The clinic application. A support session is bounced to its own console
@@ -41,14 +42,6 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
 }
 
 /**
- * The support console. Guarded both ways — a clinic's own users have no
- * business here either, and land back in their clinic.
- *
- * Neither guard is a security boundary. Both exist to show people the screen
- * that will actually work; the API decides what is permitted from the
- * token's own claims, on every request.
- */
-/**
  * Signed in as a clinic user, and that is all this screen needs. Platform
  * support has no clinic password to change, so it goes back to its console.
  */
@@ -59,6 +52,14 @@ function ChangePasswordGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * The support console. Guarded both ways — a clinic's own users have no
+ * business here either, and land back in their clinic.
+ *
+ * Neither guard is a security boundary. Both exist to show people the screen
+ * that will actually work; the API decides what is permitted from the
+ * token's own claims, on every request.
+ */
 function PlatformRoute({ children }: { children: ReactNode }) {
   const { isAuthenticated, isPlatformAdmin } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -108,6 +109,7 @@ function AppRoutes() {
         <Route path="dashboard" element={<DashboardPage />} />
         <Route path="reports" element={<ReportsPage />} />
         <Route path="pharmacy" element={<PharmacyCounterPage />} />
+        <Route path="masters" element={<MastersPage />} />
         <Route path="settings" element={<SettingsPage />} />
         <Route path="consultation/:visitId" element={<ConsultationPage />} />
         <Route path="medicines" element={<MedicinesPage />} />

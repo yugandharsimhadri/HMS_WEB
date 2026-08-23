@@ -6,8 +6,8 @@ every read. Read-only masters are the theme that emerges — several screens
 display seeded data with no way to change it, which compiles and renders
 perfectly and is why a viewmodel-name checklist alone would have missed them.
 
-**Coverage: 30 of 41 viewmodels ported.** The eleven gaps below cluster into
-three groups, only one of which is genuinely blocking.
+**Coverage: 38 of 41 viewmodels ported** (30 when this was first written; the
+eight master editors have since been built — see 1.2).
 
 ---
 
@@ -35,34 +35,35 @@ When building it, the form should take only the **local part** and append
 `@clinic-code` automatically — see `UserName.TryNormaliseLocalPart`, which
 already validates and explains.
 
-### 1.2 Master data is read-only — eight editors missing
+### 1.2 ~~Master data is read-only — eight editors missing~~ — **DONE**
 
-Every clinic is stuck with exactly what `TenantProvisioner` seeded. They
-cannot add a vaccine their state schedule requires, price a dental package,
-or define a lab analyte.
+*Closed. A `Masters` screen now composes every master, gated by the module
+switches, mirroring the desktop's `GeneralMasterViewModel` +
+`PathologyLabMasterViewModel`.*
 
-| Master | WPF editor | Web API |
-|---|---|---|
-| Vaccines | `VaccineEditorViewModel` | GET only |
-| Dental packages | `DentalPackageEditorViewModel` | GET only |
-| Dental replacements | `DentalReplacementEditorViewModel` | GET only |
-| Anaesthesia types | `AnesthesiaTypeEditorViewModel` | GET only |
-| Dentist procedures | `ProcedureEditorViewModel` | GET only |
-| Lab reports | `LabReportEditorViewModel` | GET only |
-| Lab analytes | `LabAnalyteEditorViewModel` | GET only |
-| Lab packages | `LabPackageEditorViewModel` | GET only |
+What the original finding said, kept because the failure mode is worth
+remembering: every clinic was stuck with exactly what `TenantProvisioner`
+seeded, unable to add a vaccine their state schedule required, price a
+dental package, or define a lab analyte.
 
-Two masters *are* writable, which is what makes the rest look finished:
-diagnostic tests (`SaveTest`/`SetTestActive`/`DeleteTest`) and pediatric
-procedures (`SaveProcedure`). Copy those two.
+**Every service method was already ported** — `SaveVaccineAsync`,
+`SavePackageAsync`, `SaveAnalyteAsync`, `SaveReportAsync` and the rest, along
+with their delete guards. Only the controllers and the UI were missing, which
+is exactly why the gap was invisible: the domain layer looked complete
+because it *was* complete.
 
-The buttons that exist on the Dentist, Lab and Pediatrics pages — "Add
-sitting", "Add report", "Add procedure" — are *transactional* (adding a line
-to a case, order or bill). None of them define a master.
+One correction to the original list: **dentist procedures were never
+missing**. `SaveProcedure` already took a `Department`, because the procedure
+master is shared across departments and filtered by a pill rather than split
+into three catalogues. It simply had no caller — an orphan write endpoint.
 
-Corresponds to `GeneralMasterViewModel` (vaccines, procedures, replacements,
-anaesthesia, packages) and `PathologyLabMasterViewModel` (analytes, reports,
-packages).
+Delete is refused everywhere a master has been used, with "deactivate it
+instead" as the message; anaesthesia types have no delete at all, matching
+the desktop.
+
+The buttons on the Dentist, Lab and Pediatrics pages — "Add sitting", "Add
+report", "Add procedure" — remain *transactional* (a line on a case, order or
+bill). They were never master editors, and still aren't.
 
 ### 1.3 Clinic logo missing end to end
 
@@ -132,11 +133,10 @@ commitment, and right now nothing anywhere makes it.
 
 ## Suggested order
 
-1. **User management** — blocks multi-staff use, which is most clinics.
-2. **Logo** (upload + printing) — visible on every document a clinic hands a
+1. ~~**Masters**~~ — done.
+2. **User management** — blocks multi-staff use, which is most clinics.
+3. **Logo** (upload + printing) — visible on every document a clinic hands a
    patient.
-3. **Masters** — unblocks Dentist and Pathology Lab, which are otherwise
-   fixed at their seed data.
 4. **Data health**, then **bill import**.
 5. Dark theme, About.
 
