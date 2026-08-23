@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError, openPdf } from '../api/client';
-import type { Patient, Sale, Visit } from '../api/types';
+import type {
+  DiagnosticBill, GeneralSettings, GrowthMeasurement, Patient, Sale,
+  VaccinationRecord, Visit,
+} from '../api/types';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
 
 /**
- * Patient register: search, the visit and bill history behind each patient,
- * and reprinting any of it however long ago it was.
+ * Patient register: search, everything on record behind each patient, and
+ * reprinting any of it however long ago it was.
+ *
+ * "Everything" is the point of this screen — the desktop shows six histories
+ * here, not two. A patient's diagnostic bills, doses given and growth
+ * measurements belong to the person, not to the module that happened to
+ * record them, and this is the one screen that reads the whole person.
  *
  * Booking still happens on the OPD screen — this is the record, not the queue.
  */
@@ -16,6 +24,10 @@ export function PatientsPage() {
 
   const [history, setHistory] = useState<Visit[]>([]);
   const [bills, setBills] = useState<Sale[]>([]);
+  const [diagnosticBills, setDiagnosticBills] = useState<DiagnosticBill[]>([]);
+  const [vaccinations, setVaccinations] = useState<VaccinationRecord[]>([]);
+  const [growth, setGrowth] = useState<GrowthMeasurement[]>([]);
+  const [general, setGeneral] = useState<GeneralSettings | null>(null);
 
   const [editing, setEditing] = useState<Patient | null | undefined>(undefined);
   const [status, setStatus] = useState('');
@@ -33,10 +45,26 @@ export function PatientsPage() {
 
   useEffect(() => { void find(''); }, [find]);
 
+  // Which histories are worth showing at all. A clinic that has never turned
+  // Pediatrics on should not see two permanently empty tables.
   useEffect(() => {
-    if (!selected) { setHistory([]); setBills([]); return; }
-    void api.get<Visit[]>(`/api/visits/by-patient/${selected.id}`).then(setHistory).catch(() => {});
-    void api.get<Sale[]>(`/api/pharmacy/sales/by-patient/${selected.id}`).then(setBills).catch(() => setBills([]));
+    void api.get<GeneralSettings>('/api/settings/general').then(setGeneral).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (!selected) {
+      setHistory([]); setBills([]); setDiagnosticBills([]); setVaccinations([]); setGrowth([]);
+      return;
+    }
+    const id = selected.id;
+    void api.get<Visit[]>(`/api/visits/by-patient/${id}`).then(setHistory).catch(() => {});
+    void api.get<Sale[]>(`/api/pharmacy/sales/by-patient/${id}`).then(setBills).catch(() => setBills([]));
+    void api.get<DiagnosticBill[]>(`/api/diagnostics/bills/by-patient/${id}`)
+      .then(setDiagnosticBills).catch(() => setDiagnosticBills([]));
+    void api.get<VaccinationRecord[]>(`/api/pediatrics/patients/${id}/vaccinations`)
+      .then(setVaccinations).catch(() => setVaccinations([]));
+    void api.get<GrowthMeasurement[]>(`/api/pediatrics/patients/${id}/growth`)
+      .then(setGrowth).catch(() => setGrowth([]));
   }, [selected]);
 
   const onSearch = (e: FormEvent) => {
@@ -169,6 +197,84 @@ export function PatientsPage() {
                   {bills.length === 0 && <tr><td colSpan={4}>No medicine bills.</td></tr>}
                 </tbody>
               </table>
+
+              {/* The three histories that belong to the person rather than to
+                  the module that recorded them. Each is hidden when its own
+                  module has never been switched on, so a clinic that does not
+                  run a lab or see children is not shown two empty tables. */}
+              {general?.diagnosticsEnabled && (
+                <>
+                  <h3 className="sub-heading">Diagnostic bills</h3>
+                  <table>
+                    <thead><tr><th>Bill</th><th>When</th><th>Tests</th><th>Amount</th><th>Status</th><th>Reprint</th></tr></thead>
+                    <tbody>
+                      {diagnosticBills.map((b) => (
+                        <tr key={b.id}>
+                          <td>{b.billNo}</td>
+                          <td>{new Date(b.billDate).toLocaleDateString()}</td>
+                          <td>{b.items?.length ?? 0}</td>
+                          <td>{b.finalAmount.toFixed(2)}</td>
+                          <td><span className="badge">{b.status}</span></td>
+                          <td>
+                            <button
+                              type="button"
+                              className="ghost"
+                              onClick={() => print(`/api/print/diagnostic-bill/${b.id}?reprint=true`, 'Bill not found.')}
+                            >
+                              Bill
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                      {diagnosticBills.length === 0 && <tr><td colSpan={6}>No diagnostic bills.</td></tr>}
+                    </tbody>
+                  </table>
+                </>
+              )}
+
+              {general?.pediatricsEnabled && (
+                <>
+                  <h3 className="sub-heading">Vaccinations</h3>
+                  <table>
+                    <thead><tr><th>Given on</th><th>Vaccine</th><th>Dose</th><th>Batch</th><th>Site</th></tr></thead>
+                    <tbody>
+                      {[...vaccinations].sort((a, b) => b.givenOn.localeCompare(a.givenOn)).map((r) => (
+                        <tr key={r.id}>
+                          <td>{new Date(r.givenOn).toLocaleDateString()}</td>
+                          <td>{r.vaccineName}</td>
+                          <td>{r.doseNumber}</td>
+                          <td>{r.batchNo ?? '—'}</td>
+                          <td>{r.siteOfInjection ?? '—'}</td>
+                        </tr>
+                      ))}
+                      {vaccinations.length === 0 && <tr><td colSpan={5}>No doses recorded.</td></tr>}
+                    </tbody>
+                  </table>
+
+                  <h3 className="sub-heading">Growth</h3>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Measured on</th><th>Age (days)</th><th>Weight (kg)</th>
+                        <th>Height (cm)</th><th>Head circ. (cm)</th><th>BMI</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...growth].sort((a, b) => b.measuredOn.localeCompare(a.measuredOn)).map((g) => (
+                        <tr key={g.id}>
+                          <td>{new Date(g.measuredOn).toLocaleDateString()}</td>
+                          <td>{g.ageDays}</td>
+                          <td>{g.weightKg ?? '—'}</td>
+                          <td>{g.heightCm ?? '—'}</td>
+                          <td>{g.headCircumferenceCm ?? '—'}</td>
+                          <td>{g.bmiValue ?? '—'}</td>
+                        </tr>
+                      ))}
+                      {growth.length === 0 && <tr><td colSpan={6}>Nothing recorded.</td></tr>}
+                    </tbody>
+                  </table>
+                </>
+              )}
             </>
           )}
         </section>

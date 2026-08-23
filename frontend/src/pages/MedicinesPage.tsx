@@ -54,7 +54,7 @@ export function MedicinesPage() {
         <table>
           <thead>
             <tr>
-              <th>Name</th><th>Maker</th><th>Pack</th><th>Per pack</th>
+              <th>Name</th><th>Maker</th><th>Pack</th><th>Rack</th><th>Per pack</th>
               <th>GST</th><th>Schedule</th><th>Stock</th><th></th>
             </tr>
           </thead>
@@ -68,6 +68,9 @@ export function MedicinesPage() {
                 </td>
                 <td>{p.manufacturer ?? ''}</td>
                 <td>{p.packSize ?? ''}</td>
+                {/* Where it physically is. The desktop carries it here
+                    because finding the box is half of dispensing. */}
+                <td>{p.rackLocation ?? ''}</td>
                 <td>
                   {p.unitsPerPack}
                   {!p.allowLooseSale && p.unitsPerPack > 1 && <div className="hint">whole packs only</div>}

@@ -208,3 +208,46 @@ preview and the server's C# were compared on a real bill and agreed to the
 paisa (gross 10.02, taxable 8.95, CGST 0.53, SGST 0.54, round-off −0.02, net
 10.00). `GstParityTests` pins that contract so a change to one side fails
 loudly instead of quietly quoting one number and printing another.
+
+---
+
+## Correction — the XAML pass, 23 Aug 2026
+
+This checklist, like every other, was derived from the **viewmodels**. A
+later pass compared the **views** (`*.xaml`), which is what actually defines
+the controls and columns on screen. That found gaps on screens marked done
+here, because a column set is a view-level fact no viewmodel states.
+
+Fixed:
+
+| Screen | What was missing |
+|---|---|
+| Patients | **Three whole grids** — diagnostic bills, vaccinations and growth. The desktop shows six histories on this screen; the web showed two |
+| Patients → Growth | `AGE (DAYS)` and `BMI` |
+| Medicines | `RACK` |
+| Inventory → medicines | `MAKER`, `PER PACK`, `RACK` |
+| Inventory → corrections | `WAS` and `NOW` as their own columns, plus a signed delta |
+
+The Patients gap was the substantial one. A patient's diagnostic bills,
+doses given and growth measurements belong to the person, not to the module
+that happened to record them, and Patients is the one screen that reads the
+whole person. Each of the three is hidden when its own module has never been
+switched on, so a clinic that does not run a lab or see children is not
+shown empty tables.
+
+### Still outstanding on these screens
+
+Not fixed, and not to be mistaken for done:
+
+- **Patients → `New diagnostic bill` and `New vaccination`** — two buttons
+  that jump to another module pre-filled for this patient. They correspond
+  to the desktop's `SelectPatientAsync` entry points, which the Diagnostics
+  and Pediatrics parity docs record as "route parameters rather than public
+  methods". The routes do not take a patient yet.
+- **Patients history columns** — `DIAGNOSIS`, `RX`, `STATUS` on visits, and
+  `ITEMS`, `DOCTOR`, `MODE`, `STATUS` on medicine bills.
+- **Inventory → `Import supplier bill`** — that is the Bill Import module,
+  not yet ported.
+- **`Enter` to submit** the search boxes on Patients, Medicines, Inventory,
+  the OPD book-visit dialog, the pharmacy counter and the edit-quantity
+  dialog. The desktop binds it on all six; only Reports has it on the web.

@@ -148,7 +148,9 @@ export function InventoryPage() {
         <section className="card">
           <h2>Medicines</h2>
           <table>
-            <thead><tr><th>Name</th><th>Pack</th><th>Stock</th></tr></thead>
+            <thead>
+              <tr><th>Name</th><th>Maker</th><th>Pack</th><th>Per pack</th><th>On hand</th><th>Rack</th></tr>
+            </thead>
             <tbody>
               {products.map((p) => (
                 <tr
@@ -157,11 +159,14 @@ export function InventoryPage() {
                   className={selected?.id === p.id ? 'selected-row' : undefined}
                 >
                   <td>{p.name}</td>
+                  <td>{p.manufacturer ?? ''}</td>
                   <td>{p.packSize ?? ''}</td>
+                  <td>{p.unitsPerPack}</td>
                   <td>{p.stockOnHand}</td>
+                  <td>{p.rackLocation ?? ''}</td>
                 </tr>
               ))}
-              {products.length === 0 && <tr><td colSpan={3}>No medicines match.</td></tr>}
+              {products.length === 0 && <tr><td colSpan={6}>No medicines match.</td></tr>}
             </tbody>
           </table>
         </section>
@@ -200,19 +205,28 @@ export function InventoryPage() {
           A correction has none, so it writes one.
         </p>
         <table>
-          <thead><tr><th>When</th><th>Medicine</th><th>Batch</th><th>Change</th><th>Reason</th><th>Notes</th></tr></thead>
+          <thead>
+            <tr>
+              <th>When</th><th>Medicine</th><th>Batch</th>
+              <th>Was</th><th>Now</th><th>Change</th><th>Reason</th><th>Notes</th>
+            </tr>
+          </thead>
           <tbody>
             {adjustments.map((a) => (
               <tr key={a.id}>
                 <td>{new Date(a.adjustedOn).toLocaleString()}</td>
                 <td>{a.productName}</td>
                 <td>{a.batchNo}</td>
-                <td>{a.quantityBefore} → {a.quantityAfter}</td>
+                <td>{a.quantityBefore}</td>
+                <td>{a.quantityAfter}</td>
+                {/* The delta, signed — how big the correction was is the
+                    thing worth seeing at a glance, not the two endpoints. */}
+                <td>{a.quantityAfter - a.quantityBefore > 0 ? '+' : ''}{a.quantityAfter - a.quantityBefore}</td>
                 <td>{a.reason}</td>
                 <td>{a.notes ?? ''}</td>
               </tr>
             ))}
-            {adjustments.length === 0 && <tr><td colSpan={6}>No corrections recorded.</td></tr>}
+            {adjustments.length === 0 && <tr><td colSpan={8}>No corrections recorded.</td></tr>}
           </tbody>
         </table>
       </section>
