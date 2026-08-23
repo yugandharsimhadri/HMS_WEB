@@ -46,14 +46,22 @@ public static class FeeReceiptDocument
                     ("Receipt No", visit.FeeReceiptNo ?? "(not issued)"),
                     ("Date", $"{when:dd/MM/yyyy}"),
                     ("Time", $"{when:hh\\:mm tt}"));
+                // Patient number and token/visit are deliberately absent. They
+                // are internal handles — the queue position and the register
+                // key — and mean nothing to the person holding the receipt,
+                // who already has the receipt number to quote.
                 IdentityRow(col, theme, d,
                     ("Patient", visit.Patient.Name),
-                    ("Patient No", visit.Patient.PatientNo),
-                    ("Age / Sex", $"{visit.Patient.Age} / {visit.Patient.Gender}"));
+                    ("Age / Sex", $"{visit.Patient.Age} / {visit.Patient.Gender}"),
+                    ("Doctor", visit.Doctor.Name));
+
+                // The prescriber's registration number. Kept even when the
+                // clinic has not recorded one — a blank beside the label is
+                // what prompts somebody to go and fill it in, where dropping
+                // the row entirely hides that anything is missing.
                 IdentityRow(col, theme, d,
-                    ("Doctor", visit.Doctor.Name),
                     ("Speciality", visit.Doctor.Speciality ?? ""),
-                    ("Token / Visit", $"{visit.TokenNo} · {visit.VisitNo}"));
+                    ("Reg. No", visit.Doctor.RegistrationNo ?? "—"));
 
                 Rule(col);
 

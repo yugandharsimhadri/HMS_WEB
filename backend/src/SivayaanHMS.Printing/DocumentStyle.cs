@@ -85,6 +85,30 @@ public static class DocumentStyle
             });
     }
 
+    /// <summary>
+    /// Two fields across the same width as three, for a row that would
+    /// otherwise carry a blank cell. An empty pair renders as a stray ": ",
+    /// which reads as a field whose value went missing rather than a field
+    /// that was never there.
+    /// </summary>
+    public static void IdentityRow(
+        ColumnDescriptor col, DocumentTheme theme, float delta,
+        (string Label, string Value) a, (string Label, string Value) b)
+    {
+        col.Item().PaddingTop(2).Row(row =>
+        {
+            Cell(row.RelativeItem(), a);
+            Cell(row.RelativeItem(2), b);
+        });
+
+        void Cell(IContainer container, (string Label, string Value) pair)
+            => container.Text(text =>
+            {
+                text.Span($"{pair.Label}: ").FontSize(Body(theme, 7.5f, delta)).FontColor(Muted);
+                text.Span(pair.Value).FontSize(Body(theme, 8.5f, delta));
+            });
+    }
+
     public static void Rule(ColumnDescriptor col)
         => col.Item().PaddingVertical(3).LineHorizontal(0.75f).LineColor(Muted);
 
