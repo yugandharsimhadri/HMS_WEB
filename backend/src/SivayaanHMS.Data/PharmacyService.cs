@@ -41,6 +41,33 @@ public class RepackPreview
     public bool AnythingToDo => Batches > 0 && QuantityAfter != QuantityBefore;
 }
 
+/// <summary>One GST slab's totals, summed in the database. CGST and SGST are
+/// split by the caller, so the halving rule lives in exactly one place.</summary>
+public class GstSlabTotal
+{
+    public decimal GstRate { get; init; }
+    public decimal Taxable { get; init; }
+    public decimal Gst { get; init; }
+}
+
+/// <summary>A catalogue row for a picker — everything needed to choose and
+/// price a medicine, without its batch history.</summary>
+public class CatalogueEntry
+{
+    public Guid Id { get; init; }
+    public string Name { get; init; } = string.Empty;
+    public string? GenericName { get; init; }
+    public string? Manufacturer { get; init; }
+    public string? PackSize { get; init; }
+    public int UnitsPerPack { get; init; }
+    public bool AllowLooseSale { get; init; }
+    public DispensingUnit DispensingUnit { get; init; }
+    public decimal GstRate { get; init; }
+    public DrugSchedule Schedule { get; init; }
+    public int StockOnHand { get; init; }
+    public decimal? NextBatchMrp { get; init; }
+}
+
 public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clock, ILogger<PharmacyService> logger)
 {
     // ── Products ───────────────────────────────────────────────────────────
@@ -762,6 +789,111 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
             .ToListAsync();
     }
 
+    /// <summary>One product with its batches. The counter needs a single
+    /// product by id often enough that fetching the catalogue and searching
+    /// it client-side was, at three hundred products, downloading nearly two
+    /// megabytes to answer a question about one row.</summary>
+    public async Task<Product?> GetProductAsync(Guid id)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        return await db.Products.AsNoTracking().Include(p => p.Batches)
+            .FirstOrDefaultAsync(p => p.Id == id && !p.IsDeleted);
+    }
+
+    /// <summary>
+    /// The catalogue as a picker needs it: what a medicine is called and how
+    /// it is dispensed, with the price of the batch that would actually go
+    /// out — and **not** every batch of every product.
+    ///
+    /// The full product list carries its batches because the counter prices
+    /// from them. A name picker does not, and shipping them anyway meant a
+    /// consultation screen downloading 1.7 MB to populate a dropdown.
+    /// </summary>
+    public async Task<List<CatalogueEntry>> GetCatalogueAsync()
+    {
+        await using var db = await factory.CreateDbContextAsync();
+
+        return await db.Products.AsNoTracking()
+            .Where(p => !p.IsDeleted && p.IsActive)
+            .OrderBy(p => p.Name)
+            .Select(p => new CatalogueEntry
+            {
+                Id = p.Id,
+                Name = p.Name,
+                GenericName = p.GenericName,
+                Manufacturer = p.Manufacturer,
+                PackSize = p.PackSize,
+                UnitsPerPack = p.UnitsPerPack,
+                AllowLooseSale = p.AllowLooseSale,
+                DispensingUnit = p.DispensingUnit,
+                GstRate = p.GstRate,
+                Schedule = p.Schedule,
+                StockOnHand = p.Batches.Where(b => !b.IsDeleted).Sum(b => b.QtyOnHand),
+                NextBatchMrp = p.Batches
+                    .Where(b => !b.IsDeleted && b.QtyOnHand > 0)
+                    .OrderBy(b => b.ExpiryDate)
+                    .Select(b => (decimal?)b.Mrp)
+                    .FirstOrDefault()
+            })
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Net revenue per day over [from, to] inclusive, Completed sales only —
+    /// summed in the database. The dashboard's trend needs fourteen numbers,
+    /// not fourteen days of bills.
+    /// </summary>
+    public async Task<Dictionary<DateTime, decimal>> GetDailyNetAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+
+        var rows = await db.Sales.AsNoTracking()
+            .Where(s => !s.IsDeleted && s.Status == SaleStatus.Completed
+                     && s.BillDate >= start && s.BillDate < end)
+            .GroupBy(s => s.BillDate.Date)
+            .Select(g => new { Day = g.Key, Net = g.Sum(s => s.NetAmount) })
+            .ToListAsync();
+
+        return rows.ToDictionary(r => r.Day, r => r.Net);
+    }
+
+    /// <summary>
+    /// GST totalled per slab, over [from, to] inclusive — aggregated in the
+    /// database rather than by loading the period's sales.
+    ///
+    /// The obvious version pulls every Sale with its Items and groups them
+    /// in memory. Over a financial year that is five thousand bills and
+    /// nineteen thousand lines materialised as objects to produce five rows
+    /// of output, and it is the slowest thing in the application by an order
+    /// of magnitude. The database can do the grouping; the network only has
+    /// to carry the answer.
+    ///
+    /// Only Completed sales count — a returned or cancelled bill is not a
+    /// taxable supply.
+    /// </summary>
+    public async Task<List<GstSlabTotal>> GetGstTotalsAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+
+        return await db.SaleItems.AsNoTracking()
+            .Where(i => !i.IsDeleted
+                     && i.Sale.Status == SaleStatus.Completed
+                     && i.Sale.BillDate >= start && i.Sale.BillDate < end)
+            .GroupBy(i => i.GstRate)
+            .Select(g => new GstSlabTotal
+            {
+                GstRate = g.Key,
+                Taxable = g.Sum(i => i.TaxableAmount),
+                Gst = g.Sum(i => i.GstAmount)
+            })
+            .OrderBy(g => g.GstRate)
+            .ToListAsync();
+    }
+
     /// <summary>Schedule H1 statutory register entries within [from, to], both dates inclusive.</summary>
     public async Task<List<H1RegisterEntry>> GetH1RegisterAsync(DateTime from, DateTime to)
     {
@@ -789,15 +921,28 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Products at or below their reorder level.
+    ///
+    /// The comparison happens in the database. Written the obvious way —
+    /// load every active product with its batches, then filter on the
+    /// computed <see cref="Product.StockOnHand"/> — it materialised 231
+    /// products and 1,677 batches to find the 5 that were actually low, and
+    /// it did that on every dashboard load. The correlated sum below is the
+    /// same arithmetic <see cref="Product.StockOnHand"/> does, expressed
+    /// where the rows already are.
+    ///
+    /// Batches are still included on what comes back: callers read
+    /// StockOnHand off the result, and it is only a handful of rows by then.
+    /// </summary>
     public async Task<List<Product>> GetLowStockAsync()
     {
         await using var db = await factory.CreateDbContextAsync();
-        var products = await db.Products.AsNoTracking().Include(p => p.Batches)
-            .Where(p => !p.IsDeleted && p.IsActive && p.ReorderLevel > 0)
-            .ToListAsync();
 
-        return products.Where(p => p.StockOnHand <= p.ReorderLevel)
-                       .OrderBy(p => p.Name)
-                       .ToList();
+        return await db.Products.AsNoTracking().Include(p => p.Batches)
+            .Where(p => !p.IsDeleted && p.IsActive && p.ReorderLevel > 0)
+            .Where(p => p.Batches.Where(b => !b.IsDeleted).Sum(b => b.QtyOnHand) <= p.ReorderLevel)
+            .OrderBy(p => p.Name)
+            .ToListAsync();
     }
 }

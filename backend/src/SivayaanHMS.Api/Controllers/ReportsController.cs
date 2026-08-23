@@ -216,17 +216,18 @@ public class ReportsController(
     /// </summary>
     private async Task<ReportTable> GstSummaryAsync(DateTime from, DateTime to, string title, string label)
     {
-        var completed = (await pharmacy.GetSalesAsync(from, to))
-            .Where(s => s.Status == SaleStatus.Completed)
-            .ToList();
+        // Aggregated in the database. Loading the period's sales to group
+        // them here meant materialising 5,400 bills and 18,700 lines for a
+        // financial year to produce five rows.
+        var slabs = await pharmacy.GetGstTotalsAsync(from, to);
 
         var rows = new List<ReportRow>();
         decimal grandTaxable = 0, grandCgst = 0, grandSgst = 0, grandTotal = 0;
 
-        foreach (var slab in completed.SelectMany(s => s.Items).GroupBy(i => i.GstRate).OrderBy(g => g.Key))
+        foreach (var slab in slabs)
         {
-            var taxable = slab.Sum(i => i.TaxableAmount);
-            var gst = slab.Sum(i => i.GstAmount);
+            var taxable = slab.Taxable;
+            var gst = slab.Gst;
 
             // Half away-from-zero, then the other half as the remainder, so
             // CGST + SGST is always exactly the GST collected — splitting
@@ -236,7 +237,7 @@ public class ReportsController(
             var sgst = half;
             var total = taxable + gst;
 
-            rows.Add(new ReportRow([$"{slab.Key:0.##}%", taxable, cgst, sgst, total]));
+            rows.Add(new ReportRow([$"{slab.GstRate:0.##}%", taxable, cgst, sgst, total]));
 
             grandTaxable += taxable; grandCgst += cgst; grandSgst += sgst; grandTotal += total;
         }
@@ -523,8 +524,13 @@ public class ReportsController(
         var t = to ?? DateTime.Today;
         var (start, end) = f <= t ? (f, t) : (t, f);
 
+        // Today's bills are a list and are read as one. The other two are
+        // aggregates and are summed in the database — grouping a year of
+        // bills and items here meant loading all of them to produce a few
+        // dozen rows.
         var todays = (await diagnostics.SearchBillsAsync(on, on)).OrderByDescending(b => b.BillDate).ToList();
-        var ranged = await diagnostics.SearchBillsAsync(start, end);
+        var revenue = await diagnostics.GetRevenueByDayAsync(start, end);
+        var topTests = await diagnostics.GetTopTestsAsync(start, end);
 
         return Ok(new
         {
@@ -533,14 +539,8 @@ public class ReportsController(
             {
                 b.Id, b.BillNo, b.BillDate, b.PatientName, b.PatientNo, b.FinalAmount, Status = b.Status.ToString()
             }),
-            Revenue = ranged.GroupBy(b => b.BillDate.Date)
-                .OrderByDescending(g => g.Key)
-                .Select(g => new { Day = g.Key, Bills = g.Count(), Amount = g.Sum(b => b.FinalAmount) }),
-            TopTests = ranged.SelectMany(b => b.Items)
-                .GroupBy(i => i.TestName)
-                .OrderByDescending(g => g.Sum(i => i.Quantity))
-                .Take(15)
-                .Select(g => new { Test = g.Key, Times = g.Sum(i => i.Quantity), Amount = g.Sum(i => i.Amount) })
+            Revenue = revenue.Select(r => new { r.Day, r.Bills, r.Amount }),
+            TopTests = topTests.Select(t => new { t.Test, t.Times, t.Amount })
         });
     }
 }

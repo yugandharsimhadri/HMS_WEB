@@ -199,6 +199,39 @@ public class OpdService(IDbContextFactory<AppDbContext> factory, IClock clock, I
             .ToListAsync();
     }
 
+    /// <summary>
+    /// Two numbers per day over [from, to]: fees actually collected that day,
+    /// and patients seen that day. Summed in the database — the dashboard's
+    /// KPIs and trend need the figures, not the visits.
+    ///
+    /// The two key off different dates on purpose: revenue counts when the
+    /// fee was paid, attendance counts when the patient was seen.
+    /// </summary>
+    public async Task<(Dictionary<DateTime, decimal> Fees, Dictionary<DateTime, int> Patients)>
+        GetDailyOpdTotalsAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+
+        var fees = await db.Visits.AsNoTracking()
+            .Where(v => !v.IsDeleted && v.FeePaid && v.FeePaidOn != null
+                     && v.FeePaidOn >= start && v.FeePaidOn < end)
+            .GroupBy(v => v.FeePaidOn!.Value.Date)
+            .Select(g => new { Day = g.Key, Fee = g.Sum(v => v.Fee) })
+            .ToListAsync();
+
+        var seen = await db.Visits.AsNoTracking()
+            .Where(v => !v.IsDeleted && v.Status != VisitStatus.Cancelled
+                     && v.ScheduledOn >= start && v.ScheduledOn < end)
+            .GroupBy(v => v.ScheduledOn.Date)
+            .Select(g => new { Day = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        return (fees.ToDictionary(f => f.Day, f => f.Fee),
+                seen.ToDictionary(s => s.Day, s => s.Count));
+    }
+
     public async Task<Visit?> GetVisitAsync(Guid id)
     {
         await using var db = await factory.CreateDbContextAsync();

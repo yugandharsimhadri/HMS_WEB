@@ -746,3 +746,22 @@ export interface DayBookSummary {
   consultationTotal: number;
   visitCount: number;
 }
+
+/** A catalogue row for a picker — enough to choose and price a medicine,
+ * without its batch history. The full `Product` carries every batch because
+ * the counter prices from them; a name picker does not need that, and asking
+ * for it meant downloading megabytes to fill a dropdown. */
+export interface CatalogueEntry {
+  id: string;
+  name: string;
+  genericName: string | null;
+  manufacturer: string | null;
+  packSize: string | null;
+  unitsPerPack: number;
+  allowLooseSale: boolean;
+  dispensingUnit: DispensingUnit;
+  gstRate: number;
+  schedule: DrugSchedule;
+  stockOnHand: number;
+  nextBatchMrp: number | null;
+}

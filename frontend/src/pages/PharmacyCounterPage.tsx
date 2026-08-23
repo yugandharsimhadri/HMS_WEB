@@ -268,8 +268,11 @@ export function PharmacyCounterPage() {
       .filter((l) => l.productId === row.productId)
       .reduce((s, l, i) => s + (i === lines.filter((x) => x.productId === row.productId).indexOf(row) ? newQuantity : l.quantity), 0);
 
+    // One product by id. This used to fetch the whole catalogue and search
+    // it here, which at three hundred medicines meant downloading 1.7 MB to
+    // answer a question about a single row — on every quantity edit.
     const product = matches.find((p) => p.id === row.productId)
-      ?? (await api.get<Product[]>(`/api/pharmacy/products?take=1000`)).find((p) => p.id === row.productId);
+      ?? await api.get<Product>(`/api/pharmacy/products/${row.productId}`).catch(() => null);
     if (!product) return;
 
     try {
@@ -298,7 +301,25 @@ export function PharmacyCounterPage() {
 
     try {
       const visit = await api.get<Visit>(`/api/visits/${selectedVisitId}`);
-      const catalogue = await api.get<Product[]>('/api/pharmacy/products?take=1000');
+
+      // A prescription is a handful of lines, so it asks about a handful of
+      // medicines. Fetching the entire catalogue with every batch to match
+      // them cost 1.7 MB; a few small searches cost a few kilobytes, and the
+      // name fallback below still works because the search matches on name.
+      const wanted = new Map<string, Product>();
+      for (const item of visit.prescription) {
+        if (item.productId && !wanted.has(item.productId)) {
+          const p = await api.get<Product>(`/api/pharmacy/products/${item.productId}`).catch(() => null);
+          if (p) wanted.set(p.id, p);
+        }
+        if (!item.productId) {
+          const found = await api
+            .get<Product[]>(`/api/pharmacy/products?term=${encodeURIComponent(item.medicineName)}&take=5`)
+            .catch(() => [] as Product[]);
+          for (const p of found) if (!wanted.has(p.id)) wanted.set(p.id, p);
+        }
+      }
+      const catalogue = [...wanted.values()];
 
       const missing: string[] = [];
       const partial: string[] = [];

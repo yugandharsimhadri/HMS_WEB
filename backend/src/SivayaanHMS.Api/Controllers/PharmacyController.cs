@@ -51,6 +51,20 @@ public class PharmacyController(PharmacyService pharmacy) : ControllerBase
     public async Task<ActionResult<List<Product>>> SearchProducts([FromQuery] string? term, [FromQuery] int take = 50)
         => Ok(await pharmacy.SearchProductsAsync(term, take));
 
+    /// <summary>One product by id — so the counter does not fetch the whole
+    /// catalogue to look up a single row.</summary>
+    [HttpGet("products/{id:guid}")]
+    public async Task<ActionResult<Product>> Product(Guid id)
+    {
+        var product = await pharmacy.GetProductAsync(id);
+        return product is null ? NotFound() : Ok(product);
+    }
+
+    /// <summary>The catalogue for a picker: names and prices, no batches.</summary>
+    [HttpGet("catalogue")]
+    public async Task<ActionResult<List<CatalogueEntry>>> Catalogue()
+        => Ok(await pharmacy.GetCatalogueAsync());
+
     [HttpGet("products/{productId:guid}/batches")]
     public async Task<ActionResult<List<Batch>>> Batches(Guid productId)
         => Ok(await pharmacy.GetSellableBatchesAsync(productId));

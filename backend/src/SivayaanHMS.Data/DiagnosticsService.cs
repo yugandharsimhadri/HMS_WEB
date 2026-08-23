@@ -256,6 +256,62 @@ public class DiagnosticsService(IDbContextFactory<AppDbContext> factory)
 
     // ── Reports ────────────────────────────────────────────────────────────
 
+    /// <summary>Bills and revenue per day over [from, to] inclusive, summed in
+    /// the database — the Reports "revenue by day" grid, which wants two
+    /// numbers a day, not the period's bills.</summary>
+    public async Task<List<(DateTime Day, int Bills, decimal Amount)>> GetRevenueByDayAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+
+        var rows = await db.DiagnosticBills.AsNoTracking()
+            .Where(b => !b.IsDeleted && b.BillDate >= start && b.BillDate < end)
+            .GroupBy(b => b.BillDate.Date)
+            .Select(g => new { Day = g.Key, Bills = g.Count(), Amount = g.Sum(b => b.FinalAmount) })
+            .OrderByDescending(g => g.Day)
+            .ToListAsync();
+
+        return rows.Select(r => (r.Day, r.Bills, r.Amount)).ToList();
+    }
+
+    /// <summary>The most frequently ordered tests over [from, to], counted in
+    /// the database. Grouping the period's bill items in memory meant loading
+    /// every one of them to rank fifteen rows.</summary>
+    public async Task<List<(string Test, int Times, decimal Amount)>> GetTopTestsAsync(DateTime from, DateTime to, int take = 15)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+
+        var rows = await db.DiagnosticBillItems.AsNoTracking()
+            .Where(i => !i.IsDeleted && i.Bill.BillDate >= start && i.Bill.BillDate < end)
+            .GroupBy(i => i.TestName)
+            .Select(g => new { Test = g.Key, Times = g.Sum(i => i.Quantity), Amount = g.Sum(i => i.Amount) })
+            .OrderByDescending(g => g.Times)
+            .Take(take)
+            .ToListAsync();
+
+        return rows.Select(r => (r.Test, r.Times, r.Amount)).ToList();
+    }
+
+    /// <summary>Diagnostic revenue per day over [from, to] inclusive, summed
+    /// in the database — for the dashboard trend, which wants the figures.</summary>
+    public async Task<Dictionary<DateTime, decimal>> GetDailyRevenueAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+
+        var rows = await db.DiagnosticBills.AsNoTracking()
+            .Where(b => !b.IsDeleted && b.BillDate >= start && b.BillDate < end)
+            .GroupBy(b => b.BillDate.Date)
+            .Select(g => new { Day = g.Key, Amount = g.Sum(b => b.FinalAmount) })
+            .ToListAsync();
+
+        return rows.ToDictionary(r => r.Day, r => r.Amount);
+    }
+
     /// <summary>Every bill raised in a date range (inclusive), for Reports.</summary>
     public async Task<List<DiagnosticBill>> SearchBillsAsync(DateTime from, DateTime to)
     {

@@ -224,10 +224,27 @@ public class AppointmentsService(IDbContextFactory<AppDbContext> factory, Settin
     /// reminded row stays on the list instead of vanishing. Not-yet-reminded
     /// rows sort first.
     /// </summary>
+    /// <summary>
+    /// How far into the past a missed reminder is still worth showing. Six
+    /// weeks: long enough that a fortnight's holiday does not lose a
+    /// follow-up, short enough that the list stays a call sheet rather than
+    /// an archive.
+    /// </summary>
+    private const int GraceDays = 42;
+
     public async Task<List<ReminderItem>> GetDueRemindersAsync(int leadDays)
     {
         await using var db = await factory.CreateDbContextAsync();
-        var cutoff = clock.Now.Date.AddDays(leadDays + 1);
+        var today = clock.Now.Date;
+        var cutoff = today.AddDays(leadDays + 1);
+
+        // How far back a missed reminder is still worth chasing. Without a
+        // floor this query had none, and returned every follow-up ever
+        // recorded — on a two-year-old database that is thousands of rows
+        // reaching back to the clinic's first week, presented as "due". A
+        // follow-up missed eighteen months ago is not a call the front desk
+        // is about to make; it is noise burying the ones that are.
+        var floor = today.AddDays(-GraceDays);
 
         var actioned = await db.ReminderLogs.AsNoTracking()
             .Where(r => r.ActionedOn != null)
@@ -237,9 +254,20 @@ public class AppointmentsService(IDbContextFactory<AppDbContext> factory, Settin
 
         var items = new List<ReminderItem>();
 
+        // Projected, not materialised as entities: this list is read, never
+        // written, and pulling whole Visit and Patient graphs to build six
+        // display fields was most of the cost and most of the payload.
         var followUps = await db.Visits.AsNoTracking()
-            .Include(v => v.Patient)
-            .Where(v => !v.IsDeleted && v.FollowUpOn != null && v.FollowUpOn < cutoff)
+            .Where(v => !v.IsDeleted && v.FollowUpOn != null
+                     && v.FollowUpOn < cutoff && v.FollowUpOn >= floor)
+            .Select(v => new
+            {
+                v.Id,
+                v.PatientId,
+                PatientName = v.Patient.Name,
+                PatientPhone = v.Patient.Phone,
+                FollowUpOn = v.FollowUpOn!.Value
+            })
             .ToListAsync();
 
         items.AddRange(followUps
@@ -248,17 +276,22 @@ public class AppointmentsService(IDbContextFactory<AppDbContext> factory, Settin
                 SourceKind = ReminderSourceKind.FollowUp,
                 SourceId = v.Id,
                 PatientId = v.PatientId,
-                PatientName = v.Patient.Name,
-                PatientPhone = v.Patient.Phone,
-                DueOn = v.FollowUpOn!.Value,
-                Description = $"Follow-up for {v.Patient.Name}",
+                PatientName = v.PatientName,
+                PatientPhone = v.PatientPhone,
+                DueOn = v.FollowUpOn,
+                Description = $"Follow-up for {v.PatientName}",
                 IsReminded = isActioned.Contains((ReminderSourceKind.FollowUp, v.Id))
             }));
 
+        // Same floor, same projection. An appointment still sitting
+        // Scheduled from last year was never kept and is not a call either.
         var upcoming = await db.Appointments.AsNoTracking()
-            .Include(a => a.Patient)
-            .Include(a => a.Doctor)
-            .Where(a => !a.IsDeleted && a.Status == AppointmentStatus.Scheduled && a.ScheduledOn < cutoff)
+            .Where(a => !a.IsDeleted && a.Status == AppointmentStatus.Scheduled
+                     && a.ScheduledOn < cutoff && a.ScheduledOn >= floor)
+            .Select(a => new
+            {
+                a.Id, a.PatientId, a.PatientName, a.PatientPhone, a.DoctorName, a.ScheduledOn
+            })
             .ToListAsync();
 
         items.AddRange(upcoming

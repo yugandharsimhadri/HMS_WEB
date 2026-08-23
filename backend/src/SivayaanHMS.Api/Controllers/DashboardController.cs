@@ -65,13 +65,50 @@ public class DashboardController(
         var to = DateTime.Today;
         var from = to.AddDays(-(TrendDays - 1));
 
-        // Three range queries, not forty-two daily ones — the same shape the
-        // desktop uses, and the same one Reports uses for its own ranges.
-        var salesRange = await pharmacy.GetSalesAsync(from, to);
-        var visitsRange = await opd.GetVisitsAsync(from, to);
-        var diagRange = general.DiagnosticsEnabled
-            ? await diagnostics.SearchBillsAsync(from, to)
-            : [];
+        // Three aggregate queries returning one number per day, not three
+        // range queries returning a fortnight of bills and visits to be
+        // grouped here. Only the figures cross the wire.
+        //
+        // What each counts is unchanged and is the part that matters: only a
+        // Completed sale is revenue, since a returned one is not money the
+        // clinic kept; an OPD fee counts on the day it was *paid*, not the
+        // day the visit was booked; and patients counts who was *seen*, so it
+        // keys off the visit date and excludes cancellations.
+        //
+        // Issued together, not one after another. Every one of these is a
+        // read, each takes its own short-lived context from the factory, and
+        // none depends on another's result — so the page waits for the
+        // slowest rather than for the sum. Awaited in a batch below.
+        var pharmacyByDayTask = pharmacy.GetDailyNetAsync(from, to);
+        var opdTotalsTask = opd.GetDailyOpdTotalsAsync(from, to);
+        var diagByDayTask = general.DiagnosticsEnabled
+            ? diagnostics.GetDailyRevenueAsync(from, to)
+            : Task.FromResult(new Dictionary<DateTime, decimal>());
+
+        // Today's own rows, for the queue count, the feed and the restock list.
+        var todaysVisitsTask = opd.GetVisitsAsync(to);
+        var lowStockTask = pharmacy.GetLowStockAsync();
+        var todaysSalesTask = pharmacy.GetSalesAsync(to);
+        var todaysDiagBillsTask = general.DiagnosticsEnabled
+            ? diagnostics.SearchBillsAsync(to, to)
+            : Task.FromResult(new List<DiagnosticBill>());
+        var procedureBillsTask = general.PediatricsEnabled || general.DentistEnabled
+            ? procedureBills.SearchBillsAsync(to, to)
+            : Task.FromResult(new List<ProcedureBill>());
+        var dentalPaymentsTask = general.DentistEnabled
+            ? dentist.SearchPaymentsAsync(to, to)
+            : Task.FromResult(new List<DentalPayment>());
+        var labOrdersTask = general.PathologyLabEnabled
+            ? pathologyLab.SearchOrdersAsync(to, to)
+            : Task.FromResult(new List<LabOrder>());
+
+        await Task.WhenAll(
+            pharmacyByDayTask, opdTotalsTask, diagByDayTask, todaysVisitsTask, lowStockTask,
+            todaysSalesTask, todaysDiagBillsTask, procedureBillsTask, dentalPaymentsTask, labOrdersTask);
+
+        var pharmacyByDay = pharmacyByDayTask.Result;
+        var (opdFeesByDay, patientsByDay) = opdTotalsTask.Result;
+        var diagByDay = diagByDayTask.Result;
 
         var trend = new List<DashboardTrendDay>(TrendDays);
         decimal todayOpd = 0, todayPharmacy = 0, todayDiag = 0, yesterdayTotal = 0;
@@ -81,24 +118,10 @@ public class DashboardController(
         {
             var day = from.AddDays(i).Date;
 
-            // Only a completed sale is revenue. A returned or cancelled one
-            // is not money the clinic kept.
-            var dayPharmacy = salesRange
-                .Where(s => s.Status == SaleStatus.Completed && s.BillDate.Date == day)
-                .Sum(s => s.NetAmount);
-
-            // Revenue counts when the fee was *paid*, not when the visit was
-            // booked — a visit booked today and paid tomorrow is tomorrow's
-            // money.
-            var dayOpd = visitsRange
-                .Where(v => v.FeePaid && v.FeePaidOn?.Date == day)
-                .Sum(v => v.Fee);
-
-            var dayDiag = diagRange.Where(b => b.BillDate.Date == day).Sum(b => b.FinalAmount);
-
-            // Patients counts who was *seen*, so it keys off the visit date
-            // and excludes cancellations.
-            var dayPatients = visitsRange.Count(v => v.ScheduledOn.Date == day && v.Status != VisitStatus.Cancelled);
+            var dayPharmacy = pharmacyByDay.GetValueOrDefault(day);
+            var dayOpd = opdFeesByDay.GetValueOrDefault(day);
+            var dayDiag = diagByDay.GetValueOrDefault(day);
+            var dayPatients = patientsByDay.GetValueOrDefault(day);
 
             trend.Add(new DashboardTrendDay(day, dayOpd, dayPharmacy, dayDiag));
 
@@ -116,25 +139,15 @@ public class DashboardController(
 
         var revenueToday = todayOpd + todayPharmacy + todayDiag;
 
-        // Today's own richer query — it includes Patient, which the range
-        // query above deliberately skips since a trend never shows a name.
-        var todaysVisits = await opd.GetVisitsAsync(to);
+        var todaysVisits = todaysVisitsTask.Result;
         var inQueue = todaysVisits.Count(v =>
             v.Status is VisitStatus.Booked or VisitStatus.Waiting or VisitStatus.InConsultation);
 
-        var lowStock = await pharmacy.GetLowStockAsync();
-
-        var procedureBillsToday = general.PediatricsEnabled || general.DentistEnabled
-            ? await procedureBills.SearchBillsAsync(to, to)
-            : [];
-        var dentalPaymentsToday = general.DentistEnabled ? await dentist.SearchPaymentsAsync(to, to) : [];
-        var labOrdersToday = general.PathologyLabEnabled ? await pathologyLab.SearchOrdersAsync(to, to) : [];
+        var lowStock = lowStockTask.Result;
 
         var activity = BuildActivity(
-            todaysVisits,
-            salesRange.Where(s => s.BillDate.Date == to),
-            diagRange.Where(b => b.BillDate.Date == to),
-            procedureBillsToday, dentalPaymentsToday, labOrdersToday);
+            todaysVisits, todaysSalesTask.Result, todaysDiagBillsTask.Result,
+            procedureBillsTask.Result, dentalPaymentsTask.Result, labOrdersTask.Result);
 
         return Ok(new DashboardResponse(
             todayPatients, DeltaPercent(todayPatients, yesterdayPatients),

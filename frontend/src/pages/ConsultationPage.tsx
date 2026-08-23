@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, openPdf } from '../api/client';
-import type { GeneralSettings, Product, Visit } from '../api/types';
+import type { CatalogueEntry, GeneralSettings, Visit } from '../api/types';
 import { DOSE_OPTIONS, describePacks, unitsForCourse } from '../clinical/doseMath';
 
 interface RxLine {
@@ -32,7 +32,7 @@ export function ConsultationPage() {
   const navigate = useNavigate();
 
   const [visit, setVisit] = useState<Visit | null>(null);
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<CatalogueEntry[]>([]);
   const [tests, setTests] = useState<DiagnosticTest[]>([]);
   const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
 
@@ -53,7 +53,7 @@ export function ConsultationPage() {
 
   // ── The medicine entry row ────────────────────────────────────────────
   const [medicineSearch, setMedicineSearch] = useState('');
-  const [pickedMedicine, setPickedMedicine] = useState<Product | null>(null);
+  const [pickedMedicine, setPickedMedicine] = useState<CatalogueEntry | null>(null);
   const [dosage, setDosage] = useState('');
   const [morning, setMorning] = useState('0');
   const [afternoon, setAfternoon] = useState('0');
@@ -89,7 +89,10 @@ export function ConsultationPage() {
         setFee(String(v.fee));
         setFollowUpOn(v.followUpOn ? v.followUpOn.slice(0, 10) : '');
 
-        const catalogue = await api.get<Product[]>('/api/pharmacy/products?take=500');
+        // The lean catalogue: names and prices, no batch history. This
+        // screen only picks medicines by name, and the full product list
+        // shipped every batch of every product — 1.7 MB to fill a dropdown.
+        const catalogue = await api.get<CatalogueEntry[]>('/api/pharmacy/catalogue');
         setProducts(catalogue);
 
         setLines(

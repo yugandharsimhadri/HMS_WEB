@@ -117,6 +117,16 @@ public class AppDbContext : DbContext
         {
             e.HasIndex(x => new { x.TenantId, x.VisitNo }).IsUnique();
             e.HasIndex(x => x.ScheduledOn);
+
+            // Revenue is counted on the day a fee was *paid*, which is a
+            // different date from the one above and needs its own index —
+            // without it the dashboard's daily takings scanned every visit
+            // the clinic has ever recorded.
+            e.HasIndex(x => x.FeePaidOn);
+
+            // The reminder call sheet reads follow-ups by their due date.
+            e.HasIndex(x => x.FollowUpOn);
+
             e.HasOne(x => x.Patient).WithMany(p => p.Visits)
                 .HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Doctor).WithMany()
