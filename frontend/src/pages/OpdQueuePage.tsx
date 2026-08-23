@@ -5,6 +5,29 @@ import type { ClinicProfile, ClinicSession, Doctor, GeneralSettings, Visit, Visi
 import { describeSession, isInSession, SESSIONS } from '../opd/session';
 import { BookVisitDialog } from '../opd/BookVisitDialog';
 import { CollectFeeDialog } from '../opd/CollectFeeDialog';
+import { describeCombo, useHotkey } from '../shell/hotkeys';
+
+/** How a status should read at a glance. The word still appears — colour
+ *  alone would fail a colour-blind receptionist and a monochrome screen. */
+const STATUS_CLASS: Record<VisitStatus, string> = {
+  Booked: 's-booked',
+  Waiting: 's-waiting',
+  InConsultation: 's-consult',
+  Completed: 's-done',
+  Cancelled: 's-cancelled',
+};
+
+const STATUS_TEXT: Record<VisitStatus, string> = {
+  Booked: 'Booked',
+  Waiting: 'Waiting',
+  InConsultation: 'In consultation',
+  Completed: 'Completed',
+  Cancelled: 'Cancelled',
+};
+
+const StatusChip = ({ status }: { status: VisitStatus }) => (
+  <span className={`status-chip ${STATUS_CLASS[status]}`}>{STATUS_TEXT[status]}</span>
+);
 
 /** Still to be seen — everything that has not finished or been cancelled.
  * Mirrors the desktop's Visit.IsWaiting. */
@@ -34,6 +57,11 @@ export function OpdQueuePage() {
 
   const [booking, setBooking] = useState(false);
   const [collectingFor, setCollectingFor] = useState<Visit | null>(null);
+
+  // The keyboard's cursor. Held as an id, never as a row object: the list is
+  // refetched after every action, and a held object goes stale the moment
+  // anything changes underneath it.
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const refresh = useCallback(async (forDate: string) => {
     try {
@@ -80,6 +108,39 @@ export function OpdQueuePage() {
 
     return { waiting: w, completed: c, hidden: h };
   }, [all, doctorTab, session, clinic]);
+
+  // Waiting first, then completed — the order the eye travels and therefore
+  // the order Up and Down should travel too.
+  const ordered = useMemo(() => [...waiting, ...completed], [waiting, completed]);
+
+  const selected = useMemo(
+    () => ordered.find((v) => v.id === selectedId) ?? null,
+    [ordered, selectedId],
+  );
+
+  // Keep a cursor on screen. If the selected visit filtered away — a doctor
+  // tab changed, a sitting changed, it was cancelled — fall back to the top
+  // rather than leaving the shortcuts pointed at nothing.
+  useEffect(() => {
+    if (ordered.length === 0) {
+      if (selectedId !== null) setSelectedId(null);
+    } else if (!ordered.some((v) => v.id === selectedId)) {
+      setSelectedId(ordered[0].id);
+    }
+  }, [ordered, selectedId]);
+
+  const move = useCallback(
+    (delta: number) => {
+      if (ordered.length === 0) return;
+      const at = ordered.findIndex((v) => v.id === selectedId);
+      const next = at === -1 ? 0 : (at + delta + ordered.length) % ordered.length;
+      setSelectedId(ordered[next].id);
+      document
+        .querySelector(`[data-visit="${ordered[next].id}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
+    },
+    [ordered, selectedId],
+  );
 
   const subtitle = useMemo(() => {
     const when = new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
@@ -149,6 +210,30 @@ export function OpdQueuePage() {
     }
   };
 
+  // The counter's keys. Bound to the same functions the buttons call, so a
+  // shortcut can never drift away from what the button does — and every one
+  // of them refuses politely rather than silently when it does not apply.
+  const G = 'OPD queue';
+  useHotkey('f2', 'Book a visit', G, () => setBooking(true));
+  useHotkey('arrowdown', 'Next in queue', G, () => move(1));
+  useHotkey('arrowup', 'Previous in queue', G, () => move(-1));
+  useHotkey('enter', 'Open consultation', G, () => {
+    if (selected && isWaiting(selected)) void consult(selected);
+  });
+  useHotkey('f4', 'Collect the fee', G, () => {
+    if (selected) collectFee(selected);
+  });
+  useHotkey('f6', 'Mark arrived', G, () => {
+    if (selected && selected.status === 'Booked') {
+      void setStatusOf(selected, 'Waiting', `Token ${selected.tokenNo} marked arrived.`);
+    }
+  });
+  useHotkey('f8', 'Move to completed', G, () => {
+    if (selected && isWaiting(selected)) {
+      void setStatusOf(selected, 'Completed', `Token ${selected.tokenNo} moved to completed.`);
+    }
+  });
+
   const actions = (visit: Visit) => (
     <div className="row-actions">
       {visit.status === 'Booked' && (
@@ -201,7 +286,12 @@ export function OpdQueuePage() {
   );
 
   const tile = (visit: Visit) => (
-    <div className="tile" key={visit.id}>
+    <div
+      className={visit.id === selectedId ? 'tile selected-row' : 'tile'}
+      key={visit.id}
+      data-visit={visit.id}
+      onClick={() => setSelectedId(visit.id)}
+    >
       <div className="tile-head">
         <span className="token">{visit.tokenNo}</span>
         <div>
@@ -217,6 +307,7 @@ export function OpdQueuePage() {
           ₹{visit.fee.toFixed(2)}{visit.feePaid ? ' paid' : ''}
         </span>
       </div>
+      <StatusChip status={visit.status} />
       {visit.complaint && <p className="hint complaint">{visit.complaint}</p>}
       {actions(visit)}
     </div>
@@ -226,12 +317,17 @@ export function OpdQueuePage() {
     <table>
       <thead>
         <tr>
-          <th>Token</th><th>Patient</th><th>Time</th><th>Doctor</th><th>Fee</th><th>Actions</th>
+          <th>Token</th><th>Patient</th><th>Time</th><th>Doctor</th><th>Status</th><th>Fee</th><th>Actions</th>
         </tr>
       </thead>
       <tbody>
         {list.map((v) => (
-          <tr key={v.id}>
+          <tr
+            key={v.id}
+            data-visit={v.id}
+            className={v.id === selectedId ? 'selected-row' : undefined}
+            onClick={() => setSelectedId(v.id)}
+          >
             <td>{v.tokenNo}</td>
             <td>
               {v.patient.name}
@@ -239,11 +335,12 @@ export function OpdQueuePage() {
             </td>
             <td>{new Date(v.scheduledOn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
             <td>{v.doctor.name}</td>
+            <td><StatusChip status={v.status} /></td>
             <td>{v.fee.toFixed(2)}{v.feePaid ? ' (paid)' : ''}</td>
             <td>{actions(v)}</td>
           </tr>
         ))}
-        {list.length === 0 && <tr><td colSpan={6}>Nobody here.</td></tr>}
+        {list.length === 0 && <tr><td colSpan={7}>Nobody here.</td></tr>}
       </tbody>
     </table>
   );
@@ -271,7 +368,9 @@ export function OpdQueuePage() {
           <select value={session} onChange={(e) => setSession(e.target.value as ClinicSession)}>
             {SESSIONS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
-          <button type="button" onClick={() => setBooking(true)}>+ Book visit</button>
+          <button type="button" className="primary" onClick={() => setBooking(true)}>
+            Book visit <span className="kbd">{describeCombo('f2')}</span>
+          </button>
         </div>
       </div>
 
@@ -304,6 +403,17 @@ export function OpdQueuePage() {
         {column('Waiting', waiting)}
         {column('Completed', completed)}
       </div>
+
+      {/* The keys, in front of the person who would use them. A shortcut
+          nobody can find is not a feature; ? opens the full sheet. */}
+      <p className="hint" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span><span className="kbd">{describeCombo('arrowup')}</span> <span className="kbd">{describeCombo('arrowdown')}</span> move</span>
+        <span><span className="kbd">{describeCombo('enter')}</span> consult</span>
+        <span><span className="kbd">{describeCombo('f4')}</span> fee</span>
+        <span><span className="kbd">{describeCombo('f6')}</span> arrived</span>
+        <span><span className="kbd">{describeCombo('f8')}</span> complete</span>
+        <span><span className="kbd">?</span> all shortcuts</span>
+      </p>
 
       {booking && (
         <BookVisitDialog
