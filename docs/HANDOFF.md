@@ -45,33 +45,75 @@ work.
 
 ## Done vs remaining
 
-**Done (100% parity, browser-verified):** OPD (queue, booking, fee,
-consultation), Pharmacy (counter, medicines, inventory), Patients, Settings,
-auth/signup, and three PDFs (prescription, fee receipt, tax invoice).
-See `docs/PARITY_OPD_PHARMACY.md` — 105 items, all ☑.
+**Done (100% parity, browser-verified):** OPD, Pharmacy, Patients, Settings,
+auth/signup, and — added since this file was first written — **Appointments,
+Diagnostics, Pediatrics, Dentist, Pathology Lab, Dashboard and Reports**.
+
+| Module | Parity doc | Items |
+|---|---|---|
+| OPD & Pharmacy | `docs/PARITY_OPD_PHARMACY.md` | 105 |
+| Appointments | `docs/PARITY_APPOINTMENTS.md` | 58 |
+| Diagnostics | `docs/PARITY_DIAGNOSTICS.md` | 61 |
+| Pediatrics | `docs/PARITY_PEDIATRICS.md` | 67 |
+| Dentist | `docs/PARITY_DENTIST.md` | 52 |
+| Pathology Lab | `docs/PARITY_PATHOLOGY_LAB.md` | 58 |
+| Dashboard | `docs/PARITY_DASHBOARD.md` | 30 |
+| Reports | `docs/PARITY_REPORTS.md` | 46 |
+
+Every PDF the desktop had is now ported. `SivayaanHMS.Printing` holds
+prescription, fee receipt, tax invoice, appointment slip, diagnostic bill,
+procedure bill, vaccination history, dental receipt, lab report, and the
+report PDF/Excel builders.
 
 **Remaining** — service ported, no controller, no UI:
 
 | Module | HMS_WPF viewmodel (lines) | Notes |
 |---|---|---|
-| Appointments | `AppointmentsViewModel.cs` (402) | booking, cancel/reschedule, check-in, reminders |
-| Diagnostics | `DiagnosticsViewModel.cs` (512) | test master + billing |
-| Pediatrics | `PediatricsViewModel.cs` (647) | vaccines, growth chart, procedure billing |
-| Dentist | `DentistViewModel.cs` (375) | cases, sittings, replacements, payments |
-| Pathology Lab | `PathologyLabViewModel.cs` (409) + `PathologyLabMasterViewModel.cs` (145) | analytes, panels, results |
-| Dashboard | `DashboardViewModel.cs` (275) | KPIs, revenue, recent activity |
-| Reports | `ReportsViewModel.cs` (489) | day book, GST, stock, H1 register |
-| Masters | `GeneralMasterViewModel.cs` (299) | shared master-data screens |
+| Masters | `GeneralMasterViewModel.cs` (299) | shared master-data screens — **now the blocking one, see below** |
 | Bill import | `ImportViewModel.cs` (153) | vendor CSV → stock (parser already ported) |
 | Data health | `DataHealthViewModel.cs` (138) | pack-size/duplicate repair |
 
-**PDFs still to port** (from `HMS_WPF/src/Pharma.App/Printing/`):
-`DiagnosticBillPrinter`, `ProcedureBillDocument`, `DentalReceiptDocument`,
-`LabReportDocument`, `AppointmentSlipDocument`, `VaccinationHistoryDocument`.
+### Why Masters is now the one that matters
 
-**Suggested order:** Appointments → Diagnostics → Pediatrics → Dentist →
-Pathology Lab → Dashboard → Reports. Each is independently sellable, and the
-first four are the ones clinics ask for most.
+Four of the modules above ship with a real gap that only Masters closes,
+because the desktop deliberately puts master data on its own destination and
+the ports kept that split:
+
+- **Pediatrics** — `DentistProcedureSeeder` seeds Dentist procedures only, so
+  a fresh tenant has **no Pediatrics procedures at all** and procedure
+  billing has nothing to offer. The endpoints exist; the screen does not.
+- **Dentist** — anesthesia types, replacements and packages are not seeded,
+  so sittings, replacements and package cases stay empty.
+- **Pathology Lab** — analytes and reports are seeded, but **reference ranges
+  are not**, so every result comes back with no range and no Low/High flag.
+  That flag is the most clinically useful thing the module computes.
+- **Diagnostics** — its own test master *is* built into the module, so it is
+  unaffected. It is the exception, not the pattern.
+
+Each parity doc's "What this module deliberately does NOT include" section
+says exactly what its own gap is.
+
+### A spec-source warning
+
+`AppointmentsViewModel`, `PediatricsViewModel`, `DentistViewModel`,
+`PathologyLabViewModel` and `GeneralMasterViewModel` **do not exist on
+HMS_WPF's `main`**. They live only on the unmerged branch
+`origin/Dentist_Pathology` (`3603677`, 19 Aug 2026). `DashboardViewModel`
+differs between the two (240 lines on main, 275 on the branch) and the
+branch version is the one ported, since it is the only one that knows the
+newer modules exist.
+
+Read from the branch without switching HMS_WPF's working tree:
+
+```
+git show origin/Dentist_Pathology:src/Pharma.App/ViewModels/GeneralMasterViewModel.cs
+```
+
+Note also that `main` carries three commits the branch lacks, touching the
+OPD receipt and doctor registration number. The two disagree about
+already-shipped OPD behaviour, and that is worth resolving before anyone
+ports against the wrong one.
+
 
 ---
 
@@ -184,9 +226,39 @@ with `PendingModelChangesWarning`.
 
 ## First task
 
-Start with **Appointments**. Read
-`HMS_WPF/src/Pharma.App/ViewModels/AppointmentsViewModel.cs`, write
-`docs/PARITY_APPOINTMENTS.md`, then build it. `AppointmentsService` is
-already ported and already enforces the module-enabled check and the
-cancel/reschedule rules — you are writing a controller and a screen, not
-business logic.
+Start with **Masters** — `GeneralMasterViewModel.cs` (299 lines, on
+`origin/Dentist_Pathology` only). Write `docs/PARITY_MASTERS.md`, then build
+it.
+
+It is the right next module for two reasons. It is the last thing standing
+between four already-shipped modules and being genuinely usable on a fresh
+tenant (see "Why Masters is now the one that matters" above). And nearly all
+of its write endpoints already exist — Pediatrics built procedure CRUD,
+Diagnostics built its own test master, and the Dentist and Pathology Lab
+controllers already expose reads of every list Masters has to edit. Much of
+this module is screens over endpoints that are already there.
+
+The two after it, in order: **Bill import** (`ImportViewModel.cs`, 153 — the
+CSV parser is already ported as `PurchaseImportService`), then **Data
+health** (`DataHealthViewModel.cs`, 138).
+
+### What the last seven modules taught
+
+Worth reading before starting, because each of these cost real time to find:
+
+- **Hold a selected row by id, never as an object.** Capturing the row means
+  it goes stale the moment the list behind it reloads, and the screen then
+  offers actions the server refuses. This bit Appointments; every module
+  after it derives the selection from the live list.
+- **Anything a document prints must be read server-side, not accepted.**
+  Patient names, prices, base costs. A DTO that omits a field entirely is a
+  stronger guarantee than one that validates it.
+- **Leave totals off the request.** `SaveDiagnosticBillRequest` has no
+  `TotalAmount`, so the server's arithmetic is the only arithmetic. Same for
+  the lab order and the procedure bill.
+- **The PDF font subset has no ₹ and no en dash.** Use "Rs." and a plain
+  hyphen. Excel is fine with both. This cost a garbled reference range on a
+  clinical report before it was caught.
+- **Verify empty-vs-broken before writing "it works".** A control that looks
+  dead may just have no data behind it — the Reports zero-stock toggle
+  looked broken and was not.
