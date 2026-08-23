@@ -20,7 +20,7 @@ Derived from: `PediatricsViewModel` (647 lines),
 
 Status: ☑ done · ◻ not started · ◐ partial
 
-**65 of 67 items are ☑ as of 22 Aug 2026**, each driven against the running
+**65 of 67 items are ☑ as of 22 Aug 2026** (two columns added by the XAML pass on 23 Aug — see the correction at the end), each driven against the running
 app in a browser — not just compiled. The two remaining are ◐ and say why.
 The bugs that testing surfaced are listed at the end.
 
@@ -71,7 +71,7 @@ management UI is Masters' job. See the closing note.
 | # | Feature | Why | Status |
 |---|---|---|---|
 | 3.1 | Growth lives **on the patient tab**, under the patient — not buried in Care with everything billable | Growth is never billed | ☑ |
-| 3.2 | History lists every measurement — date, weight, height, head circumference | ☑ |
+| 3.2 | History lists every measurement — date, weight, height, head circumference, **BMI** | ☑ |
 | 3.3 | **Record growth** popup: date (defaults today), weight, height, head circumference | ☑ |
 | 3.4 | Refuses an empty form — "Enter at least one measurement." | All three are optional individually; none of them together is not a measurement | ☑ |
 | 3.5 | Recording is **never billed** — unlike vaccination, nothing joins the bill | ☑ structural — growth has its own endpoint and never touches a bill |
@@ -128,7 +128,7 @@ management UI is Masters' job. See the closing note.
 
 | # | Feature | Why | Status |
 |---|---|---|---|
-| 6.1 | Every active Vaccine Master dose, checked against what this child has had | ☑ |
+| 6.1 | Every active Vaccine Master dose, checked against what this child has had, with its **schedule age** | ☑ "Birth", "6 weeks" — what makes the card read as a schedule |
 | 6.2 | Ordered by `SequenceOrder` then recommended age, so rows cluster by milestone | ☑ |
 | 6.3 | Four statuses — Given / Overdue / Due soon / Upcoming | ☑ |
 | 6.4 | Recommended date = date of birth + recommended age in days | ☑ |
@@ -241,3 +241,25 @@ two procedures used in testing were created through them — but a clinic
 cannot create one from the UI yet. That is faithful to where the desktop
 puts the screen, not an oversight, but it does mean this module is not
 independently sellable in the way Appointments and Diagnostics are.
+
+---
+
+## Correction — the XAML pass, 23 Aug 2026
+
+Every item above was originally derived from the **viewmodel**, which gives
+behaviour. A second pass compared the **views** (`*.xaml`), which is what
+actually defines the controls and columns on screen. That found gaps this
+checklist had not been written to catch, because a column set is a
+view-level fact the viewmodel never states.
+
+What was missing and has now been added:
+
+- **`BMI`** on the growth grid. `GrowthMeasurement.BmiValue` was already
+  computed and stored on every save and had simply never been surfaced. It
+  is deliberately blank when only one of weight or height was taken that
+  visit, which is the entity's own stated reason for storing it rather than
+  recomputing it.
+- **`AGE`** on the immunization card — the schedule age ("Birth", "6 weeks",
+  "9 months"). It is what makes the card read as a schedule rather than a
+  list, and it is the only column that means anything for a child with no
+  date of birth on file, since every dated column is blank for them.

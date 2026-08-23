@@ -38,6 +38,15 @@ const METRICS: { id: GrowthMetric; label: string }[] = [
   { id: 'HeadCircumference', label: 'Head circumference' },
 ];
 
+/** The recommended age as the schedule states it — "Birth", "6 weeks",
+ * "9 months" — rather than a raw day count nobody reads a schedule in. */
+function scheduleAge(days: number): string {
+  if (days <= 0) return 'Birth';
+  if (days < 60) return `${Math.round(days / 7)} weeks`;
+  if (days < 730) return `${Math.round(days / 30.4368)} months`;
+  return `${(days / 365.25).toFixed(days % 365 === 0 ? 0 : 1)} years`;
+}
+
 const STATUS_LABELS: Record<ImmunizationStatus, string> = {
   Given: 'Given',
   Overdue: 'Overdue',
@@ -413,7 +422,12 @@ export function PediatricsPage() {
           <section className="card">
             <h2>Measurements</h2>
             <table>
-              <thead><tr><th>Measured on</th><th>Weight (kg)</th><th>Height (cm)</th><th>Head (cm)</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Measured on</th><th>Weight (kg)</th><th>Height (cm)</th>
+                  <th>Head (cm)</th><th>BMI</th>
+                </tr>
+              </thead>
               <tbody>
                 {[...growth].sort((a, b) => b.measuredOn.localeCompare(a.measuredOn)).map((g) => (
                   <tr key={g.id}>
@@ -421,9 +435,12 @@ export function PediatricsPage() {
                     <td>{g.weightKg ?? '—'}</td>
                     <td>{g.heightCm ?? '—'}</td>
                     <td>{g.headCircumferenceCm ?? '—'}</td>
+                    {/* Blank unless both weight and height were taken on the
+                        same visit — a BMI from one of them would be invented. */}
+                    <td>{g.bmiValue ?? '—'}</td>
                   </tr>
                 ))}
-                {growth.length === 0 && <tr><td colSpan={4}>Nothing recorded yet.</td></tr>}
+                {growth.length === 0 && <tr><td colSpan={5}>Nothing recorded yet.</td></tr>}
               </tbody>
             </table>
           </section>
@@ -579,11 +596,19 @@ export function PediatricsPage() {
 
           <table>
             <thead>
-              <tr><th>Vaccine</th><th>Dose</th><th>Recommended</th><th>Status</th><th>Given on</th><th></th></tr>
+              <tr>
+                <th>Age</th><th>Vaccine</th><th>Dose</th><th>Recommended</th>
+                <th>Status</th><th>Given on</th><th></th>
+              </tr>
             </thead>
             <tbody>
               {card.map((r) => (
                 <tr key={`${r.vaccineId}`}>
+                  {/* The schedule age, which is what makes the card read as a
+                      schedule rather than a list — and it is the only column
+                      that means anything for a child with no date of birth on
+                      file, since every dated column is blank for them. */}
+                  <td>{scheduleAge(r.recommendedAgeDays)}</td>
                   <td>{r.vaccineName}</td>
                   <td>{r.doseNumber}</td>
                   <td>{r.recommendedOn ? new Date(r.recommendedOn).toLocaleDateString() : '—'}</td>
@@ -607,7 +632,7 @@ export function PediatricsPage() {
                   </td>
                 </tr>
               ))}
-              {card.length === 0 && <tr><td colSpan={6}>Choose a patient to see their card.</td></tr>}
+              {card.length === 0 && <tr><td colSpan={7}>Choose a patient to see their card.</td></tr>}
             </tbody>
           </table>
         </section>

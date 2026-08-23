@@ -409,6 +409,10 @@ export interface GrowthMeasurement {
   weightKg: number | null;
   heightCm: number | null;
   headCircumferenceCm: number | null;
+  /** Computed and stored server-side on save, not recomputed here — weight
+   * and height are not always both present on the same visit, so a BMI that
+   * exists is a BMI that was genuinely measurable. */
+  bmiValue: number | null;
 }
 
 export interface ProcedureBillItem {
@@ -692,6 +696,26 @@ export interface ReportRow {
   /** Why the row is emphasised, in words — so the reason does not depend on
    * seeing a colour. */
   note: string | null;
+  /** The record behind the row when there is one worth acting on — a bill to
+   * reprint. Null for a row that is only a figure. */
+  id: string | null;
+}
+
+export interface DiagnosticsReportBill {
+  id: string;
+  billNo: string;
+  billDate: string;
+  patientName: string;
+  patientNo: string;
+  finalAmount: number;
+  status: string;
+}
+
+export interface DiagnosticsReport {
+  todayTotal: number;
+  todaysBills: DiagnosticsReportBill[];
+  revenue: { day: string; bills: number; amount: number }[];
+  topTests: { test: string; times: number; amount: number }[];
 }
 
 export interface ReportTotal {

@@ -167,19 +167,24 @@ public class ReportsController(
 
     private static List<ReportColumn> DayBookColumns() =>
     [
-        new("Time", ReportAlign.Left, ReportFormat.Time, 0.7),
         new("Bill No", ReportAlign.Left, ReportFormat.Text, 1.0),
+        new("Time", ReportAlign.Left, ReportFormat.Time, 0.7),
         new("Customer", ReportAlign.Left, ReportFormat.Text, 1.8),
-        new("Mode", ReportAlign.Left, ReportFormat.Text, 0.7),
+        // Who prescribed it, and how many lines the bill ran to — the two
+        // things that let the desk recognise a bill without opening it.
+        new("Doctor", ReportAlign.Left, ReportFormat.Text, 1.4),
+        new("Items", ReportAlign.Right, ReportFormat.Integer, 0.6),
         new("Taxable", ReportAlign.Right, ReportFormat.Money, 1.0),
         new("CGST", ReportAlign.Right, ReportFormat.Money, 0.9),
         new("SGST", ReportAlign.Right, ReportFormat.Money, 0.9),
         new("Net", ReportAlign.Right, ReportFormat.Money, 1.0),
+        new("Mode", ReportAlign.Left, ReportFormat.Text, 0.7),
     ];
 
     private static ReportRow DayBookRow(Sale s) => new(
-        [s.BillDate, s.BillNo, s.CustomerName, s.PaymentMode.ToString(),
-         s.TaxableAmount, s.CgstAmount, s.SgstAmount, s.NetAmount]);
+        [s.BillNo, s.BillDate, s.CustomerName, s.DoctorName, s.Items.Count,
+         s.TaxableAmount, s.CgstAmount, s.SgstAmount, s.NetAmount, s.PaymentMode.ToString()],
+        Id: s.Id);
 
     /// <summary>
     /// The day book shows **completed bills only**. A cancelled or returned
@@ -259,9 +264,18 @@ public class ReportsController(
 
         return new ReportTable(ReportKind.OpdRegister, title, label,
             [
+                // The visit number, not just the token: a token is unique
+                // within a day, and a register read weeks later needs the
+                // number that is unique across all of them.
+                new("Visit No", ReportAlign.Left, ReportFormat.Text, 1.0),
                 new("Token", ReportAlign.Right, ReportFormat.Integer, 0.5),
                 new("Time", ReportAlign.Left, ReportFormat.Time, 0.7),
                 new("Patient", ReportAlign.Left, ReportFormat.Text, 1.6),
+                // Age and sex are what make a register identify a person
+                // rather than merely name them — two children share a name
+                // far more often than a name and an age.
+                new("Age", ReportAlign.Right, ReportFormat.Integer, 0.5),
+                new("Gender", ReportAlign.Left, ReportFormat.Text, 0.7),
                 new("Doctor", ReportAlign.Left, ReportFormat.Text, 1.4),
                 new("Status", ReportAlign.Left, ReportFormat.Text, 0.9),
                 new("Fee", ReportAlign.Right, ReportFormat.Money, 0.8),
@@ -270,8 +284,11 @@ public class ReportsController(
             ],
             visits.OrderBy(v => v.TokenNo)
                 .Select(v => new ReportRow(
-                    [v.TokenNo, v.ScheduledOn, v.Patient.Name, v.Doctor.Name,
-                     v.Status.ToString(), v.Fee, v.FeePaid ? "Yes" : "No", v.FeeReceiptNo]))
+                    [v.VisitNo, v.TokenNo, v.ScheduledOn, v.Patient.Name,
+                     v.Patient.Age, v.Patient.Gender.ToString(), v.Doctor.Name,
+                     v.Status.ToString(), v.Fee, v.FeePaid ? "Yes" : "No", v.FeeReceiptNo],
+                    // Only a paid visit has a receipt to reprint.
+                    Id: v.FeePaid ? v.Id : null))
                 .ToList(),
             [
                 new("Collected", visits.Where(v => v.FeePaid).Sum(v => v.Fee)),
@@ -292,19 +309,29 @@ public class ReportsController(
 
         return new ReportTable(ReportKind.ExpiringSoon, title, $"{label} · within {days} days",
             [
+                new("Status", ReportAlign.Left, ReportFormat.Text, 0.9),
                 new("Medicine", ReportAlign.Left, ReportFormat.Text, 2.0),
                 new("Batch", ReportAlign.Left, ReportFormat.Text, 1.0),
                 new("Expiry", ReportAlign.Left, ReportFormat.Date, 1.0),
-                new("Status", ReportAlign.Left, ReportFormat.Text, 0.9),
-                new("On hand", ReportAlign.Right, ReportFormat.Integer, 0.7),
+                new("Qty left", ReportAlign.Right, ReportFormat.Integer, 0.7),
+                // Only sealed packs go back to the distributor; an opened
+                // strip cannot. Without this the report says "47 left" and
+                // leaves the pharmacist to work out that only 4 strips are
+                // claimable and 7 loose are a write-off.
+                new("Returnable", ReportAlign.Left, ReportFormat.Text, 1.8),
                 new("MRP", ReportAlign.Right, ReportFormat.Money, 0.9),
+                // Who to claim from, and how long there is to do it.
+                new("Supplier", ReportAlign.Left, ReportFormat.Text, 1.4),
+                new("Days remaining", ReportAlign.Right, ReportFormat.Integer, 0.9),
                 new("Value at MRP", ReportAlign.Right, ReportFormat.Money, 1.1),
             ],
             batches.OrderBy(b => b.ExpiryDate)
                 .Select(b => new ReportRow(
-                    [b.Product.Name, b.BatchNo, b.ExpiryDate,
-                     b.ExpiryDate.Date < today ? "Expired" : "Expiring",
-                     b.QtyOnHand, b.Mrp, b.QtyOnHand * b.Mrp],
+                    [b.ExpiryDate.Date < today ? "Expired" : "Expiring",
+                     b.Product.Name, b.BatchNo, b.ExpiryDate,
+                     b.QtyOnHand, b.Returnable, b.Mrp, b.SupplierName,
+                     (int)(b.ExpiryDate.Date - today).TotalDays,
+                     b.QtyOnHand * b.Mrp],
                     Emphasise: b.ExpiryDate.Date < today,
                     Note: b.ExpiryDate.Date < today ? "Expired" : null))
                 .ToList(),
@@ -322,14 +349,19 @@ public class ReportsController(
             [
                 new("Medicine", ReportAlign.Left, ReportFormat.Text, 2.2),
                 new("Manufacturer", ReportAlign.Left, ReportFormat.Text, 1.6),
-                new("On hand", ReportAlign.Right, ReportFormat.Integer, 0.8),
-                new("Reorder at", ReportAlign.Right, ReportFormat.Integer, 0.8),
-                new("Short by", ReportAlign.Right, ReportFormat.Integer, 0.8),
+                // The pack it is ordered in — a reorder is placed in packs,
+                // not in loose units, so a shortage of 50 means nothing
+                // without knowing whether a pack is 10 or 100.
+                new("Pack", ReportAlign.Left, ReportFormat.Text, 0.9),
                 new("Rack", ReportAlign.Left, ReportFormat.Text, 0.8),
+                new("In stock", ReportAlign.Right, ReportFormat.Integer, 0.8),
+                new("Reorder at", ReportAlign.Right, ReportFormat.Integer, 0.8),
+                new("Shortage", ReportAlign.Right, ReportFormat.Integer, 0.8),
             ],
             products.Select(p => new ReportRow(
-                    [p.Name, p.Manufacturer, p.StockOnHand, p.ReorderLevel,
-                     Math.Max(0, p.ReorderLevel - p.StockOnHand), p.RackLocation]))
+                    [p.Name, p.Manufacturer, p.PackSize, p.RackLocation,
+                     p.StockOnHand, p.ReorderLevel,
+                     Math.Max(0, p.ReorderLevel - p.StockOnHand)]))
                 .ToList(),
             [new("Medicines", products.Count, ReportFormat.Integer)]);
     }
@@ -349,17 +381,27 @@ public class ReportsController(
         return new ReportTable(ReportKind.StockRegister, title, label,
             [
                 new("Medicine", ReportAlign.Left, ReportFormat.Text, 2.0),
+                new("Manufacturer", ReportAlign.Left, ReportFormat.Text, 1.4),
+                new("Pack", ReportAlign.Left, ReportFormat.Text, 0.9),
                 new("Batch", ReportAlign.Left, ReportFormat.Text, 1.0),
                 new("Expiry", ReportAlign.Left, ReportFormat.Date, 1.0),
-                new("On hand", ReportAlign.Right, ReportFormat.Integer, 0.7),
-                new("Purchase", ReportAlign.Right, ReportFormat.Money, 0.9),
+                new("Rack", ReportAlign.Left, ReportFormat.Text, 0.7),
+                new("Current stock", ReportAlign.Right, ReportFormat.Integer, 0.8),
+                // Carried per row rather than only in the totals: this is the
+                // sheet somebody sorts by shortage to build an order from.
+                new("Reorder level", ReportAlign.Right, ReportFormat.Integer, 0.8),
+                new("Shortage", ReportAlign.Right, ReportFormat.Integer, 0.8),
+                new("Purchase rate", ReportAlign.Right, ReportFormat.Money, 0.9),
                 new("MRP", ReportAlign.Right, ReportFormat.Money, 0.9),
                 new("Cost value", ReportAlign.Right, ReportFormat.Money, 1.0),
                 new("MRP value", ReportAlign.Right, ReportFormat.Money, 1.0),
             ],
             batches.OrderBy(b => b.Product.Name).ThenBy(b => b.ExpiryDate)
                 .Select(b => new ReportRow(
-                    [b.Product.Name, b.BatchNo, b.ExpiryDate, b.QtyOnHand,
+                    [b.Product.Name, b.Product.Manufacturer, b.Product.PackSize, b.BatchNo,
+                     b.ExpiryDate, b.Product.RackLocation, b.QtyOnHand,
+                     b.Product.ReorderLevel,
+                     Math.Max(0, b.Product.ReorderLevel - b.Product.StockOnHand),
                      b.PurchaseRate, b.Mrp, b.QtyOnHand * b.PurchaseRate, b.QtyOnHand * b.Mrp]))
                 .ToList(),
             [
@@ -414,14 +456,23 @@ public class ReportsController(
 
         return Ok(new ReportTable(ReportKind.None, "Stock to reconcile", $"{batches.Count} provisional batch(es)",
             [
+                new("Added", ReportAlign.Left, ReportFormat.Date, 1.0),
                 new("Medicine", ReportAlign.Left, ReportFormat.Text, 2.0),
                 new("Batch", ReportAlign.Left, ReportFormat.Text, 1.0),
                 new("Expiry", ReportAlign.Left, ReportFormat.Date, 1.0),
                 new("On hand", ReportAlign.Right, ReportFormat.Integer, 0.7),
-                new("Received", ReportAlign.Left, ReportFormat.Date, 1.0),
+                new("MRP", ReportAlign.Right, ReportFormat.Money, 0.9),
+                new("Rate paid", ReportAlign.Right, ReportFormat.Money, 0.9),
+                // Whose bill is missing, and which one. Without these the
+                // list can say that something needs a bill but not whose,
+                // which is most of the work of reconciling.
+                new("Supplier", ReportAlign.Left, ReportFormat.Text, 1.4),
+                new("Their bill", ReportAlign.Left, ReportFormat.Text, 1.2),
             ],
             batches.OrderBy(b => b.ReceivedOn)
-                .Select(b => new ReportRow([b.Product.Name, b.BatchNo, b.ExpiryDate, b.QtyOnHand, b.ReceivedOn]))
+                .Select(b => new ReportRow(
+                    [b.ReceivedOn, b.Product.Name, b.BatchNo, b.ExpiryDate, b.QtyOnHand,
+                     b.Mrp, b.PurchaseRate, b.SupplierName, b.SupplierInvoiceNo]))
                 .ToList(),
             [new("Batches", batches.Count, ReportFormat.Integer)]));
     }
@@ -441,12 +492,14 @@ public class ReportsController(
                 new("Batch", ReportAlign.Left, ReportFormat.Text, 1.0),
                 new("Expiry", ReportAlign.Left, ReportFormat.Date, 1.0),
                 new("Left", ReportAlign.Right, ReportFormat.Integer, 0.7),
-                new("Per pack", ReportAlign.Right, ReportFormat.Integer, 0.7),
+                new("Of a pack of", ReportAlign.Right, ReportFormat.Integer, 0.8),
+                new("MRP", ReportAlign.Right, ReportFormat.Money, 0.9),
                 new("Value at MRP", ReportAlign.Right, ReportFormat.Money, 1.0),
             ],
             batches.OrderBy(b => b.ExpiryDate)
                 .Select(b => new ReportRow(
-                    [b.Product.Name, b.BatchNo, b.ExpiryDate, b.QtyOnHand, b.UnitsPerPack, b.QtyOnHand * b.Mrp]))
+                    [b.Product.Name, b.BatchNo, b.ExpiryDate, b.QtyOnHand, b.UnitsPerPack,
+                     b.Mrp, b.QtyOnHand * b.Mrp]))
                 .ToList(),
             [new("Value at MRP", batches.Sum(b => b.QtyOnHand * b.Mrp))]));
     }

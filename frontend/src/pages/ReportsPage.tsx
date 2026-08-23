@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError, downloadFile, openPdf } from '../api/client';
 import type {
   DayBookSummary,
+  DiagnosticsReport,
   ReportFormat,
   ReportKind,
   ReportTable,
@@ -28,6 +29,8 @@ const TABS: Tab[] = [
   { id: 'lowstock', label: 'Low Stock', kind: 'LowStock' },
   { id: 'stock', label: 'Stock Register', kind: 'StockRegister' },
   { id: 'h1', label: 'Schedule H1', kind: 'ScheduleH1' },
+  // Last, and with no export of its own — the desktop's tenth tab.
+  { id: 'diagnostics', label: 'Diagnostics', kind: 'None', path: '/api/reports/diagnostics' },
 ];
 
 const EXPIRING_DAY_OPTIONS = [30, 60, 90, 180];
@@ -73,6 +76,9 @@ export function ReportsPage() {
 
   const [table, setTable] = useState<ReportTable | null>(null);
   const [summary, setSummary] = useState<DayBookSummary | null>(null);
+  const [selectedRow, setSelectedRow] = useState<number | null>(null);
+  const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
+
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -91,6 +97,16 @@ export function ReportsPage() {
     setBusy(true);
     setError(null);
     try {
+      setSelectedRow(null);
+
+      if (t.id === 'diagnostics') {
+        setDiagnostics(await api.get<DiagnosticsReport>(`/api/reports/diagnostics?${query()}`));
+        setTable(null);
+        setSummary(null);
+        return;
+      }
+      setDiagnostics(null);
+
       const path = t.path ?? `/api/reports/${t.kind}?${query()}`;
       setTable(await api.get<ReportTable>(path));
 
@@ -144,12 +160,43 @@ export function ReportsPage() {
     }
   };
 
+  /**
+   * Reprints the selected row's document, marked as a duplicate. Which
+   * document depends on the report: a pharmacy bill from the day book, a
+   * fee receipt from the OPD register, a diagnostic bill from the
+   * Diagnostics tab. All three are what the desktop offers here, and all
+   * three re-read the record rather than printing the row on screen.
+   */
+  const reprintRow = async (id: string) => {
+    setError(null);
+    try {
+      if (tab.kind === 'DayBook') await openPdf(`/api/print/bill/${id}?reprint=true`);
+      else if (tab.kind === 'OpdRegister') await openPdf(`/api/print/receipt/${id}?reprint=true`);
+      else if (tab.id === 'diagnostics') await openPdf(`/api/print/diagnostic-bill/${id}?reprint=true`);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not reprint.');
+    }
+  };
+
+  /** Only the day book and the OPD register have a document behind a row. */
+  const reprintLabel = tab.kind === 'DayBook' ? 'Reprint selected bill'
+    : tab.kind === 'OpdRegister' ? 'Reprint selected receipt'
+    : null;
+
+  const selectedId = selectedRow !== null ? (table?.rows[selectedRow]?.id ?? null) : null;
+
   /** Stock Register is Excel-only by design — a wide, analysis-oriented dump
    * rather than a printable statement. */
   const canExportPdf = tab.kind !== 'None' && tab.kind !== 'StockRegister' && (table?.rows.length ?? 0) > 0;
   const canExportExcel = tab.kind !== 'None' && (table?.rows.length ?? 0) > 0;
 
-  const isRangeBased = tab.kind === 'GstSummary' || tab.kind === 'ScheduleH1';
+  // Diagnostics reads both: today's bills off the Date picker, and
+  // revenue-by-day plus the most-ordered tests off the From/To range — the
+  // same split the day book and the GST summary already use.
+  const isRangeBased = tab.kind === 'GstSummary' || tab.kind === 'ScheduleH1' || tab.id === 'diagnostics';
+  const hasDatePicker = tab.id === 'diagnostics'
+    || (tab.kind !== 'GstSummary' && tab.kind !== 'ScheduleH1'
+        && tab.kind !== 'StockRegister' && tab.kind !== 'LowStock' && tab.kind !== 'None');
 
   return (
     <div className="page">
@@ -159,6 +206,11 @@ export function ReportsPage() {
           <p className="hint">{table ? `${table.title} · ${table.dateLabel}` : 'Loading…'}</p>
         </div>
         <div className="inline-form">
+          {reprintLabel && (
+            <button type="button" disabled={!selectedId} onClick={() => selectedId && void reprintRow(selectedId)}>
+              {reprintLabel}
+            </button>
+          )}
           <button type="button" disabled={!canExportPdf} onClick={() => void exportAs('pdf')}>Export PDF</button>
           <button type="button" disabled={!canExportExcel} onClick={() => void exportAs('excel')}>Export Excel</button>
           <button type="button" className="ghost" disabled={busy} onClick={() => void load(tab)}>Refresh</button>
@@ -181,7 +233,7 @@ export function ReportsPage() {
       {/* Only the filters this report actually reads — a From/To pair on the
           day book would imply a range it does not use. */}
       <div className="inline-form">
-        {!isRangeBased && tab.kind !== 'StockRegister' && tab.kind !== 'LowStock' && tab.kind !== 'None' && (
+        {hasDatePicker && (
           <>
             <label>Date</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
@@ -237,6 +289,9 @@ export function ReportsPage() {
               placeholder="Find a bill by no. or name"
               value={billSearch}
               onChange={(e) => setBillSearch(e.target.value)}
+              // The desktop binds Enter to FindBillCommand; typing a bill
+              // number and pressing Enter is the whole interaction.
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void findBill(); } }}
             />
             <button type="button" className="ghost" onClick={() => void findBill()}>Find</button>
           </>
@@ -275,6 +330,86 @@ export function ReportsPage() {
         </div>
       )}
 
+      {/* The Diagnostics tab is three grids rather than one table, which is
+          why it is not a ReportKind and has no export — the desktop makes
+          the same call. */}
+      {diagnostics && (
+        <>
+          <div className="kpi-row">
+            <div className="kpi">
+              <span className="kpi-label">Diagnostics today</span>
+              <span className="kpi-value">₹{diagnostics.todayTotal.toFixed(2)}</span>
+              <span className="kpi-delta">{diagnostics.todaysBills.length} bill(s)</span>
+            </div>
+          </div>
+
+          <section className="card">
+            <h2>Today&rsquo;s diagnostic bills</h2>
+            <table>
+              <thead><tr><th>Time</th><th>Bill No</th><th>Patient</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {diagnostics.todaysBills.map((b) => (
+                  <tr key={b.id}>
+                    <td>{new Date(b.billDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
+                    <td>{b.billNo}</td>
+                    <td>{b.patientName}<div className="hint">{b.patientNo}</div></td>
+                    <td>₹{b.finalAmount.toFixed(2)}</td>
+                    <td><span className="badge">{b.status}</span></td>
+                    <td className="row-actions">
+                      <button
+                        type="button"
+                        className="ghost"
+                        onClick={() => void openPdf(`/api/print/diagnostic-bill/${b.id}?reprint=true`)}
+                      >
+                        Reprint
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {diagnostics.todaysBills.length === 0 && <tr><td colSpan={6}>Nothing billed today.</td></tr>}
+              </tbody>
+            </table>
+          </section>
+
+          <div className="queue-columns">
+            <section className="card">
+              <h2>Revenue by day</h2>
+              <table>
+                <thead><tr><th>Date</th><th>Bills</th><th>Revenue</th></tr></thead>
+                <tbody>
+                  {diagnostics.revenue.map((r) => (
+                    <tr key={r.day}>
+                      <td>{new Date(r.day).toLocaleDateString()}</td>
+                      <td>{r.bills}</td>
+                      <td>₹{r.amount.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {diagnostics.revenue.length === 0 && <tr><td colSpan={3}>Nothing in this range.</td></tr>}
+                </tbody>
+              </table>
+            </section>
+
+            <section className="card">
+              <h2>Most ordered tests</h2>
+              <table>
+                <thead><tr><th>Test</th><th>Times ordered</th><th>Revenue</th></tr></thead>
+                <tbody>
+                  {diagnostics.topTests.map((t) => (
+                    <tr key={t.test}>
+                      <td>{t.test}</td>
+                      <td>{t.times}</td>
+                      <td>₹{t.amount.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                  {diagnostics.topTests.length === 0 && <tr><td colSpan={3}>Nothing in this range.</td></tr>}
+                </tbody>
+              </table>
+            </section>
+          </div>
+        </>
+      )}
+
+      {!diagnostics && (
       <section className="card">
         {table ? (
           <>
@@ -290,7 +425,14 @@ export function ReportsPage() {
               </thead>
               <tbody>
                 {table.rows.map((row, i) => (
-                  <tr key={i} className={row.emphasise ? 'row-flagged' : undefined}>
+                  <tr
+                    key={i}
+                    onClick={() => row.id && setSelectedRow(i)}
+                    className={[
+                      row.emphasise ? 'row-flagged' : '',
+                      selectedRow === i ? 'selected-row' : '',
+                    ].filter(Boolean).join(' ') || undefined}
+                  >
                     {table.columns.map((c, j) => (
                       <td key={c.header} style={{ textAlign: c.align === 'Right' ? 'right' : c.align === 'Center' ? 'center' : 'left' }}>
                         {formatCell(row.cells[j] ?? null, c.format)}
@@ -319,6 +461,7 @@ export function ReportsPage() {
           !error && <p className="hint">Loading…</p>
         )}
       </section>
+      )}
     </div>
   );
 }

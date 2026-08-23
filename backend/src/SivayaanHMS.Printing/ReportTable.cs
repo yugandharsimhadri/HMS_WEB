@@ -105,7 +105,12 @@ public record ReportColumn(string Header, ReportAlign Align = ReportAlign.Left, 
 /// emphasised — the desktop reads "Expired" out in words rather than leaving
 /// the red tint to say it alone, so a colour-blind or low-vision reader gets
 /// the same signal a sighted one gets.</summary>
-public record ReportRow(List<object?> Cells, bool Emphasise = false, string? Note = null);
+/// <param name="Id">The record behind the row, when there is one worth
+/// acting on — a bill to reprint, say. Null for a row that is only a
+/// figure (a GST slab, a stock total). Carried here rather than as a magic
+/// column so nothing about it can end up printed.</param>
+public record ReportRow(
+    List<object?> Cells, bool Emphasise = false, string? Note = null, Guid? Id = null);
 
 public record ReportTotal(string Label, object? Value, ReportFormat Format = ReportFormat.Money);
 

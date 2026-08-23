@@ -12,7 +12,8 @@ Derived from: `ReportsViewModel` (489 lines), `ReportKind` / `ReportNaming`
 
 Status: ☑ done · ◻ not started · ◐ partial
 
-**All 46 items are ☑ as of 23 Aug 2026**, driven against the running app.
+**All 51 items are ☑ as of 23 Aug 2026**, driven against the running app.
+Five were added by the XAML pass recorded at the end of this file.
 
 ---
 
@@ -20,8 +21,8 @@ Status: ☑ done · ◻ not started · ◐ partial
 
 | # | Feature | Why it exists | Status |
 |---|---|---|---|
-| 1.1 | Nine tabs in a fixed order: Day Book, GST Summary, OPD Register, Expiring Soon, Part Packs, Stock to Reconcile, Low Stock, Stock Register, Schedule H1 | ☑ |
-| 1.2 | **Part Packs and Stock to Reconcile hold their place with no export**, rather than being left out | The desktop's `TabOrder` array pads them with `None` precisely so inserting or reordering a tab can never point an export at the wrong report | ☑ |
+| 1.1 | **Ten** tabs in a fixed order: Day Book, GST Summary, OPD Register, Expiring Soon, Part Packs, Stock to Reconcile, Low Stock, Stock Register, Schedule H1, Diagnostics | ☑ |
+| 1.2 | **Part Packs, Stock to Reconcile and Diagnostics hold their place with no export**, rather than being left out | The desktop's `TabOrder` array pads them with `None` precisely so inserting or reordering a tab can never point an export at the wrong report | ☑ |
 | 1.3 | Each tab shows only the filters it actually reads | A From/To pair on the day book would imply a range it does not use | ☑ |
 
 ## 2 · Filters
@@ -42,7 +43,7 @@ Status: ☑ done · ◻ not started · ◐ partial
 | # | Feature | Why | Status |
 |---|---|---|---|
 | 3.1 | **Completed bills only** | A cancelled or returned sale is not revenue, and leaving it in would double count against the cards, which already exclude it | ☑ |
-| 3.2 | Columns: time, bill no., customer, mode, taxable, CGST, SGST, net | ☑ |
+| 3.2 | Columns: bill no., time, customer, **doctor**, **items**, taxable, CGST, SGST, net, mode | ☑ |
 | 3.3 | Newest first | ☑ |
 | 3.4 | Summary cards: collected, split cash / UPI | ☑ |
 | 3.5 | Card for GST within the collected total | ☑ |
@@ -63,7 +64,7 @@ Status: ☑ done · ◻ not started · ◐ partial
 
 | # | Feature | Why | Status |
 |---|---|---|---|
-| 5.1 | Token, time, patient, doctor, status, fee, paid, receipt no. | ☑ |
+| 5.1 | **Visit no.**, token, time, patient, **age**, **gender**, doctor, status, fee, paid, receipt no. | ☑ |
 | 5.2 | Ordered by token | ☑ |
 | 5.3 | Totals: collected, patients seen | ☑ |
 
@@ -76,6 +77,8 @@ Status: ☑ done · ◻ not started · ◐ partial
 | 6.3 | The row is also emphasised | Reinforcement, never the only signal | ☑ |
 | 6.4 | Soonest expiry first | ☑ |
 | 6.5 | Value at MRP per row and in total | What walking away from it actually costs | ☑ |
+| 6.6 | **`RETURNABLE`** — sealed packs against loose units to write off | Only sealed packs go back to the distributor | ☑ reads "2 sealed + 4 loose to write off" |
+| 6.7 | **`SUPPLIER`** and **`DAYS REMAINING`** | Who to claim from, and how long there is to do it | ☑ |
 
 ## 7 · The stock tabs
 
@@ -112,6 +115,8 @@ Status: ☑ done · ◻ not started · ◐ partial
 | 9.12 | The workbook has a frozen header row and an autofilter | ☑ |
 | 9.13 | Columns sized to content | ☑ |
 | 9.14 | The export always matches what is on screen | ☑ by construction — see below |
+| 9.15 | **Reprint the selected row's document**, marked duplicate — a bill from the day book, a receipt from the OPD register, a diagnostic bill from Diagnostics | ☑ the button re-labels per report, and an unpaid visit offers nothing |
+| 9.16 | **Enter submits the bill search**, as the view's `KeyBinding` does | ☑ |
 
 ---
 
@@ -173,3 +178,47 @@ automation's `navigate` tool drops the path and lands on the SPA root, so
 routes are reached by clicking the real nav link. The session also does not
 survive a server restart, so signing back in is part of each verification
 round.
+
+---
+
+## Correction — the XAML pass, 23 Aug 2026
+
+Every item above was originally derived from the **viewmodel**, which gives
+behaviour. A second pass compared the **views** (`*.xaml`), which is what
+actually defines the controls and columns on screen. That found gaps this
+checklist had not been written to catch, because a column set is a
+view-level fact the viewmodel never states.
+
+What was missing and has now been added:
+
+| Report | Columns that were missing |
+|---|---|
+| Day Book | `DOCTOR`, `ITEMS` |
+| OPD Register | `VISIT NO`, `AGE`, `GENDER` |
+| Expiring Soon | `RETURNABLE`, `SUPPLIER`, `DAYS REMAINING` |
+| Stock to Reconcile | `MRP`, `RATE PAID`, `SUPPLIER`, `THEIR BILL` |
+| Part Packs | `MRP` |
+| Low Stock | `PACK` |
+| Stock Register | `MANUFACTURER`, `PACK`, `RACK`, `REORDER LEVEL`, `SHORTAGE` |
+
+Two of those were more than cosmetic. **`RETURNABLE`** renders
+`Batch.Returnable`, which reads "2 sealed + 4 loose to write off" — only
+sealed packs go back to the distributor, and without that column the report
+says "24 left" and leaves the pharmacist to work out what is actually
+claimable. **`SUPPLIER` / `THEIR BILL`** on Stock to Reconcile are what the
+entity's own comment calls out: without them the list "can show that
+something needs a bill but not whose, which is most of the work of
+reconciling".
+
+Also added, all present on the desktop and absent here:
+
+- **The Diagnostics tab** — the desktop's tenth. The endpoint existed and was
+  recorded as owed; the tab, its three grids and its own From/To range are
+  now built.
+- **Reprint from a report row** — `ReprintBillCommand`,
+  `ReprintReceiptCommand` and `ReprintDiagnosticBillCommand` are three
+  viewmodel commands that were read during the port and never built. Rows
+  now carry an optional record id and the button re-labels itself per report.
+  An unpaid OPD visit carries no id, so it cannot offer a receipt that does
+  not exist.
+- **Enter submits the bill search**, matching the view's `KeyBinding`.
