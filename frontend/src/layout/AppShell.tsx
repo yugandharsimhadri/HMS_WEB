@@ -5,7 +5,7 @@ import { api } from '../api/client';
 import type { GeneralSettings } from '../api/types';
 import { CommandPalette, type Destination, type PaletteAction } from '../shell/CommandPalette';
 import { ShortcutSheet } from '../shell/ShortcutSheet';
-import { describeCombo, useHotkey } from '../shell/hotkeys';
+import { ANYWHERE, describeCombo, useHotkey } from '../shell/hotkeys';
 import {
   IconCalendar, IconDashboard, IconDensity, IconDentist, IconDiagnostics, IconHelp,
   IconInventory, IconKey, IconLab, IconMedicines, IconMoon, IconPatients, IconPediatrics,
@@ -142,11 +142,11 @@ export function AppShell() {
 
   // The palette has to answer even from inside a field — that is the whole
   // point of it — so it is one of the two bindings marked whileTyping.
-  useHotkey('mod+k', 'Search and jump', 'Anywhere', openPalette, { whileTyping: true });
-  useHotkey('?', 'Keyboard shortcuts', 'Anywhere', showSheet);
-  useHotkey('escape', 'Close this', 'Anywhere', closeAll, { whileTyping: true });
-  useHotkey('mod+j', 'Light or dark theme', 'Anywhere', toggleTheme, { whileTyping: true });
-  useHotkey('mod+shift+d', 'Dense or comfortable rows', 'Anywhere', toggleDensity, { whileTyping: true });
+  useHotkey('mod+k', 'Search and jump', ANYWHERE, openPalette, { whileTyping: true });
+  useHotkey('?', 'Keyboard shortcuts', ANYWHERE, showSheet);
+  useHotkey('escape', 'Close this', ANYWHERE, closeAll, { whileTyping: true });
+  useHotkey('mod+j', 'Light or dark theme', ANYWHERE, toggleTheme, { whileTyping: true });
+  useHotkey('mod+shift+d', 'Dense or comfortable rows', ANYWHERE, toggleDensity, { whileTyping: true });
 
   const initial = (session?.clinicName ?? 'Sivayaan').trim().charAt(0).toUpperCase();
 

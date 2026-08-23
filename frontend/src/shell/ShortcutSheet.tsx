@@ -1,4 +1,4 @@
-import { describeCombo, useShortcutList } from './hotkeys';
+import { ANYWHERE, describeCombo, useShortcutList } from './hotkeys';
 
 /**
  * The sheet behind `?`.
@@ -12,10 +12,18 @@ import { describeCombo, useShortcutList } from './hotkeys';
 export function ShortcutSheet({ onClose }: { onClose: () => void }) {
   const shortcuts = useShortcutList();
 
-  const groups = shortcuts.reduce<Record<string, typeof shortcuts>>((acc, s) => {
+  const grouped = shortcuts.reduce<Record<string, typeof shortcuts>>((acc, s) => {
     (acc[s.group] ||= []).push(s);
     return acc;
   }, {});
+
+  // This screen's own keys first, the ones that work everywhere last.
+  // Ordering by registration alone left it to whichever component happened
+  // to re-render most recently, which moved the sections around between
+  // visits to the same page.
+  const groups = Object.entries(grouped).sort(
+    ([a], [b]) => Number(a === ANYWHERE) - Number(b === ANYWHERE),
+  );
 
   return (
     <div className="overlay" onMouseDown={onClose} role="presentation">
@@ -32,11 +40,11 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="overlay-body">
-          {Object.keys(groups).length === 0 ? (
+          {groups.length === 0 ? (
             <p className="hint">No shortcuts are active on this screen.</p>
           ) : (
             <div className="sheet">
-              {Object.entries(groups).map(([group, items]) => (
+              {groups.map(([group, items]) => (
                 <section key={group}>
                   <h4>{group}</h4>
                   <dl>

@@ -7,6 +7,7 @@ import { describePacks } from '../clinical/doseMath';
 import { unitWordFor } from '../pharmacy/packing';
 import { QuickStockDialog } from '../pharmacy/QuickStockDialog';
 import { EditQuantityDialog } from '../pharmacy/EditQuantityDialog';
+import { describeCombo, useHotkey } from '../shell/hotkeys';
 
 interface Allocation {
   batch: Batch;
@@ -77,6 +78,16 @@ export function PharmacyCounterPage() {
 
   const [quickStockFor, setQuickStockFor] = useState<Product | null>(null);
   const [editingLine, setEditingLine] = useState<number | null>(null);
+
+  // The counter's keyboard. The search box is where the hands live, so it
+  // gets a ref: every shortcut that ends an action returns focus here rather
+  // than leaving the operator to reach for the mouse to start the next line.
+  const searchRef = useRef<HTMLInputElement>(null);
+
+  // Which match the arrow keys are sitting on. -1 is "none yet", which is
+  // what a fresh search should be: pressing Enter then adds nothing by
+  // accident.
+  const [highlight, setHighlight] = useState(-1);
 
   useEffect(() => {
     void api.get<PharmacyProfile>('/api/settings/pharmacy')
@@ -460,6 +471,61 @@ export function PharmacyCounterPage() {
 
   const showTransactionNo = paymentMode === 'Upi' || paymentMode === 'Card';
 
+  // One list, used by both the arrow keys and the markup. Deriving it twice
+  // is how the highlighted row and the row Enter picks drift apart.
+  const visibleMatches = useMemo(
+    () => (!selected && search.trim() ? matches.slice(0, 12) : []),
+    [selected, search, matches],
+  );
+
+  // A new search starts with nothing chosen.
+  useEffect(() => { setHighlight(-1); }, [search, selected]);
+
+  const focusSearch = () => {
+    searchRef.current?.focus();
+    searchRef.current?.select();
+  };
+
+  // Same keys as the OPD queue wherever the meaning is the same: F2 starts a
+  // new one, F4 takes the money, F8 finishes. A pharmacist who has learnt
+  // the queue already knows three of these.
+  const G = 'Pharmacy counter';
+  useHotkey('f2', 'Start a new bill', G, () => { newBill(); focusSearch(); });
+  useHotkey('f3', 'Find a medicine', G, focusSearch, { whileTyping: true });
+  useHotkey('f6', 'Load an OPD prescription', G, () => {
+    if (selectedVisitId) void loadPrescription();
+  });
+  useHotkey('f7', 'Quick stock for this medicine', G, () => {
+    if (selected) setQuickStockFor(selected);
+  });
+  useHotkey('f4', 'Save the bill', G, () => {
+    if (!saving && lines.length > 0) void completeSale(false);
+  });
+  useHotkey('f8', 'Save and print', G, () => {
+    if (!saving && lines.length > 0) void completeSale(true);
+  });
+
+  // Arrowing the result list. Live only while the search box has focus and
+  // there is a list to walk, so the quantity box beside it keeps its own
+  // up and down.
+  const searchHasFocus = () => document.activeElement === searchRef.current;
+  const walking = () => searchHasFocus() && visibleMatches.length > 0;
+
+  useHotkey('arrowdown', 'Next match', G, () => {
+    setHighlight((i) => (i + 1) % visibleMatches.length);
+  }, { whileTyping: true, when: walking });
+
+  useHotkey('arrowup', 'Previous match', G, () => {
+    setHighlight((i) => (i <= 0 ? visibleMatches.length - 1 : i - 1));
+  }, { whileTyping: true, when: walking });
+
+  // Only claims Enter once a match is actually highlighted; otherwise the
+  // form submits as it always did and the line is added.
+  useHotkey('enter', 'Choose the highlighted match', G, () => {
+    const product = visibleMatches[highlight];
+    if (product) { pick(product); focusSearch(); }
+  }, { whileTyping: true, when: () => walking() && highlight >= 0 });
+
   return (
     <div className="page wide">
       <div className="page-head">
@@ -503,6 +569,7 @@ export function PharmacyCounterPage() {
         <h2>Add a medicine</h2>
         <form className="inline-form" onSubmit={addLine}>
           <input
+            ref={searchRef}
             placeholder="Medicine name — type to search"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setSelected(null); }}
@@ -539,11 +606,18 @@ export function PharmacyCounterPage() {
 
         {selectedSummary && <p className="hint">{selectedSummary}</p>}
 
-        {!selected && matches.length > 0 && search.trim() && (
-          <ul className="picker-results static">
-            {matches.slice(0, 12).map((p) => (
+        {visibleMatches.length > 0 && (
+          <ul className="picker-results static" role="listbox">
+            {visibleMatches.map((p, i) => (
               <li key={p.id}>
-                <button type="button" onClick={() => pick(p)}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={i === highlight}
+                  className={i === highlight ? 'active-match' : undefined}
+                  onMouseEnter={() => setHighlight(i)}
+                  onClick={() => pick(p)}
+                >
                   {p.name} {p.packSize ? `(${p.packSize})` : ''} — stock {p.stockOnHand}
                   {p.schedule !== 'None' && <span className="hint"> · Schedule {p.schedule}</span>}
                 </button>
@@ -637,14 +711,26 @@ export function PharmacyCounterPage() {
               onChange={(e) => setTransactionNo(e.target.value)}
             />
           )}
-          <button type="button" onClick={() => completeSale(false)} disabled={saving || lines.length === 0}>
-            {saving ? 'Saving…' : 'Save bill'}
+          <button type="button" className="primary" onClick={() => completeSale(false)} disabled={saving || lines.length === 0}>
+            {saving ? 'Saving…' : <>Save bill <span className="kbd">{describeCombo('f4')}</span></>}
           </button>
           <button type="button" onClick={() => completeSale(true)} disabled={saving || lines.length === 0}>
-            Save &amp; print
+            Save &amp; print <span className="kbd">{describeCombo('f8')}</span>
           </button>
         </div>
       </section>
+
+      {/* The keys, in front of the person who would use them. */}
+      <p className="hint" style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span><span className="kbd">{describeCombo('f2')}</span> new bill</span>
+        <span><span className="kbd">{describeCombo('f3')}</span> find medicine</span>
+        <span><span className="kbd">{describeCombo('arrowup')}</span> <span className="kbd">{describeCombo('arrowdown')}</span> <span className="kbd">{describeCombo('enter')}</span> choose</span>
+        <span><span className="kbd">{describeCombo('f6')}</span> load prescription</span>
+        <span><span className="kbd">{describeCombo('f7')}</span> quick stock</span>
+        <span><span className="kbd">{describeCombo('f4')}</span> save</span>
+        <span><span className="kbd">{describeCombo('f8')}</span> save &amp; print</span>
+        <span><span className="kbd">?</span> all shortcuts</span>
+      </p>
 
       {quickStockFor && (
         <QuickStockDialog

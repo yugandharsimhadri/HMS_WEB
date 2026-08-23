@@ -12,6 +12,10 @@ import { useSyncExternalStore } from 'react';
  * is typing.
  */
 
+/** The group for shortcuts that work on every screen. Named once so the
+ *  sheet can order it last without matching on a loose string. */
+export const ANYWHERE = 'Anywhere';
+
 export interface Shortcut {
   /** Normalised combo, e.g. "mod+k", "f2", "shift+/" */
   combo: string;
@@ -22,6 +26,13 @@ export interface Shortcut {
   handler: (e: KeyboardEvent) => void;
   /** Fire even while a field has focus. Only Escape and the palette do. */
   whileTyping?: boolean;
+  /**
+   * Checked before the key is claimed. A shortcut that only applies in one
+   * place — arrowing a search box's results, say — must not swallow the key
+   * everywhere else, and deciding that *after* preventDefault would already
+   * have broken the number spinner next door.
+   */
+  when?: () => boolean;
 }
 
 const registry = new Map<string, Shortcut>();
@@ -134,6 +145,10 @@ function attach() {
 
       if (isTyping(e.target) && !hit.whileTyping) return;
 
+      // Asked before the key is claimed, never after: returning here leaves
+      // the keystroke to whatever would normally have handled it.
+      if (hit.when && !hit.when()) return;
+
       // A browser shortcut we are deliberately taking over (Ctrl K is
       // "search" in some browsers) has to be stopped, or both fire.
       e.preventDefault();
@@ -156,18 +171,25 @@ export function useHotkey(
   label: string,
   group: string,
   handler: (e: KeyboardEvent) => void,
-  opts: { whileTyping?: boolean; enabled?: boolean } = {},
+  opts: { whileTyping?: boolean; enabled?: boolean; when?: () => boolean } = {},
 ) {
-  const { whileTyping = false, enabled = true } = opts;
+  const { whileTyping = false, enabled = true, when } = opts;
 
   useEffect(() => {
     if (!enabled) return;
     attach();
 
     const key = combo.toLowerCase();
-    if (!order.has(key)) order.set(key, seq++);
 
-    registry.set(key, { combo: key, label, group, handler, whileTyping });
+    // Re-stamped on every registration, not just the first. Keeping the
+    // first number a combo ever got meant the sheet ordered by whichever
+    // screen happened to use F2 first, so a later screen's own keys were
+    // listed after keys it shares with an earlier one. Effects run
+    // child-before-parent, so this gives page shortcuts first, then the
+    // ones that work anywhere.
+    order.set(key, seq++);
+
+    registry.set(key, { combo: key, label, group, handler, whileTyping, when });
     dirty = true;
     announce();
 
@@ -180,5 +202,5 @@ export function useHotkey(
         announce();
       }
     };
-  }, [combo, label, group, handler, whileTyping, enabled]);
+  }, [combo, label, group, handler, whileTyping, enabled, when]);
 }

@@ -1094,6 +1094,10 @@ button.kpi:hover { border-color: var(--c-accent); background: var(--c-surface); 
 }
 .picker-results li button:hover { background: var(--c-accent-weak); color: var(--c-accent); border: 0; }
 
+/* The arrow keys' current match. Same treatment as hover on purpose: the
+   keyboard and the mouse should not point at a row in two different ways. */
+.picker-results li button.active-match { background: var(--c-accent-weak); color: var(--c-accent); }
+
 .pick-list { display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow-y: auto; }
 button.pick {
   justify-content: flex-start;
