@@ -15,6 +15,32 @@ export interface RegisterTenantResponse {
   adminUsername: string;
 }
 
+// ── Staff logins (a clinic's own users) ─────────────────────────────────
+
+export type UserRole = 'Admin' | 'Doctor' | 'Pharmacy' | 'Diagnosis';
+
+/** Note there is no password material here at all — not the hash, not the
+ * salt. The API returns a DTO precisely so there cannot be. */
+export interface ClinicUser {
+  id: string;
+  username: string;
+  displayName: string;
+  role: UserRole;
+  isActive: boolean;
+  mustChangePassword: boolean;
+  lastLoginOn: string | null;
+  /** So the list can mark your own row and the editor can explain why some
+   * changes to it are refused. */
+  isYou: boolean;
+}
+
+export interface TemporaryPasswordResponse {
+  username: string;
+  /** Empty when the caller supplied the password themselves — there is
+   * nothing to hand back that they do not already know. */
+  temporaryPassword: string;
+}
+
 // ── Platform support console ────────────────────────────────────────────
 // Registration metadata only. Note what is absent: no patient, visit or bill
 // type, and no endpoint that would return one — support staff have no

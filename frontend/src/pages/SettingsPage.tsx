@@ -1,13 +1,22 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
-import type { ClinicProfile, Doctor, DocumentTheme, GeneralSettings, PharmacyProfile } from '../api/types';
+import type {
+  ClinicProfile, ClinicUser, Doctor, DocumentTheme, GeneralSettings,
+  PharmacyProfile, TemporaryPasswordResponse,
+} from '../api/types';
+import { useAuth } from '../auth/AuthContext';
+import { StaffEditorDialog } from '../settings/StaffEditorDialog';
 
-type Tab = 'clinic' | 'pharmacy' | 'doctors' | 'branding' | 'modules';
+type Tab = 'clinic' | 'pharmacy' | 'doctors' | 'staff' | 'branding' | 'modules';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'clinic', label: 'Clinic' },
   { id: 'pharmacy', label: 'Pharmacy' },
   { id: 'doctors', label: 'Doctors' },
+  // Distinct from Doctors on purpose: a doctor is someone a visit is booked
+  // against, a user is someone who signs in. Most clinics have people who
+  // are one and not the other.
+  { id: 'staff', label: 'Staff logins' },
   { id: 'branding', label: 'Document branding' },
   { id: 'modules', label: 'Features' },
 ];
@@ -48,9 +57,133 @@ export function SettingsPage() {
       {tab === 'clinic' && <ClinicTab />}
       {tab === 'pharmacy' && <PharmacyTab />}
       {tab === 'doctors' && <DoctorsTab />}
+      {tab === 'staff' && <StaffTab />}
       {tab === 'branding' && <BrandingTab />}
       {tab === 'modules' && <ModulesTab />}
     </div>
+  );
+}
+
+/**
+ * Staff logins.
+ *
+ * Until this existed a clinic had exactly one account, so the receptionist
+ * and the pharmacist both signed in as the owner and every row's "created
+ * by" named the owner regardless of who did the work. That is what this
+ * fixes; the roles were always there.
+ *
+ * Admin-only, and the API enforces it independently — a non-admin gets 403
+ * from every call here, not just a hidden tab.
+ */
+function StaffTab() {
+  const { session } = useAuth();
+  const [users, setUsers] = useState<ClinicUser[]>([]);
+  const [editing, setEditing] = useState<ClinicUser | null | undefined>(undefined);
+  const [issued, setIssued] = useState<TemporaryPasswordResponse | null>(null);
+  const [status, setStatus] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  // The clinic half of every username here, taken from the signed-in user's
+  // own — the server appends the same thing, this only shows it.
+  const clinicCode = session?.username.slice(session.username.lastIndexOf('@') + 1) ?? '';
+
+  const load = async () => {
+    try {
+      setUsers(await api.get<ClinicUser[]>('/api/users'));
+      setError(null);
+    } catch (err) {
+      setError(err instanceof ApiError && err.status === 403
+        ? 'Only an Admin can manage staff logins.'
+        : 'Could not load the staff list.');
+    }
+  };
+
+  useEffect(() => { void load(); }, []);
+
+  const resetPassword = async (u: ClinicUser) => {
+    if (!window.confirm(
+      `Reset the password for ${u.username}?\n\n` +
+      'Their current password stops working immediately. You will be shown a temporary one to give them.')) return;
+
+    setError(null);
+    try {
+      setIssued(await api.post<TemporaryPasswordResponse>(`/api/users/${u.id}/reset-password`, {}));
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not reset that password.');
+    }
+  };
+
+  return (
+    <section className="settings-form">
+      <p className="hint">
+        Everyone who signs in. A person's username is their name plus your clinic code
+        — <strong>@{clinicCode}</strong> is added automatically.
+      </p>
+
+      {error && <p className="auth-error">{error}</p>}
+      {status && <p className="hint status-line">{status}</p>}
+
+      {/* Shown once. It is hashed the moment it is issued and cannot be
+          retrieved again — losing it means issuing another. */}
+      {issued && issued.temporaryPassword && (
+        <div className="card issued-password">
+          <h3>Temporary password for {issued.username}</h3>
+          <p className="issued-value">{issued.temporaryPassword}</p>
+          <p className="hint">
+            Give this to them now — it is not stored and cannot be shown again. They will be asked to
+            choose their own the moment they sign in.
+          </p>
+          <button type="button" className="ghost" onClick={() => setIssued(null)}>Done</button>
+        </div>
+      )}
+
+      <div className="inline-form">
+        <button type="button" className="primary" onClick={() => setEditing(null)}>+ Add someone</button>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>Username</th><th>Name</th><th>Role</th><th>Last signed in</th><th></th></tr>
+        </thead>
+        <tbody>
+          {users.map((u) => (
+            <tr key={u.id} className={u.isActive ? undefined : 'row-inactive'}>
+              <td>
+                {u.username}
+                {u.isYou && <span className="hint"> · you</span>}
+                {!u.isActive && <span className="hint"> · disabled</span>}
+                {u.mustChangePassword && <div className="hint">must choose a new password</div>}
+              </td>
+              <td>{u.displayName}</td>
+              <td>{u.role}</td>
+              <td>{u.lastLoginOn ? new Date(u.lastLoginOn).toLocaleString() : 'never'}</td>
+              <td className="row-actions">
+                <button type="button" className="ghost" onClick={() => setEditing(u)}>Edit</button>
+                <button type="button" className="ghost" onClick={() => void resetPassword(u)}>
+                  Reset password
+                </button>
+              </td>
+            </tr>
+          ))}
+          {users.length === 0 && <tr><td colSpan={5}>Nobody yet.</td></tr>}
+        </tbody>
+      </table>
+
+      {editing !== undefined && (
+        <StaffEditorDialog
+          existing={editing}
+          clinicCode={clinicCode}
+          onClose={() => setEditing(undefined)}
+          onSaved={async (message, temporary) => {
+            setEditing(undefined);
+            await load();
+            setStatus(message);
+            if (temporary?.temporaryPassword) setIssued(temporary);
+          }}
+        />
+      )}
+    </section>
   );
 }
 

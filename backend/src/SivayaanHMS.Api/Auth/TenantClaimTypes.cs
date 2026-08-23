@@ -20,5 +20,14 @@ public static class TenantClaimTypes
     /// user of some clinic", which a platform-support token is not.</summary>
     public const string ClinicPolicy = "Clinic";
 
+    /// <summary>
+    /// A clinic's own Admin — the owner. Requires the tenant claim *as well
+    /// as* the role, which is the whole reason it exists as a policy: writing
+    /// <c>[Authorize(Roles = "Admin")]</c> instead would replace the default
+    /// clinic policy rather than add to it, quietly dropping the tenant
+    /// requirement that keeps a support token out.
+    /// </summary>
+    public const string ClinicAdminPolicy = "ClinicAdmin";
+
     public const string PlatformAdminPolicy = "PlatformAdmin";
 }

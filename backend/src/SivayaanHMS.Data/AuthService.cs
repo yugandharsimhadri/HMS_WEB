@@ -90,7 +90,18 @@ public class AuthService(IDbContextFactory<AppDbContext> factory, IClock clock)
         var username = user.Username?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(username))
             throw new InvalidOperationException("Username is required.");
-        if (string.Equals(username, EnterpriseAdminUsername, StringComparison.OrdinalIgnoreCase))
+
+        // The *local part*, not the whole username. This guard used to compare
+        // the whole thing, which stopped meaning anything the moment usernames
+        // gained their "@clinic" suffix — "enterpriseadmin@twinkle" sailed
+        // past a check looking for exactly "EnterpriseAdmin".
+        //
+        // It grants nothing (support is matched on the bare name, before any
+        // tenant is resolved), but a clinic account wearing that name exists
+        // only to be mistaken for the support one by the staff who see it.
+        var reservedPart = UserName.TrySplit(username, out var localPart, out _) ? localPart : username;
+
+        if (string.Equals(reservedPart, EnterpriseAdminUsername, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException($"'{EnterpriseAdminUsername}' is reserved.");
 
         await using var db = await factory.CreateDbContextAsync();

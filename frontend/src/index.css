@@ -1070,7 +1070,68 @@ button.kpi:hover { border-color: var(--c-accent); background: var(--c-surface); 
   color: var(--c-text);
   cursor: pointer;
 }
-.checkbox-label input { width: 15px; height: 15px; accent-color: var(--c-accent); cursor: pointer; }
+/* iOS-style switch, applied to the checkbox itself rather than a wrapper
+   component, so every existing `.checkbox-label` in the app becomes a switch
+   without touching its markup. `appearance: none` strips the native box; the
+   knob is the ::after.
+
+   Sized 38x22 with a 44px minimum touch target below — a switch that reads
+   as tappable but isn't is worse than a checkbox. */
+.checkbox-label input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex: none;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--c-line-strong, var(--c-line));
+  border: none;
+  cursor: pointer;
+  transition: background var(--speed) var(--ease);
+}
+
+.checkbox-label input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform var(--speed) var(--ease);
+}
+
+.checkbox-label input[type='checkbox']:checked {
+  background: var(--c-accent);
+}
+
+.checkbox-label input[type='checkbox']:checked::after {
+  transform: translateX(16px);
+}
+
+/* Keyboard users have to be able to see where they are — this shell is
+   deliberately keyboard-first. */
+.checkbox-label input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+.checkbox-label input[type='checkbox']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* The slide is decoration; the state change is the message. */
+@media (prefers-reduced-motion: reduce) {
+  .checkbox-label input[type='checkbox'],
+  .checkbox-label input[type='checkbox']::after {
+    transition: none;
+  }
+}
 
 .module-toggle {
   display: flex;

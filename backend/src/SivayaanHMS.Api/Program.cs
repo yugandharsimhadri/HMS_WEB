@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SivayaanHMS.Api.Auth;
+using SivayaanHMS.Core;
 using SivayaanHMS.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -119,6 +120,13 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(TenantClaimTypes.ClinicPolicy, policy =>
         policy.RequireAuthenticatedUser().RequireClaim(TenantClaimTypes.TenantId));
+
+    // Note the tenant claim is required here too, not just the role — see
+    // ClinicAdminPolicy's own comment for why that matters.
+    options.AddPolicy(TenantClaimTypes.ClinicAdminPolicy, policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireClaim(TenantClaimTypes.TenantId)
+              .RequireRole(nameof(UserRole.Admin)));
 
     options.AddPolicy(TenantClaimTypes.PlatformAdminPolicy, policy =>
         policy.RequireAuthenticatedUser().RequireRole(TenantClaimTypes.PlatformAdminRole));
