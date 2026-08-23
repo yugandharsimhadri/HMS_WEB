@@ -12,7 +12,13 @@ public enum ReportKind
     ExpiringSoon,
     LowStock,
     StockRegister,
-    ScheduleH1
+    ScheduleH1,
+
+    /// <summary>Money in, from wherever it came, grouped by how it was paid.
+    /// Read over a range like the GST summary: a till is reconciled for one
+    /// day, but a month of UPI is what gets checked against a bank
+    /// statement.</summary>
+    Collections
 }
 
 /// <summary>Display name and file-naming rules shared by the PDF and Excel
@@ -28,13 +34,14 @@ public static class ReportNaming
         ReportKind.LowStock => "Low Stock",
         ReportKind.StockRegister => "Stock Register",
         ReportKind.ScheduleH1 => "Schedule H1 Register",
+        ReportKind.Collections => "Collections by payment mode",
         _ => "Report"
     };
 
     /// <summary>GST summary and the Schedule H1 register are read over a
     /// From/To range; everything else follows the single Date picker.</summary>
     public static bool IsRangeBased(ReportKind kind)
-        => kind is ReportKind.GstSummary or ReportKind.ScheduleH1;
+        => kind is ReportKind.GstSummary or ReportKind.ScheduleH1 or ReportKind.Collections;
 
     public static string DateLabel(ReportKind kind, DateTime date, DateTime from, DateTime to)
     {
@@ -60,6 +67,7 @@ public static class ReportNaming
             ReportKind.LowStock => "LowStock",
             ReportKind.StockRegister => "StockRegister",
             ReportKind.ScheduleH1 => "ScheduleH1",
+            ReportKind.Collections => "Collections",
             _ => "Report"
         };
 

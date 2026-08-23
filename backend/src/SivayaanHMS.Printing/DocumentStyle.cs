@@ -41,24 +41,80 @@ public static class DocumentStyle
         ColumnDescriptor col, string name, string? addressLine, string? addressLine2,
         string? phone, string? gstin, string? documentKind, DocumentTheme theme, float delta = 0)
     {
-        col.Item().AlignCenter().Text(name)
-            .FontFamily(TitleFont(theme))
-            .FontSize(Body(theme, 14, delta + (float)theme.TitleFontSizeDelta)).Bold();
+        var logo = DecodeLogo(theme);
 
-        if (!string.IsNullOrWhiteSpace(addressLine))
-            col.Item().AlignCenter().Text(addressLine).FontSize(Body(theme, 8, delta)).FontColor(Muted);
-        if (!string.IsNullOrWhiteSpace(addressLine2))
-            col.Item().AlignCenter().Text(addressLine2).FontSize(Body(theme, 8, delta)).FontColor(Muted);
-        if (!string.IsNullOrWhiteSpace(phone))
-            col.Item().AlignCenter().Text($"Phone: {phone}").FontSize(Body(theme, 8, delta)).FontColor(Muted);
-        if (!string.IsNullOrWhiteSpace(gstin))
-            col.Item().AlignCenter().Text($"GSTIN: {gstin}").FontSize(Body(theme, 8, delta)).FontColor(Muted);
+        if (logo is null)
+        {
+            Identity(col);
+        }
+        else
+        {
+            // Logo left, identity right — the desktop's DocumentBuilder gives
+            // the logo the same 28% share, and matching it is what makes a
+            // web-printed prescription look like the ones already in the
+            // patient's file.
+            col.Item().Row(row =>
+            {
+                row.RelativeItem(LogoColumnShare).AlignMiddle().MaxHeight(52).Image(logo).FitArea();
+                row.RelativeItem(100 - LogoColumnShare).Column(Identity);
+            });
+        }
 
         if (!string.IsNullOrWhiteSpace(documentKind))
             col.Item().PaddingTop(4).AlignCenter().Text(documentKind)
                 .FontSize(Body(theme, 11, delta)).Bold();
 
         col.Item().PaddingTop(4).LineHorizontal(0.75f).LineColor(Muted);
+
+        void Identity(ColumnDescriptor c)
+        {
+            c.Item().AlignCenter().Text(name)
+                .FontFamily(TitleFont(theme))
+                .FontSize(Body(theme, 14, delta + (float)theme.TitleFontSizeDelta)).Bold();
+
+            if (!string.IsNullOrWhiteSpace(addressLine))
+                c.Item().AlignCenter().Text(addressLine).FontSize(Body(theme, 8, delta)).FontColor(Muted);
+            if (!string.IsNullOrWhiteSpace(addressLine2))
+                c.Item().AlignCenter().Text(addressLine2).FontSize(Body(theme, 8, delta)).FontColor(Muted);
+            if (!string.IsNullOrWhiteSpace(phone))
+                c.Item().AlignCenter().Text($"Phone: {phone}").FontSize(Body(theme, 8, delta)).FontColor(Muted);
+            if (!string.IsNullOrWhiteSpace(gstin))
+                c.Item().AlignCenter().Text($"GSTIN: {gstin}").FontSize(Body(theme, 8, delta)).FontColor(Muted);
+        }
+    }
+
+    /// <summary>The share of the letterhead width the logo takes, matching
+    /// the desktop's DocumentBuilder.</summary>
+    public const int LogoColumnShare = 28;
+
+    /// <summary>
+    /// The stored logo as bytes, or null when there isn't one.
+    ///
+    /// Every failure returns null rather than throwing. A logo is decoration
+    /// on a document that also carries a prescription: bad base64, a
+    /// truncated upload or a file that is not an image must cost the clinic
+    /// its letterhead, never the ability to print at all.
+    /// </summary>
+    public static byte[]? DecodeLogo(DocumentTheme theme)
+    {
+        if (string.IsNullOrWhiteSpace(theme.LogoBase64)) return null;
+
+        try
+        {
+            // Tolerates a data URI, since that is what a browser's FileReader
+            // hands back and what the settings screen stores.
+            var raw = theme.LogoBase64;
+            var comma = raw.IndexOf(',');
+            if (raw.StartsWith("data:", StringComparison.OrdinalIgnoreCase) && comma > 0)
+                raw = raw[(comma + 1)..];
+
+            var bytes = Convert.FromBase64String(raw.Trim());
+            return bytes.Length == 0 ? null : bytes;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     /// <summary>

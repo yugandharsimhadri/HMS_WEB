@@ -502,10 +502,74 @@ function BrandingTab() {
     }
   };
 
+  /**
+   * Reads the chosen image straight into the theme as a data URI.
+   *
+   * Bounded hard at 200 KB. The logo is embedded in every document the clinic
+   * prints, so a 4 MB photograph of a signboard would be carried into every
+   * prescription, receipt and invoice for as long as it is set.
+   */
+  const chooseLogo = (file: File) => {
+    setError(null);
+
+    if (!file.type.startsWith('image/')) {
+      setError('Choose an image file — a PNG or JPG.');
+      return;
+    }
+    if (file.size > 200 * 1024) {
+      setError(`That image is ${Math.round(file.size / 1024)} KB. Logos are limited to 200 KB, because ` +
+               'this one is embedded in every document the clinic prints. Scale it down and try again.');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => setTheme((t) => (t ? {
+      ...t,
+      logoBase64: String(reader.result),
+      logoContentType: file.type,
+    } : t));
+    reader.onerror = () => setError('That file could not be read.');
+    reader.readAsDataURL(file);
+  };
+
   if (!theme) return <p className="hint">Loading…</p>;
 
   return (
     <form className="card settings-form" onSubmit={onSave}>
+      <div className="settings-row">
+        <label>Clinic logo</label>
+        <p className="hint">
+          Printed on the left of the letterhead of every prescription, receipt, invoice and report.
+        </p>
+
+        {theme.logoBase64 ? (
+          <div className="logo-preview">
+            <img src={theme.logoBase64} alt="Clinic logo" />
+            <button
+              type="button"
+              className="ghost"
+              onClick={() => setTheme({ ...theme, logoBase64: null, logoContentType: null })}
+            >
+              Remove
+            </button>
+          </div>
+        ) : (
+          <p className="hint">No logo — documents print with the clinic's name alone.</p>
+        )}
+
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) chooseLogo(file);
+            // Cleared so choosing the same file twice still fires.
+            e.target.value = '';
+          }}
+        />
+        <p className="hint">PNG or JPG, up to 200 KB. Remember to Save.</p>
+      </div>
+
       <label>
         Shared footer (used when a clinic/pharmacy footer is blank)
         <input value={theme.footer} onChange={(e) => setTheme({ ...theme, footer: e.target.value })} />

@@ -8,6 +8,7 @@ import type {
   ReportFormat,
   ReportKind,
   ReportTable,
+  PaymentMode,
 } from '../api/types';
 
 /** The tab order. `None` holds a place for the two tabs with no export of
@@ -31,11 +32,22 @@ const TABS: Tab[] = [
   { id: 'lowstock', label: 'Low Stock', kind: 'LowStock' },
   { id: 'stock', label: 'Stock Register', kind: 'StockRegister' },
   { id: 'h1', label: 'Schedule H1', kind: 'ScheduleH1' },
+  // Money in, from every module, grouped by how it was paid — the till and
+  // the bank statement are checked against this one.
+  { id: 'collections', label: 'Collections', kind: 'Collections' },
   // Last, and with no export of its own — the desktop's tenth tab.
   { id: 'diagnostics', label: 'Diagnostics', kind: 'None', path: '/api/reports/diagnostics' },
 ];
 
 const EXPIRING_DAY_OPTIONS = [30, 60, 90, 180];
+
+/** Undefined is "all modes", which keeps the per-mode split in the totals. */
+const PAYMENT_MODES: { value: PaymentMode | undefined; label: string }[] = [
+  { value: undefined, label: 'All' },
+  { value: 'Cash', label: 'Cash' },
+  { value: 'Upi', label: 'UPI' },
+  { value: 'Card', label: 'Card' },
+];
 
 const localDate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -81,6 +93,7 @@ export function ReportsPage() {
   const [selectedRow, setSelectedRow] = useState<number | null>(null);
   const [diagnostics, setDiagnostics] = useState<DiagnosticsReport | null>(null);
 
+  const [paymentMode, setPaymentMode] = useState<PaymentMode | undefined>(undefined);
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -92,8 +105,9 @@ export function ReportsPage() {
       includeZeroStock: String(includeZeroStock),
     });
     if (stockSearch.trim()) p.set('search', stockSearch.trim());
+    if (paymentMode) p.set('mode', paymentMode);
     return p.toString();
-  }, [date, from, to, expiringDays, includeZeroStock, stockSearch]);
+  }, [date, from, to, expiringDays, includeZeroStock, stockSearch, paymentMode]);
 
   const load = useCallback(async (t: Tab) => {
     setBusy(true);
@@ -202,7 +216,8 @@ export function ReportsPage() {
   // Diagnostics reads both: today's bills off the Date picker, and
   // revenue-by-day plus the most-ordered tests off the From/To range — the
   // same split the day book and the GST summary already use.
-  const isRangeBased = tab.kind === 'GstSummary' || tab.kind === 'ScheduleH1' || tab.id === 'diagnostics';
+  const isRangeBased = tab.kind === 'GstSummary' || tab.kind === 'ScheduleH1'
+    || tab.kind === 'Collections' || tab.id === 'diagnostics';
   const hasDatePicker = tab.id === 'diagnostics'
     || (tab.kind !== 'GstSummary' && tab.kind !== 'ScheduleH1'
         && tab.kind !== 'StockRegister' && tab.kind !== 'LowStock' && tab.kind !== 'None');
@@ -255,6 +270,24 @@ export function ReportsPage() {
             <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
             <label>To</label>
             <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          </>
+        )}
+
+        {/* Cash gives the till to count; UPI gives the list to check a bank
+            statement against. "All" keeps the per-mode split in the totals. */}
+        {tab.kind === 'Collections' && (
+          <>
+            <label>Paid by</label>
+            {PAYMENT_MODES.map((m) => (
+              <button
+                key={m.value ?? 'all'}
+                type="button"
+                className={m.value === paymentMode ? 'tab active' : 'tab'}
+                onClick={() => setPaymentMode(m.value)}
+              >
+                {m.label}
+              </button>
+            ))}
           </>
         )}
 

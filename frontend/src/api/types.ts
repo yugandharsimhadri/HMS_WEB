@@ -861,7 +861,7 @@ export interface DashboardResponse {
 
 export type ReportKind =
   | 'None' | 'DayBook' | 'GstSummary' | 'OpdRegister' | 'ExpiringSoon'
-  | 'LowStock' | 'StockRegister' | 'ScheduleH1';
+  | 'LowStock' | 'StockRegister' | 'ScheduleH1' | 'Collections';
 
 export type ReportAlign = 'Left' | 'Right' | 'Center';
 export type ReportFormat =

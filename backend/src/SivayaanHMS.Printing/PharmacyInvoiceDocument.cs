@@ -47,25 +47,48 @@ public static class PharmacyInvoiceDocument
 
             page.Header().Column(col =>
             {
-                col.Item().AlignCenter().Text(pharmacy.Name)
-                    .FontFamily(theme.TitleFontFamily ?? theme.PrintFontFamily ?? "Segoe UI")
-                    .FontSize((float)(14 + theme.PrintFontSizeDelta + theme.TitleFontSizeDelta)).Bold();
+                // This letterhead is the pharmacy's own — its name, its GSTIN,
+                // its drug licence — which is why it is built here rather than
+                // shared with DocumentStyle.Header. The logo is the clinic's
+                // and is common to both, so it comes from the same place.
+                var logo = DocumentStyle.DecodeLogo(theme);
 
-                if (!string.IsNullOrWhiteSpace(pharmacy.AddressLine))
-                    col.Item().AlignCenter().Text(pharmacy.AddressLine).FontSize(8).FontColor(muted);
-                if (!string.IsNullOrWhiteSpace(pharmacy.AddressLine2))
-                    col.Item().AlignCenter().Text(pharmacy.AddressLine2).FontSize(8).FontColor(muted);
-                if (!string.IsNullOrWhiteSpace(pharmacy.Phone))
-                    col.Item().AlignCenter().Text($"Phone: {pharmacy.Phone}").FontSize(8).FontColor(muted);
-
-                // A pharmacy not registered for GST issues a plain invoice.
-                // Printing a GSTIN on one, or calling it a tax invoice,
-                // would be a false claim — same rule the desktop enforced.
-                if (sale.IsTaxInvoice && !string.IsNullOrWhiteSpace(pharmacy.Gstin))
-                    col.Item().AlignCenter().Text($"GSTIN: {pharmacy.Gstin}").FontSize(8).FontColor(muted);
+                if (logo is null)
+                {
+                    Identity(col);
+                }
+                else
+                {
+                    col.Item().Row(row =>
+                    {
+                        row.RelativeItem(DocumentStyle.LogoColumnShare)
+                           .AlignMiddle().MaxHeight(52).Image(logo).FitArea();
+                        row.RelativeItem(100 - DocumentStyle.LogoColumnShare).Column(Identity);
+                    });
+                }
 
                 col.Item().PaddingTop(4).AlignCenter().Text(title).FontSize(11).Bold();
                 col.Item().PaddingTop(4).LineHorizontal(0.75f).LineColor(muted);
+
+                void Identity(ColumnDescriptor c)
+                {
+                    c.Item().AlignCenter().Text(pharmacy.Name)
+                        .FontFamily(theme.TitleFontFamily ?? theme.PrintFontFamily ?? "Segoe UI")
+                        .FontSize((float)(14 + theme.PrintFontSizeDelta + theme.TitleFontSizeDelta)).Bold();
+
+                    if (!string.IsNullOrWhiteSpace(pharmacy.AddressLine))
+                        c.Item().AlignCenter().Text(pharmacy.AddressLine).FontSize(8).FontColor(muted);
+                    if (!string.IsNullOrWhiteSpace(pharmacy.AddressLine2))
+                        c.Item().AlignCenter().Text(pharmacy.AddressLine2).FontSize(8).FontColor(muted);
+                    if (!string.IsNullOrWhiteSpace(pharmacy.Phone))
+                        c.Item().AlignCenter().Text($"Phone: {pharmacy.Phone}").FontSize(8).FontColor(muted);
+
+                    // A pharmacy not registered for GST issues a plain invoice.
+                    // Printing a GSTIN on one, or calling it a tax invoice,
+                    // would be a false claim — same rule the desktop enforced.
+                    if (sale.IsTaxInvoice && !string.IsNullOrWhiteSpace(pharmacy.Gstin))
+                        c.Item().AlignCenter().Text($"GSTIN: {pharmacy.Gstin}").FontSize(8).FontColor(muted);
+                }
             });
 
             page.Content().Column(col =>

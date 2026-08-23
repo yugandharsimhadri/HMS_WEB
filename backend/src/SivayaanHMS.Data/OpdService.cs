@@ -200,6 +200,35 @@ public class OpdService(IDbContextFactory<AppDbContext> factory, IClock clock, I
     }
 
     /// <summary>
+    /// Consultation fees actually taken within a date range, for the
+    /// collections report.
+    ///
+    /// Filtered on <c>FeePaidOn</c> rather than <c>ScheduledOn</c>, which is
+    /// the whole reason it exists alongside the method above. Money belongs to
+    /// the day it was received: a fee taken this morning for a visit booked
+    /// last week is this morning's cash, and counting it on the booking date
+    /// would leave a till that never reconciles.
+    ///
+    /// Patient and Doctor are included, unlike the trend query — a
+    /// collections line has to say who paid and to whom.
+    /// </summary>
+    public async Task<List<Visit>> GetFeeCollectionsAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+
+        return await db.Visits
+            .AsNoTracking()
+            .Include(v => v.Patient)
+            .Include(v => v.Doctor)
+            .Where(v => !v.IsDeleted && v.FeePaid && v.Fee > 0
+                        && v.FeePaidOn != null && v.FeePaidOn >= start && v.FeePaidOn < end)
+            .OrderBy(v => v.FeePaidOn)
+            .ToListAsync();
+    }
+
+    /// <summary>
     /// Two numbers per day over [from, to]: fees actually collected that day,
     /// and patients seen that day. Summed in the database — the dashboard's
     /// KPIs and trend need the figures, not the visits.

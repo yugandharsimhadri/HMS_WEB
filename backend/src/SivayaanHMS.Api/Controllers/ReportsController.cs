@@ -31,6 +31,9 @@ public class ReportsController(
     PharmacyService pharmacy,
     OpdService opd,
     DiagnosticsService diagnostics,
+    ProcedureBillsService procedures,
+    PathologyLabService lab,
+    DentistService dentist,
     SettingsService settings) : ControllerBase
 {
     // ── The report itself ──────────────────────────────────────────────────
@@ -41,9 +44,10 @@ public class ReportsController(
         [FromQuery] DateTime? date, [FromQuery] DateTime? from, [FromQuery] DateTime? to,
         [FromQuery] int expiringDays = 90,
         [FromQuery] bool includeZeroStock = false,
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] PaymentMode? mode = null)
         => Ok(await BuildAsync(kind, date ?? DateTime.Today, from ?? DateTime.Today, to ?? DateTime.Today,
-                               expiringDays, includeZeroStock, search));
+                               expiringDays, includeZeroStock, search, mode));
 
     /// <summary>The cards above the day book. Separate from the table because
     /// they are not rows of it — and because the OPD figure deliberately sits
@@ -101,7 +105,8 @@ public class ReportsController(
         [FromQuery] DateTime? date, [FromQuery] DateTime? from, [FromQuery] DateTime? to,
         [FromQuery] int expiringDays = 90,
         [FromQuery] bool includeZeroStock = false,
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] PaymentMode? mode = null)
     {
         if (kind == ReportKind.StockRegister)
             return BadRequest("PDF export is not available for the Stock Register — use Export Excel instead.");
@@ -110,7 +115,7 @@ public class ReportsController(
         var f = from ?? DateTime.Today;
         var t = to ?? DateTime.Today;
 
-        var table = await BuildAsync(kind, d, f, t, expiringDays, includeZeroStock, search);
+        var table = await BuildAsync(kind, d, f, t, expiringDays, includeZeroStock, search, mode);
         if (table.Rows.Count == 0) return BadRequest("No data available to export.");
 
         var clinic = await settings.GetClinicAsync();
@@ -124,13 +129,14 @@ public class ReportsController(
         [FromQuery] DateTime? date, [FromQuery] DateTime? from, [FromQuery] DateTime? to,
         [FromQuery] int expiringDays = 90,
         [FromQuery] bool includeZeroStock = false,
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] PaymentMode? mode = null)
     {
         var d = date ?? DateTime.Today;
         var f = from ?? DateTime.Today;
         var t = to ?? DateTime.Today;
 
-        var table = await BuildAsync(kind, d, f, t, expiringDays, includeZeroStock, search);
+        var table = await BuildAsync(kind, d, f, t, expiringDays, includeZeroStock, search, mode);
         if (table.Rows.Count == 0) return BadRequest("No data available to export.");
 
         var clinic = await settings.GetClinicAsync();
@@ -143,7 +149,7 @@ public class ReportsController(
 
     private async Task<ReportTable> BuildAsync(
         ReportKind kind, DateTime date, DateTime from, DateTime to,
-        int expiringDays, bool includeZeroStock, string? search)
+        int expiringDays, bool includeZeroStock, string? search, PaymentMode? mode = null)
     {
         // A backwards range is a slip, not an error worth refusing — the
         // desktop quietly swaps the ends, and so does this.
@@ -161,6 +167,7 @@ public class ReportsController(
             ReportKind.LowStock => await LowStockAsync(title, label),
             ReportKind.StockRegister => await StockRegisterAsync(includeZeroStock, search, title, label),
             ReportKind.ScheduleH1 => await H1Async(start, end, title, label),
+            ReportKind.Collections => await CollectionsAsync(start, end, mode, title, label),
             _ => new ReportTable(kind, title, label, [], [], [])
         };
     }
@@ -419,6 +426,109 @@ public class ReportsController(
     /// H1 drug, on whose prescription. Kept over a range because that is how
     /// an inspector asks for it.
     /// </summary>
+    /// <summary>One receipt, wherever in the clinic the money came from.</summary>
+    private sealed record Collection(
+        DateTime TakenOn, PaymentMode Mode, string Source, string Reference,
+        string Who, decimal Amount, string? TransactionNo);
+
+    /// <summary>
+    /// Every rupee taken across the clinic in a date range, by how it was
+    /// paid. Filtering to Cash gives the till to count; filtering to UPI gives
+    /// the list to check a bank statement against, which is the job nobody
+    /// could do before.
+    ///
+    /// It reaches into every module deliberately. A clinic's takings are not
+    /// pharmacy takings plus a bit — a day's cash is consultation fees,
+    /// medicines, tests, procedures, lab work and dental instalments, and a
+    /// report that shows only some of them cannot be reconciled against a
+    /// drawer.
+    ///
+    /// Each source contributes on the date the money arrived. That matters
+    /// most for consultation fees, which are collected separately from the
+    /// visit — see OpdService.GetFeeCollectionsAsync — and for dental
+    /// instalments, which are paid long after the case opened.
+    /// </summary>
+    private async Task<ReportTable> CollectionsAsync(
+        DateTime from, DateTime to, PaymentMode? mode, string title, string label)
+    {
+        var taken = new List<Collection>();
+
+        foreach (var v in await opd.GetFeeCollectionsAsync(from, to))
+            taken.Add(new Collection(
+                v.FeePaidOn!.Value, v.FeePaymentMode ?? PaymentMode.Cash, "Consultation",
+                v.FeeReceiptNo ?? "", v.Patient?.Name ?? "", v.Fee, v.FeeTransactionNo));
+
+        // Cancelled and returned bills took no money, so they are not takings.
+        foreach (var s in (await pharmacy.GetSalesAsync(from, to)).Where(s => s.Status == SaleStatus.Completed))
+            taken.Add(new Collection(
+                s.BillDate, s.PaymentMode, "Pharmacy", s.BillNo,
+                s.CustomerName, s.NetAmount, s.TransactionNo));
+
+        foreach (var b in await diagnostics.SearchBillsAsync(from, to))
+            taken.Add(new Collection(
+                b.BillDate, b.PaymentMode, "Diagnostics", b.BillNo,
+                b.PatientName, b.FinalAmount, b.TransactionNo));
+
+        foreach (var b in await procedures.SearchBillsAsync(from, to))
+            taken.Add(new Collection(
+                b.BillDate, b.PaymentMode, "Procedures", b.BillNo,
+                b.PatientName, b.FinalAmount, b.TransactionNo));
+
+        foreach (var o in await lab.SearchOrdersAsync(from, to))
+            taken.Add(new Collection(
+                o.OrderDate, o.PaymentMode, "Pathology Lab", o.OrderNo,
+                o.PatientName, o.FinalAmount, o.TransactionNo));
+
+        foreach (var p in await dentist.SearchPaymentsAsync(from, to))
+            taken.Add(new Collection(
+                p.PaidOn, p.PaymentMode, "Dentist", p.ReceiptNo,
+                p.DentalCase?.PatientName ?? "", p.Amount, p.TransactionNo));
+
+        // Totals are computed before the filter, so a report narrowed to UPI
+        // still says what share of the whole that was. A UPI figure with
+        // nothing to compare it against is half an answer.
+        var everything = taken.Sum(t => t.Amount);
+
+        var rows = (mode is { } m ? taken.Where(t => t.Mode == m) : taken)
+            .OrderBy(t => t.TakenOn)
+            .ToList();
+
+        var totals = new List<ReportTotal>
+        {
+            new("Receipts", rows.Count, ReportFormat.Integer),
+            new(mode is { } only ? $"{only} collected" : "Collected", rows.Sum(t => t.Amount)),
+        };
+
+        // The per-mode split is the point of the report when nothing is
+        // filtered — it is what gets checked against the drawer and the bank.
+        if (mode is null)
+        {
+            foreach (var each in Enum.GetValues<PaymentMode>())
+                totals.Add(new($"— {each}", taken.Where(t => t.Mode == each).Sum(t => t.Amount)));
+        }
+        else if (everything > 0)
+        {
+            totals.Add(new("Share of all takings",
+                Math.Round(rows.Sum(t => t.Amount) / everything * 100, 1), ReportFormat.Text));
+        }
+
+        return new ReportTable(ReportKind.Collections, title,
+            mode is { } shown ? $"{label} · {shown} only" : label,
+            [
+                new("When", ReportAlign.Left, ReportFormat.DateTime, 1.3),
+                new("Mode", ReportAlign.Left, ReportFormat.Text, 0.7),
+                new("Source", ReportAlign.Left, ReportFormat.Text, 1.1),
+                new("Reference", ReportAlign.Left, ReportFormat.Text, 1.1),
+                new("Patient", ReportAlign.Left, ReportFormat.Text, 1.8),
+                new("Txn ref", ReportAlign.Left, ReportFormat.Text, 1.2),
+                new("Amount", ReportAlign.Right, ReportFormat.Money, 0.9),
+            ],
+            rows.Select(t => new ReportRow(
+                [t.TakenOn, t.Mode.ToString(), t.Source, t.Reference, t.Who, t.TransactionNo ?? "", t.Amount]))
+                .ToList(),
+            totals);
+    }
+
     private async Task<ReportTable> H1Async(DateTime from, DateTime to, string title, string label)
     {
         var entries = await pharmacy.GetH1RegisterAsync(from, to);

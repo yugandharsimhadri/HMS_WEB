@@ -221,7 +221,8 @@ Reset a user's password → sign in with it.
 | 3 | The consultation picker showed name and pack but **not strength** — the screen where the dose is chosen | **Fixed** |
 | 4 | Once strength left the name, scripts and invoices would have printed bare "Cetzine" | **Fixed** — `medicineDisplayName` |
 | 5 | Pediatric procedures are not seeded, so procedure billing has nothing to offer on a fresh tenant | **Open** |
-| 6 | Clinic logo: no upload, and no rendering in any PDF | **Open** — the last customer-visible gap |
+| 6 | Clinic logo: no upload, and no rendering in any PDF | **Fixed** — uploaded under Settings → Document branding, printed on all nine patient-facing documents |
+| 8 | No way to see takings by payment mode — a till or a UPI statement could not be reconciled | **Fixed** — Reports → Collections |
 | 7 | No backup or data export of any kind | **Open** — a policy decision, not a queue item |
 
 Gaps 1–4 all came from the same root: the catalogue had no field for

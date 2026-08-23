@@ -82,7 +82,25 @@ The buttons on the Dentist, Lab and Pediatrics pages — "Add sitting", "Add
 report", "Add procedure" — remain *transactional* (a line on a case, order or
 bill). They were never master editors, and still aren't.
 
-### 1.3 Clinic logo missing end to end
+### 1.3 ~~Clinic logo missing end to end~~ — **DONE**
+
+*Closed. Uploaded under Settings → Document branding, rendered on all nine
+patient-facing documents.*
+
+Three things worth carrying forward:
+
+- **A bad logo must never stop a clinic printing.** Decoding returns null on
+  any failure — bad base64, a truncated upload, a file that is not an image —
+  so the document loses its letterhead and keeps its prescription. Verified
+  by storing deliberate rubbish and checking the receipt still generated, at
+  exactly its pre-logo byte size.
+- **Bounded at 200 KB**, because the image is embedded in every document the
+  clinic prints, forever.
+- **Report PDFs deliberately have none.** That was already a considered
+  decision in `ReportPdfBuilder` — a letterhead belongs on what a patient is
+  handed, not on a twenty-page internal register — and it still stands.
+
+The original finding:
 
 `DocumentTheme.LogoBase64` and `LogoContentType` exist on the web entity and
 are never read or written by anything:
@@ -166,7 +184,7 @@ commitment, and right now nothing anywhere makes it.
 2. ~~**User management**~~ — done.
 3. ~~**Data health**, **bill import**~~ — done.
 4. ~~Dark theme~~ — done (Ctrl+J; `GeneralSettings.Theme` is finally read).
-5. **Logo** (upload + printing) — the last customer-visible gap: it is on
+5. ~~**Logo**~~ — done.
    every document a clinic hands a patient.
 6. About screen.
 
