@@ -647,7 +647,24 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
     {
         if (lines.Count == 0) throw new InvalidOperationException("Add at least one medicine to the bill.");
 
-        const int maxAttempts = 3;
+        // Ten attempts with jittered backoff, not three immediate ones.
+        //
+        // Under SQLite one writer ran at a time, so a conflict meant the
+        // other caller had just finished and the retry was near-certain to
+        // win — three was plenty. SQL Server lets every caller run at once,
+        // so several genuinely collide on the same batch row, and retrying
+        // instantly means the same crowd colliding again a microsecond
+        // later. The jitter is what breaks up the herd; the higher count is
+        // what covers a busy counter.
+        //
+        // This is optimistic concurrency doing its job — nothing is
+        // oversold either way. The durable fix is to take an update lock on
+        // the batch row while a sale reads it, the way NumberService locks a
+        // counter, so callers queue instead of colliding. That is a change
+        // to the sale path and deserves its own pass; see
+        // docs/SQL_SERVER_MIGRATION.md.
+        const int maxAttempts = 10;
+
         for (var attempt = 1; ; attempt++)
         {
             try
@@ -659,6 +676,8 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
                 logger.LogWarning(
                     "Sale save hit a stock concurrency conflict, retrying (attempt {Attempt} of {Max}).",
                     attempt, maxAttempts);
+
+                await Task.Delay(Random.Shared.Next(15, 60) * attempt);
             }
         }
     }

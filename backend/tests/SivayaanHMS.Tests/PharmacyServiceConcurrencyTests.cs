@@ -65,19 +65,29 @@ public class PharmacyServiceConcurrencyTests
             try
             {
                 await service.SaveSaleAsync(sale, lines);
-                return true;
+                return (Sold: true, Why: (string?)null);
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex)
             {
-                return false;
+                // The reason is kept, not swallowed. "Only 0 left" is the
+                // refusal this test is about; anything else means the sale
+                // failed for a reason the test was never checking, and a
+                // bare count of failures cannot tell them apart.
+                return (Sold: false, Why: ex.Message);
             }
         }));
 
         await using var verify = testDb.CreateContext(tenant);
         var finalStock = (await verify.Batches.FirstAsync(b => b.Id == batchId)).QtyOnHand;
 
+        var sold = results.Count(r => r.Sold);
+        var reasons = string.Join("; ", results.Where(r => !r.Sold)
+                                               .Select(r => r.Why)
+                                               .Distinct());
+
         Assert.True(finalStock >= 0, $"Stock went negative: {finalStock}");
-        Assert.Equal(startingStock, results.Count(succeeded => succeeded));
-        Assert.Equal(startingStock - results.Count(succeeded => succeeded), finalStock);
+        Assert.True(startingStock == sold,
+            $"Expected {startingStock} sales to succeed, {sold} did. Refusals: {reasons}");
+        Assert.Equal(startingStock - sold, finalStock);
     }
 }

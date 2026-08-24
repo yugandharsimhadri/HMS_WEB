@@ -268,8 +268,19 @@ public class AppDbContext : DbContext
             // Self-referencing — the chain of reschedules a slot went
             // through. No navigation property; RescheduledFromId is only
             // ever read back, never joined against.
+            //
+            // NoAction, not SetNull: SQL Server refuses ON DELETE SET NULL
+            // (and CASCADE) on a self-referencing foreign key outright — it
+            // cannot prove the chain terminates, so it rejects the whole
+            // constraint as a possible cycle. SQLite never checked, which is
+            // why this only surfaced on the provider move.
+            //
+            // It costs nothing here. Rows are soft-deleted (IsDeleted), so
+            // the hard delete this behaviour would govern does not happen,
+            // and a dangling RescheduledFromId is read back as "no earlier
+            // appointment" either way.
             e.HasOne<Appointment>().WithMany()
-                .HasForeignKey(x => x.RescheduledFromId).OnDelete(DeleteBehavior.SetNull);
+                .HasForeignKey(x => x.RescheduledFromId).OnDelete(DeleteBehavior.NoAction);
 
             e.Ignore(x => x.IsPending);
         });

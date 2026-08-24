@@ -14,8 +14,10 @@ public class TenancyIsolationTests
     [Fact]
     public void Every_BaseEntity_type_has_a_query_filter()
     {
+        // Never opened — this test reads the model EF builds, not a
+        // database, so the connection string only has to name a provider.
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite("Data Source=:memory:")
+            .UseSqlServer("Server=(local);Database=ModelOnly;Trusted_Connection=True")
             .Options;
 
         using var db = new AppDbContext(options);

@@ -23,7 +23,22 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 var connectionString = builder.Configuration.GetConnectionString("Default")
     ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
 
-builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseSqlite(connectionString));
+builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseSqlServer(connectionString));
+
+// Deliberately no EnableRetryOnFailure() yet.
+//
+// It is the standard advice for SQL Server, and turning it on today would
+// break nine call sites at *runtime* rather than at compile time: EF Core
+// refuses to let user code open its own transaction under a retrying
+// execution strategy, because it cannot safely replay a transaction it did
+// not begin. PharmacyService, DiagnosticsService, PathologyLabService,
+// ProcedureBillsService and DataHealthService all do exactly that.
+//
+// Enabling it is a deliberate piece of work — wrap each of those bodies in
+// CreateExecutionStrategy().ExecuteAsync(...) and re-examine anything inside
+// them that is not safe to run twice. See docs/SQL_SERVER_MIGRATION.md §1.2.
+// Until then a transient network fault surfaces as an error rather than a
+// retry, which against a local instance is the right trade.
 
 // ── Tenancy and identity ────────────────────────────────────────────────
 // HttpCurrentTenantContext/HttpCurrentUserContext read the validated JWT
