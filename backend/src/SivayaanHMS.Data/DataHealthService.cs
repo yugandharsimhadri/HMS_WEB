@@ -237,14 +237,17 @@ public class DataHealthService(IDbContextFactory<AppDbContext> factory, Pharmacy
     }
 
     /// <summary>Trimmed, case-folded, whitespace-collapsed — so near-misses collide.</summary>
-    public static string Key(Product product)
-    {
-        static string Norm(string? value) =>
-            string.Join(' ', (value ?? "").Trim().ToLowerInvariant()
-                                          .Split(' ', StringSplitOptions.RemoveEmptyEntries));
-
-        return $"{Norm(product.Name)}|{Norm(product.Manufacturer)}|{Norm(product.PackSize)}";
-    }
+    /// <summary>
+    /// What makes two catalogue rows the same medicine.
+    ///
+    /// Delegates to <see cref="Product.BuildKey"/> rather than repeating the
+    /// rule, because the two drifting apart is exactly what went wrong: when
+    /// Strength became part of the identity of a medicine, this copy kept the
+    /// old three-field key and started reporting every legitimate variant —
+    /// Cetzine 5 mg beside Cetzine 10 mg — as a duplicate to be merged by
+    /// hand. One definition, in one place.
+    /// </summary>
+    public static string Key(Product product) => product.BuildKey();
 
     /// <summary>
     /// Applies the chosen repairs. Each medicine is done on its own so one
