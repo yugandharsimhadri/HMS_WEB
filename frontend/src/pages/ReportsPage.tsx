@@ -41,6 +41,21 @@ const TABS: Tab[] = [
 
 const EXPIRING_DAY_OPTIONS = [30, 60, 90, 180];
 
+/**
+ * Which document sits behind a Collections row, keyed by its Source column.
+ * The report gathers money from six modules, and each keeps its receipt in a
+ * different place — a consultation fee on the visit, a dental instalment on
+ * the payment.
+ */
+const COLLECTION_ROUTES: Record<string, string> = {
+  'Consultation': 'receipt',
+  'Pharmacy': 'bill',
+  'Diagnostics': 'diagnostic-bill',
+  'Procedures': 'procedure-bill',
+  'Pathology Lab': 'lab-report',
+  'Dentist': 'dental-receipt',
+};
+
 /** Undefined is "all modes", which keeps the per-mode split in the totals. */
 const PAYMENT_MODES: { value: PaymentMode | undefined; label: string }[] = [
   { value: undefined, label: 'All' },
@@ -196,14 +211,30 @@ export function ReportsPage() {
       if (tab.kind === 'DayBook') await openPdf(`/api/print/bill/${id}?reprint=true`);
       else if (tab.kind === 'OpdRegister') await openPdf(`/api/print/receipt/${id}?reprint=true`);
       else if (tab.id === 'diagnostics') await openPdf(`/api/print/diagnostic-bill/${id}?reprint=true`);
+      else if (tab.kind === 'Collections') {
+        // Collections deliberately spans every module that takes money, so
+        // the id alone cannot say whether it belongs to a visit, a sale or a
+        // lab order. The row's own Source column is what decides.
+        const source = String(table?.rows[selectedRow ?? -1]?.cells[2] ?? '');
+        const route = COLLECTION_ROUTES[source];
+
+        if (!route) {
+          setError(`There is no printable document behind a ${source || 'that'} receipt.`);
+          return;
+        }
+        await openPdf(`/api/print/${route}/${id}?reprint=true`);
+      }
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not reprint.');
     }
   };
 
-  /** Only the day book and the OPD register have a document behind a row. */
+  /** The reports whose rows have a document behind them. Collections covers
+   * the other five modules, which is what makes "reprint anything" possible
+   * from one screen. */
   const reprintLabel = tab.kind === 'DayBook' ? 'Reprint selected bill'
     : tab.kind === 'OpdRegister' ? 'Reprint selected receipt'
+    : tab.kind === 'Collections' ? 'Reprint selected'
     : null;
 
   const selectedId = selectedRow !== null ? (table?.rows[selectedRow]?.id ?? null) : null;

@@ -20,8 +20,29 @@ namespace SivayaanHMS.Printing;
 public static class DocumentStyle
 {
     /// <summary>Prescription and fee receipt run +2pt over the bill — the
-    /// desktop's own `SizeDelta`, kept because it was asked for.</summary>
+    /// desktop's own `SizeDelta`, kept because it was asked for. It applies to
+    /// the *body* of those documents only; see <see cref="Header"/>.</summary>
     public const float ClinicalSizeDelta = 2f;
+
+    // Letterhead sizes, in absolute points, taken from the desktop's
+    // DocumentBuilder so a web-printed page matches one already in a
+    // patient's file. None of them takes a per-document delta.
+
+    /// <summary>The desktop's ClinicNameFontSize — IdentityNameFontSize + 2,
+    /// "a specific ask, not derived from anything else on the page".</summary>
+    private const float ClinicNameSize = 15f;
+
+    /// <summary>Address lines, phone and GSTIN.</summary>
+    private const float ContactSize = 8f;
+
+    /// <summary>"CASH RECEIPT", "TAX INVOICE". 8.6 on the desktop — a label
+    /// over the rule, not a headline.</summary>
+    private const float DocumentKindSize = 8.6f;
+
+    /// <summary>The identity grid: the desktop's 6.6 label over a 7.8 value,
+    /// both of which do take the clinical delta.</summary>
+    private const float IdentityLabelSize = 6.6f;
+    private const float IdentityValueSize = 7.8f;
 
     public static string Muted => Colors.Grey.Darken1;
 
@@ -36,6 +57,16 @@ public static class DocumentStyle
     /// <summary>
     /// The letterhead: name, address lines, phone, optional GSTIN, and the
     /// document kind ("CASH RECEIPT") when there is one.
+    ///
+    /// <para>
+    /// Sized in absolute points, and deliberately not offset by the caller's
+    /// <c>delta</c>. The desktop applies its SizeDelta to the body of a
+    /// clinical document — the identity grid, the line table, the amounts —
+    /// and never to the letterhead, which prints at one size on every
+    /// document it produces. Passing the delta through here is what made a
+    /// receipt open with a 16pt clinic name and a 13pt "CASH RECEIPT" over
+    /// half an A5 page.
+    /// </para>
     /// </summary>
     public static void Header(
         ColumnDescriptor col, string name, string? addressLine, string? addressLine2,
@@ -62,7 +93,7 @@ public static class DocumentStyle
 
         if (!string.IsNullOrWhiteSpace(documentKind))
             col.Item().PaddingTop(4).AlignCenter().Text(documentKind)
-                .FontSize(Body(theme, 11, delta)).Bold();
+                .FontSize(Body(theme, DocumentKindSize)).Bold();
 
         col.Item().PaddingTop(4).LineHorizontal(0.75f).LineColor(Muted);
 
@@ -70,16 +101,16 @@ public static class DocumentStyle
         {
             c.Item().AlignCenter().Text(name)
                 .FontFamily(TitleFont(theme))
-                .FontSize(Body(theme, 14, delta + (float)theme.TitleFontSizeDelta)).Bold();
+                .FontSize(Body(theme, ClinicNameSize, (float)theme.TitleFontSizeDelta)).Bold();
 
             if (!string.IsNullOrWhiteSpace(addressLine))
-                c.Item().AlignCenter().Text(addressLine).FontSize(Body(theme, 8, delta)).FontColor(Muted);
+                c.Item().AlignCenter().Text(addressLine).FontSize(Body(theme, ContactSize)).FontColor(Muted);
             if (!string.IsNullOrWhiteSpace(addressLine2))
-                c.Item().AlignCenter().Text(addressLine2).FontSize(Body(theme, 8, delta)).FontColor(Muted);
+                c.Item().AlignCenter().Text(addressLine2).FontSize(Body(theme, ContactSize)).FontColor(Muted);
             if (!string.IsNullOrWhiteSpace(phone))
-                c.Item().AlignCenter().Text($"Phone: {phone}").FontSize(Body(theme, 8, delta)).FontColor(Muted);
+                c.Item().AlignCenter().Text($"Phone: {phone}").FontSize(Body(theme, ContactSize)).FontColor(Muted);
             if (!string.IsNullOrWhiteSpace(gstin))
-                c.Item().AlignCenter().Text($"GSTIN: {gstin}").FontSize(Body(theme, 8, delta)).FontColor(Muted);
+                c.Item().AlignCenter().Text($"GSTIN: {gstin}").FontSize(Body(theme, ContactSize)).FontColor(Muted);
         }
     }
 
@@ -136,8 +167,8 @@ public static class DocumentStyle
         void Cell(IContainer container, (string Label, string Value) pair)
             => container.Text(text =>
             {
-                text.Span($"{pair.Label}: ").FontSize(Body(theme, 7.5f, delta)).FontColor(Muted);
-                text.Span(pair.Value).FontSize(Body(theme, 8.5f, delta));
+                text.Span($"{pair.Label}: ").FontSize(Body(theme, IdentityLabelSize, delta)).FontColor(Muted);
+                text.Span(pair.Value).FontSize(Body(theme, IdentityValueSize, delta));
             });
     }
 
@@ -160,8 +191,8 @@ public static class DocumentStyle
         void Cell(IContainer container, (string Label, string Value) pair)
             => container.Text(text =>
             {
-                text.Span($"{pair.Label}: ").FontSize(Body(theme, 7.5f, delta)).FontColor(Muted);
-                text.Span(pair.Value).FontSize(Body(theme, 8.5f, delta));
+                text.Span($"{pair.Label}: ").FontSize(Body(theme, IdentityLabelSize, delta)).FontColor(Muted);
+                text.Span(pair.Value).FontSize(Body(theme, IdentityValueSize, delta));
             });
     }
 

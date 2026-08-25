@@ -67,14 +67,17 @@ public static class PharmacyInvoiceDocument
                     });
                 }
 
-                col.Item().PaddingTop(4).AlignCenter().Text(title).FontSize(11).Bold();
+                col.Item().PaddingTop(4).AlignCenter().Text(title).FontSize(8.6f).Bold();
                 col.Item().PaddingTop(4).LineHorizontal(0.75f).LineColor(muted);
 
                 void Identity(ColumnDescriptor c)
                 {
+                    // 13, not the clinic's 15: the desktop prints the pharmacy's
+                    // own identity a size smaller and unboxed, matching its
+                    // reference bill.
                     c.Item().AlignCenter().Text(pharmacy.Name)
                         .FontFamily(theme.TitleFontFamily ?? theme.PrintFontFamily ?? "Segoe UI")
-                        .FontSize((float)(14 + theme.PrintFontSizeDelta + theme.TitleFontSizeDelta)).Bold();
+                        .FontSize((float)(13 + theme.PrintFontSizeDelta + theme.TitleFontSizeDelta)).Bold();
 
                     if (!string.IsNullOrWhiteSpace(pharmacy.AddressLine))
                         c.Item().AlignCenter().Text(pharmacy.AddressLine).FontSize(8).FontColor(muted);

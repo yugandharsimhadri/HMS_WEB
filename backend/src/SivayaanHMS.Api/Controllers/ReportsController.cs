@@ -427,9 +427,13 @@ public class ReportsController(
     /// an inspector asks for it.
     /// </summary>
     /// <summary>One receipt, wherever in the clinic the money came from.</summary>
+    /// <summary><paramref name="DocumentId"/> is the record the money was taken
+    /// against — the visit, sale, bill, order or payment — so any row here can
+    /// be reprinted. <paramref name="Source"/> says which kind it is, and the
+    /// screen maps that to the matching print route.</summary>
     private sealed record Collection(
         DateTime TakenOn, PaymentMode Mode, string Source, string Reference,
-        string Who, decimal Amount, string? TransactionNo);
+        string Who, decimal Amount, string? TransactionNo, Guid DocumentId);
 
     /// <summary>
     /// Every rupee taken across the clinic in a date range, by how it was
@@ -456,33 +460,33 @@ public class ReportsController(
         foreach (var v in await opd.GetFeeCollectionsAsync(from, to))
             taken.Add(new Collection(
                 v.FeePaidOn!.Value, v.FeePaymentMode ?? PaymentMode.Cash, "Consultation",
-                v.FeeReceiptNo ?? "", v.Patient?.Name ?? "", v.Fee, v.FeeTransactionNo));
+                v.FeeReceiptNo ?? "", v.Patient?.Name ?? "", v.Fee, v.FeeTransactionNo, v.Id));
 
         // Cancelled and returned bills took no money, so they are not takings.
         foreach (var s in (await pharmacy.GetSalesAsync(from, to)).Where(s => s.Status == SaleStatus.Completed))
             taken.Add(new Collection(
                 s.BillDate, s.PaymentMode, "Pharmacy", s.BillNo,
-                s.CustomerName, s.NetAmount, s.TransactionNo));
+                s.CustomerName, s.NetAmount, s.TransactionNo, s.Id));
 
         foreach (var b in await diagnostics.SearchBillsAsync(from, to))
             taken.Add(new Collection(
                 b.BillDate, b.PaymentMode, "Diagnostics", b.BillNo,
-                b.PatientName, b.FinalAmount, b.TransactionNo));
+                b.PatientName, b.FinalAmount, b.TransactionNo, b.Id));
 
         foreach (var b in await procedures.SearchBillsAsync(from, to))
             taken.Add(new Collection(
                 b.BillDate, b.PaymentMode, "Procedures", b.BillNo,
-                b.PatientName, b.FinalAmount, b.TransactionNo));
+                b.PatientName, b.FinalAmount, b.TransactionNo, b.Id));
 
         foreach (var o in await lab.SearchOrdersAsync(from, to))
             taken.Add(new Collection(
                 o.OrderDate, o.PaymentMode, "Pathology Lab", o.OrderNo,
-                o.PatientName, o.FinalAmount, o.TransactionNo));
+                o.PatientName, o.FinalAmount, o.TransactionNo, o.Id));
 
         foreach (var p in await dentist.SearchPaymentsAsync(from, to))
             taken.Add(new Collection(
                 p.PaidOn, p.PaymentMode, "Dentist", p.ReceiptNo,
-                p.DentalCase?.PatientName ?? "", p.Amount, p.TransactionNo));
+                p.DentalCase?.PatientName ?? "", p.Amount, p.TransactionNo, p.Id));
 
         // Totals are computed before the filter, so a report narrowed to UPI
         // still says what share of the whole that was. A UPI figure with
@@ -524,7 +528,8 @@ public class ReportsController(
                 new("Amount", ReportAlign.Right, ReportFormat.Money, 0.9),
             ],
             rows.Select(t => new ReportRow(
-                [t.TakenOn, t.Mode.ToString(), t.Source, t.Reference, t.Who, t.TransactionNo ?? "", t.Amount]))
+                [t.TakenOn, t.Mode.ToString(), t.Source, t.Reference, t.Who, t.TransactionNo ?? "", t.Amount],
+                Id: t.DocumentId))
                 .ToList(),
             totals);
     }
