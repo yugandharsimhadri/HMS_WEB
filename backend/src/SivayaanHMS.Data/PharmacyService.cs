@@ -87,16 +87,15 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
         {
             // Brand, drug, maker or rack — staff search by whichever they know.
             //
-            // Like, not Contains: Contains becomes instr(), which is case
-            // sensitive, so typing "cetirizine" found nothing while "Cetirizine"
-            // did. Nobody at a counter types capitals.
-            var pattern = $"%{term.Trim()}%";
+            // Case folded on both sides - nobody at a counter types capitals,
+            // so "cetirizine" has to find "Cetirizine". See SearchText.
+            var pattern = SearchText.Pattern(term);
 
-            q = q.Where(p => EF.Functions.Like(p.Name, pattern)
-                          || (p.GenericName != null && EF.Functions.Like(p.GenericName, pattern))
-                          || (p.Manufacturer != null && EF.Functions.Like(p.Manufacturer, pattern))
-                          || (p.Strength != null && EF.Functions.Like(p.Strength, pattern))
-                          || (p.RackLocation != null && EF.Functions.Like(p.RackLocation, pattern)));
+            q = q.Where(p => EF.Functions.Like(p.Name.ToLower(), pattern)
+                          || (p.GenericName != null && EF.Functions.Like(p.GenericName.ToLower(), pattern))
+                          || (p.Manufacturer != null && EF.Functions.Like(p.Manufacturer.ToLower(), pattern))
+                          || (p.Strength != null && EF.Functions.Like(p.Strength.ToLower(), pattern))
+                          || (p.RackLocation != null && EF.Functions.Like(p.RackLocation.ToLower(), pattern)));
         }
 
         // Name, then strength *numerically*, then pack.
@@ -811,10 +810,10 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
         if (!string.IsNullOrWhiteSpace(term))
         {
             term = term.Trim();
-            var pattern = $"%{term}%";
+            var pattern = SearchText.Pattern(term);
 
-            q = q.Where(s => EF.Functions.Like(s.BillNo, pattern)
-                          || EF.Functions.Like(s.CustomerName, pattern));
+            q = q.Where(s => EF.Functions.Like(s.BillNo.ToLower(), pattern)
+                          || EF.Functions.Like(s.CustomerName.ToLower(), pattern));
         }
 
         return await q.OrderByDescending(s => s.BillDate).Take(take).ToListAsync();

@@ -59,8 +59,8 @@ public class PediatricsService(IDbContextFactory<AppDbContext> factory, IClock c
         if (activeOnly) query = query.Where(v => v.Active);
         if (!string.IsNullOrWhiteSpace(term))
         {
-            var pattern = $"%{term.Trim()}%";
-            query = query.Where(v => EF.Functions.Like(v.Name, pattern) || EF.Functions.Like(v.Category, pattern));
+            var pattern = SearchText.Pattern(term);
+            query = query.Where(v => EF.Functions.Like(v.Name.ToLower(), pattern) || EF.Functions.Like(v.Category.ToLower(), pattern));
         }
 
         return await query.OrderBy(v => v.SequenceOrder).ThenBy(v => v.RecommendedAgeDays).ToListAsync();

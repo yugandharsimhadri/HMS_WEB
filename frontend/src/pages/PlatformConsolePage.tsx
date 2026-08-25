@@ -47,8 +47,12 @@ export function PlatformConsolePage() {
     if (!term) return clinics;
     return clinics.filter((c) =>
       c.clinicName.toLowerCase().includes(term) ||
-      c.slug.includes(term) ||
-      c.admins.some((a) => a.username.includes(term)));
+      // Slugs and usernames are stored lower case, so these matched today by
+      // convention rather than by rule. Folded anyway: nothing on the column
+      // enforces the convention, and a support console that quietly fails to
+      // find a clinic is worse than one that is a shade slower.
+      c.slug.toLowerCase().includes(term) ||
+      c.admins.some((a) => a.username.toLowerCase().includes(term)));
   }, [clinics, search]);
 
   const resetPassword = async (clinic: PlatformClinic, admin: PlatformAdminAccount) => {

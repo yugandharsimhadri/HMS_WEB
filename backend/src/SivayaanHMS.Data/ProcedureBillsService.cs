@@ -31,8 +31,8 @@ public class ProcedureBillsService(IDbContextFactory<AppDbContext> factory)
         if (activeOnly) query = query.Where(p => p.Active);
         if (!string.IsNullOrWhiteSpace(term))
         {
-            var pattern = $"%{term.Trim()}%";
-            query = query.Where(p => EF.Functions.Like(p.Name, pattern) || EF.Functions.Like(p.Category, pattern));
+            var pattern = SearchText.Pattern(term);
+            query = query.Where(p => EF.Functions.Like(p.Name.ToLower(), pattern) || EF.Functions.Like(p.Category.ToLower(), pattern));
         }
 
         return await query.OrderBy(p => p.Category).ThenBy(p => p.Name).ToListAsync();

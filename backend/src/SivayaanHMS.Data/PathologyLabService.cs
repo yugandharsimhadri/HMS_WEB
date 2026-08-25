@@ -29,8 +29,8 @@ public class PathologyLabService(IDbContextFactory<AppDbContext> factory, IClock
         if (activeOnly) query = query.Where(a => a.Active);
         if (!string.IsNullOrWhiteSpace(term))
         {
-            var pattern = $"%{term.Trim()}%";
-            query = query.Where(a => EF.Functions.Like(a.Name, pattern) || EF.Functions.Like(a.Category, pattern));
+            var pattern = SearchText.Pattern(term);
+            query = query.Where(a => EF.Functions.Like(a.Name.ToLower(), pattern) || EF.Functions.Like(a.Category.ToLower(), pattern));
         }
 
         return await query.OrderBy(a => a.Category).ThenBy(a => a.SequenceOrder).ThenBy(a => a.Name).ToListAsync();
@@ -164,7 +164,7 @@ public class PathologyLabService(IDbContextFactory<AppDbContext> factory, IClock
 
         if (activeOnly) query = query.Where(r => r.Active);
         if (!string.IsNullOrWhiteSpace(term))
-            query = query.Where(r => EF.Functions.Like(r.Name, $"%{term.Trim()}%"));
+            query = query.Where(r => EF.Functions.Like(r.Name.ToLower(), SearchText.Pattern(term)));
 
         return await query.OrderBy(r => r.SequenceOrder).ThenBy(r => r.Name).ToListAsync();
     }
@@ -245,7 +245,7 @@ public class PathologyLabService(IDbContextFactory<AppDbContext> factory, IClock
 
         if (activeOnly) query = query.Where(p => p.Active);
         if (!string.IsNullOrWhiteSpace(term))
-            query = query.Where(p => EF.Functions.Like(p.Name, $"%{term.Trim()}%"));
+            query = query.Where(p => EF.Functions.Like(p.Name.ToLower(), SearchText.Pattern(term)));
 
         return await query.OrderBy(p => p.Name).ToListAsync();
     }

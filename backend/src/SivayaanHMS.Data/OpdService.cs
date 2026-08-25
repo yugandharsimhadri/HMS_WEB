@@ -28,13 +28,13 @@ public class OpdService(IDbContextFactory<AppDbContext> factory, IClock clock, I
 
         if (!string.IsNullOrWhiteSpace(term))
         {
-            // Like, not Contains — Contains becomes instr(), which is case
-            // sensitive, so a name typed in lower case found nothing.
-            var pattern = $"%{term.Trim()}%";
+            // Case folded on both sides rather than left to the collation;
+            // see SearchText.
+            var pattern = SearchText.Pattern(term);
 
-            q = q.Where(p => EF.Functions.Like(p.Name, pattern)
-                          || EF.Functions.Like(p.Phone, pattern)
-                          || EF.Functions.Like(p.PatientNo, pattern));
+            q = q.Where(p => EF.Functions.Like(p.Name.ToLower(), pattern)
+                          || EF.Functions.Like(p.Phone.ToLower(), pattern)
+                          || EF.Functions.Like(p.PatientNo.ToLower(), pattern));
         }
 
         return await q.OrderByDescending(p => p.CreatedAt).Take(take).ToListAsync();
@@ -117,12 +117,12 @@ public class OpdService(IDbContextFactory<AppDbContext> factory, IClock clock, I
 
         if (!string.IsNullOrWhiteSpace(term))
         {
-            var pattern = $"%{term.Trim()}%";
+            var pattern = SearchText.Pattern(term);
 
-            q = q.Where(v => EF.Functions.Like(v.VisitNo, pattern)
-                          || (v.FeeReceiptNo != null && EF.Functions.Like(v.FeeReceiptNo, pattern))
-                          || EF.Functions.Like(v.Patient.Name, pattern)
-                          || EF.Functions.Like(v.Patient.Phone, pattern));
+            q = q.Where(v => EF.Functions.Like(v.VisitNo.ToLower(), pattern)
+                          || (v.FeeReceiptNo != null && EF.Functions.Like(v.FeeReceiptNo.ToLower(), pattern))
+                          || EF.Functions.Like(v.Patient.Name.ToLower(), pattern)
+                          || EF.Functions.Like(v.Patient.Phone.ToLower(), pattern));
         }
 
         return await q.OrderByDescending(v => v.ScheduledOn).Take(take).ToListAsync();

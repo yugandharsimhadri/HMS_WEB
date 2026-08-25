@@ -34,9 +34,20 @@ public sealed class TestDb : IDisposable
     private readonly string _database = $"SivayaanHMSTest_{Guid.NewGuid():N}";
     private readonly string _server;
 
-    public TestDb()
+    private readonly string? _collation;
+
+    /// <param name="collation">
+    /// Forced on the test database instead of taking the server's default.
+    /// Only the search tests pass one, and they pass a case-sensitive
+    /// collation on purpose: on a CI_AS server every search looks
+    /// case-insensitive whether the query folds case or not, so a test run
+    /// there proves nothing about a clinic whose server was installed
+    /// differently.
+    /// </param>
+    public TestDb(string? collation = null)
     {
         _server = Environment.GetEnvironmentVariable(ServerOverrideVariable) ?? DefaultServer;
+        _collation = collation;
     }
 
     private string ConnectionString =>
@@ -62,8 +73,23 @@ public sealed class TestDb : IDisposable
     /// </summary>
     public async Task MigrateAsync()
     {
+        // A forced collation has to be set when the database is created, so
+        // it is created here first and EnsureCreated only adds the tables.
+        if (_collation is not null) await CreateDatabaseWithCollationAsync();
+
         await using var db = CreateContext(Guid.Empty);
         await db.Database.EnsureCreatedAsync();
+    }
+
+    private async Task CreateDatabaseWithCollationAsync()
+    {
+        await using var master = new SqlConnection(
+            new SqlConnectionStringBuilder(_server) { InitialCatalog = "master" }.ConnectionString);
+        await master.OpenAsync();
+
+        await using var create = master.CreateCommand();
+        create.CommandText = $"CREATE DATABASE [{_database}] COLLATE {_collation};";
+        await create.ExecuteNonQueryAsync();
     }
 
     public IDbContextFactory<AppDbContext> CreateFactory(Guid tenantId) => new FixedTenantDbContextFactory(this, tenantId);

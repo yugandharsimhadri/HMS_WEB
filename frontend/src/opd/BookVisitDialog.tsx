@@ -176,6 +176,17 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
                 placeholder="Name or phone number"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
+                // Enter here means "find this person", not "book the visit".
+                // The box sits inside the booking form, so without this the
+                // browser's implicit submit runs onBook against a patient
+                // nobody has chosen yet, and the operator gets told to enter
+                // a name they just typed. A nested form would be invalid
+                // HTML, so the key is claimed on the field itself.
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  void onFind(e);
+                }}
                 autoFocus
               />
               <button type="button" onClick={onFind}>Find</button>

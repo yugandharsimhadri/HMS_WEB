@@ -234,8 +234,8 @@ public class DentistService(IDbContextFactory<AppDbContext> factory, IClock cloc
         if (activeOnly) query = query.Where(r => r.Active);
         if (!string.IsNullOrWhiteSpace(term))
         {
-            var pattern = $"%{term.Trim()}%";
-            query = query.Where(r => EF.Functions.Like(r.Name, pattern) || EF.Functions.Like(r.Category, pattern));
+            var pattern = SearchText.Pattern(term);
+            query = query.Where(r => EF.Functions.Like(r.Name.ToLower(), pattern) || EF.Functions.Like(r.Category.ToLower(), pattern));
         }
 
         return await query.OrderBy(r => r.Category).ThenBy(r => r.Name).ToListAsync();
@@ -322,7 +322,7 @@ public class DentistService(IDbContextFactory<AppDbContext> factory, IClock cloc
 
         if (activeOnly) query = query.Where(p => p.Active);
         if (!string.IsNullOrWhiteSpace(term))
-            query = query.Where(p => EF.Functions.Like(p.Name, $"%{term.Trim()}%"));
+            query = query.Where(p => EF.Functions.Like(p.Name.ToLower(), SearchText.Pattern(term)));
 
         return await query.OrderBy(p => p.Name).ToListAsync();
     }

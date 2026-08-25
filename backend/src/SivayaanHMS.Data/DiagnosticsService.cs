@@ -30,11 +30,9 @@ public class DiagnosticsService(IDbContextFactory<AppDbContext> factory)
         if (activeOnly) query = query.Where(t => t.Active);
         if (!string.IsNullOrWhiteSpace(term))
         {
-            // Like, not Contains — Contains becomes instr(), which is case
-            // sensitive, so "crp" found nothing against "CRP". Same fix as
-            // OpdService.SearchPatientsAsync.
-            var pattern = $"%{term.Trim()}%";
-            query = query.Where(t => EF.Functions.Like(t.Name, pattern) || EF.Functions.Like(t.Category, pattern));
+            // Case folded on both sides so "crp" finds "CRP"; see SearchText.
+            var pattern = SearchText.Pattern(term);
+            query = query.Where(t => EF.Functions.Like(t.Name.ToLower(), pattern) || EF.Functions.Like(t.Category.ToLower(), pattern));
         }
 
         return await query.OrderBy(t => t.Category).ThenBy(t => t.Name).ToListAsync();
