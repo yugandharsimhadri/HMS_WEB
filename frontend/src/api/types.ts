@@ -236,7 +236,6 @@ export interface GeneralSettings {
   pediatricsEnabled: boolean;
   dentistEnabled: boolean;
   pathologyLabEnabled: boolean;
-  requireLogin: boolean;
 }
 
 export type DrugSchedule = 'None' | 'H' | 'H1' | 'X';

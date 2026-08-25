@@ -209,14 +209,6 @@ public class GeneralSettings
     /// stays a flat named-test billing module for ad-hoc or sent-out work.</summary>
     public bool PathologyLabEnabled { get; set; }
 
-    /// <summary>
-    /// Off by default. The seeded Admin account exists either way, so
-    /// turning it on is immediately usable without a separate setup step.
-    /// On the SaaS edition this sits alongside, not instead of, the
-    /// platform-level tenant login — see SAAS_MIGRATION.md's authorisation
-    /// note.
-    /// </summary>
-    public bool RequireLogin { get; set; }
 
     /// <summary>
     /// Whether at least one clinical module — OPD, Pharmacy, or any of the
@@ -302,7 +294,6 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
     private const string KeyPediatricsEnabled = "features.pediatrics.enabled";
     private const string KeyDentistEnabled = "features.dentist.enabled";
     private const string KeyPathologyLabEnabled = "features.pathologylab.enabled";
-    private const string KeyRequireLogin = "auth.requirelogin";
 
     public async Task<ClinicProfile> GetClinicAsync()
     {
@@ -437,8 +428,7 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
             AppointmentsEnabled = Bool(map, KeyAppointmentsEnabled),
             PediatricsEnabled = Bool(map, KeyPediatricsEnabled),
             DentistEnabled = Bool(map, KeyDentistEnabled),
-            PathologyLabEnabled = Bool(map, KeyPathologyLabEnabled),
-            RequireLogin = Bool(map, KeyRequireLogin)
+            PathologyLabEnabled = Bool(map, KeyPathologyLabEnabled)
         };
     }
 
@@ -465,7 +455,6 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
         await SetAsync(db, KeyPediatricsEnabled, settings.PediatricsEnabled.ToString());
         await SetAsync(db, KeyDentistEnabled, settings.DentistEnabled.ToString());
         await SetAsync(db, KeyPathologyLabEnabled, settings.PathologyLabEnabled.ToString());
-        await SetAsync(db, KeyRequireLogin, settings.RequireLogin.ToString());
 
         await db.SaveChangesAsync();
     }

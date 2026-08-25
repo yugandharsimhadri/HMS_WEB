@@ -22,10 +22,12 @@ public record LoginResult(LoginOutcome Outcome, User? User, string? Message)
 }
 
 /// <summary>
-/// Sign-in, password changes, and the user list Admin manages. Everything
-/// here is inert unless Settings → Security has "Require login" switched on;
-/// nothing in this class enforces that — the caller decides whether to show
-/// the login screen at all.
+/// Sign-in, password changes, and the user list Admin manages.
+///
+/// Signing in is not optional on this edition. The desktop had a "Require
+/// login" switch because one clinic ran it on one PC and could reasonably
+/// leave it open; a multi-tenant server cannot, since the tenant is resolved
+/// from the token and there is no request without one.
 ///
 /// Tenant resolution happens upstream of this class, not inside it: by the
 /// time LoginAsync runs, the API layer has already worked out which clinic

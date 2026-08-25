@@ -656,14 +656,6 @@ function ModulesTab() {
         </label>
       ))}
 
-      <label className="checkbox-label">
-        <input
-          type="checkbox"
-          checked={general.requireLogin}
-          onChange={() => setGeneral({ ...general, requireLogin: !general.requireLogin })}
-        />
-        Require login
-      </label>
 
       {error && <p className="auth-error">{error}</p>}
       <div className="settings-actions">

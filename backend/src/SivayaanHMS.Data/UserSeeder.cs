@@ -6,11 +6,9 @@ using SivayaanHMS.Data.Security;
 namespace SivayaanHMS.Data;
 
 /// <summary>
-/// Seeds the one account every tenant needs regardless of whether login is
-/// switched on: "Admin", so turning Settings → Security → Require login on
-/// is immediately usable without a separate setup step. Never overwrites —
-/// a password Admin has since changed, or a user Admin has since renamed,
-/// survives every later run.
+/// Seeds the one account every tenant needs in order to be reachable at all,
+/// since signing in is mandatory here. Never overwrites: a password Admin has
+/// since changed, or a user Admin has since renamed, survives every later run.
 ///
 /// On the web edition this runs once, during clinic signup, against a
 /// db already scoped to the brand-new tenant — AppDbContext stamps

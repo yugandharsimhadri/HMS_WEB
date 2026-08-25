@@ -1319,3 +1319,26 @@ button.pick.selected { background: var(--c-accent-weak); color: var(--c-accent);
   max-height: 60px;
   object-fit: contain;
 }
+
+/* Caption left, switch right — the settings-row convention people already
+   know from every phone, and the one the Features list most needed.
+
+   Done by pushing the input to the end with `order` rather than by moving it
+   in the markup, so every `.checkbox-label` in the app gets the layout
+   without being edited one by one. That also covers the labels whose caption
+   is a bare text node: a text node cannot take an `order` of its own, but it
+   stays where it is while the input moves past it, which is the same
+   result. */
+.checkbox-label {
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.checkbox-label input[type='checkbox'] {
+  order: 2;
+  /* margin-left:auto rather than relying on justify-content: the caption is
+     sometimes a bare text node and sometimes a <span>, and an auto margin
+     absorbs the free space either way. */
+  margin-left: auto;
+}
