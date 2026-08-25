@@ -33,7 +33,7 @@ public static class DiagnosticBillDocument
         {
             page.Size(PageSizes.A5);
             page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, 9, d)));
+            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
 
             page.Content().Column(col =>
             {
@@ -84,32 +84,32 @@ public static class DiagnosticBillDocument
 
                 col.Item().PaddingTop(1).AlignRight()
                     .Text($"AMOUNT PAYABLE   Rs. {bill.FinalAmount:0.00}")
-                    .FontSize(Body(theme, 13, d)).Bold();
+                    .FontSize(Body(theme, (float)theme.TotalsSize, d)).Bold();
 
                 col.Item().AlignRight().Text($"Paid by {bill.PaymentMode}")
-                    .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 if (!string.IsNullOrWhiteSpace(bill.TransactionNo))
                     col.Item().AlignRight().Text($"Ref: {bill.TransactionNo}")
-                        .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 col.Item().PaddingTop(3).AlignRight().Text(AmountInWords.Convert(bill.FinalAmount))
-                    .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 if (!string.IsNullOrWhiteSpace(bill.Remarks))
                     col.Item().PaddingTop(3).Text($"Remarks: {bill.Remarks}")
-                        .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 Rule(col);
 
                 var footer = Footer(clinic.FooterText, theme);
                 if (!string.IsNullOrWhiteSpace(footer))
                     col.Item().PaddingTop(6).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, 7.4f, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
 
                 if (isReprint)
                     col.Item().PaddingTop(5).AlignCenter().Text("DUPLICATE")
-                        .FontSize(Body(theme, 9, d)).Bold().FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).Bold().FontColor(Muted);
             });
         });
     }
@@ -118,19 +118,19 @@ public static class DiagnosticBillDocument
     {
         foreach (var cell in cells)
             table.Cell().BorderBottom(1).PaddingBottom(2).Text(cell)
-                .FontSize(Body(theme, 7.5f, d)).Bold();
+                .FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
     }
 
     private static void Row(TableDescriptor table, DocumentTheme theme, float d, params string[] cells)
     {
         foreach (var cell in cells)
-            table.Cell().PaddingVertical(1.5f).Text(cell).FontSize(Body(theme, 8.5f, d));
+            table.Cell().PaddingVertical(1.5f).Text(cell).FontSize(Body(theme, (float)theme.TableRowSize, d));
     }
 
     private static void TotalLine(ColumnDescriptor col, DocumentTheme theme, float d, string label, string value)
         => col.Item().Row(row =>
         {
-            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, 9, d));
-            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, 9, d));
+            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, (float)theme.BodyTextSize, d));
+            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, (float)theme.BodyTextSize, d));
         });
 }

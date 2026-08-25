@@ -31,7 +31,7 @@ public static class PrescriptionDocument
         {
             page.Size(PageSizes.A5);
             page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, 9, d)));
+            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
 
             page.Content().Column(col =>
             {
@@ -46,7 +46,7 @@ public static class PrescriptionDocument
                 if (!string.IsNullOrWhiteSpace(visit.Doctor.RegistrationNo)) credentials.Add($"Reg. No: {visit.Doctor.RegistrationNo}");
                 if (credentials.Count > 0)
                     col.Item().AlignCenter().Text(string.Join("   |   ", credentials))
-                        .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 IdentityRow(col, theme, d,
                     ("Visit No", visit.VisitNo),
@@ -71,7 +71,7 @@ public static class PrescriptionDocument
                 if (visit.HeartRateBpm is { } hr) vitals.Add($"HR {hr}/min");
                 if (visit.Spo2Percent is { } spo2) vitals.Add($"SpO₂ {spo2}%");
                 if (vitals.Count > 0)
-                    col.Item().Text(string.Join("   ·   ", vitals)).FontSize(Body(theme, 8, d)).FontColor(Muted);
+                    col.Item().Text(string.Join("   ·   ", vitals)).FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 if (!string.IsNullOrWhiteSpace(visit.Complaint))
                     LabelValue(col, theme, d, "Complaint", visit.Complaint!);
@@ -93,7 +93,7 @@ public static class PrescriptionDocument
 
                         foreach (var head in new[] { "MEDICINE", "DOSE", "FREQUENCY", "DAYS", "QTY" })
                             table.Cell().BorderBottom(1).PaddingBottom(2).Text(head)
-                                .FontSize(Body(theme, 7.5f, d)).Bold();
+                                .FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
 
                         foreach (var item in visit.Prescription)
                         {
@@ -109,17 +109,17 @@ public static class PrescriptionDocument
                             if (!string.IsNullOrWhiteSpace(item.Instructions))
                             {
                                 table.Cell().ColumnSpan(5).PaddingLeft(12).PaddingBottom(2)
-                                    .Text(item.Instructions).FontSize(Body(theme, 8, d)).FontColor(Muted);
+                                    .Text(item.Instructions).FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
                             }
                         }
 
                         void Cell(TableDescriptor t, string value)
-                            => t.Cell().PaddingVertical(1.5f).Text(value).FontSize(Body(theme, 8.5f, d));
+                            => t.Cell().PaddingVertical(1.5f).Text(value).FontSize(Body(theme, (float)theme.TableRowSize, d));
                     });
                 }
                 else
                 {
-                    col.Item().Text("No medicines prescribed.").FontSize(Body(theme, 8.5f, d)).FontColor(Muted);
+                    col.Item().Text("No medicines prescribed.").FontSize(Body(theme, (float)theme.TableRowSize, d)).FontColor(Muted);
                 }
 
                 if (visit.DiagnosticRequests.Count > 0)
@@ -128,24 +128,24 @@ public static class PrescriptionDocument
                         .FontSize(Body(theme, 12, d)).Bold();
 
                     foreach (var request in visit.DiagnosticRequests)
-                        col.Item().PaddingLeft(8).Text($"•  {request.TestName}").FontSize(Body(theme, 8.5f, d));
+                        col.Item().PaddingLeft(8).Text($"•  {request.TestName}").FontSize(Body(theme, (float)theme.TableRowSize, d));
                 }
 
                 if (!string.IsNullOrWhiteSpace(visit.Notes))
-                    col.Item().PaddingTop(4).Text($"Advice: {visit.Notes}").FontSize(Body(theme, 8.5f, d));
+                    col.Item().PaddingTop(4).Text($"Advice: {visit.Notes}").FontSize(Body(theme, (float)theme.TableRowSize, d));
 
                 if (visit.FollowUpOn is { } follow)
                     col.Item().PaddingTop(4).Text($"Review on {follow:dd MMM yyyy}")
-                        .FontSize(Body(theme, 9, d)).SemiBold();
+                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).SemiBold();
 
                 var footer = Footer(clinic.FooterText, theme);
                 if (!string.IsNullOrWhiteSpace(footer))
                     col.Item().PaddingTop(6).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, 7.6f, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
 
                 col.Item().PaddingTop(20).AlignRight().Text(visit.Doctor.Name)
-                    .FontSize(Body(theme, 8.5f, d)).SemiBold();
-                col.Item().AlignRight().Text("Signature").FontSize(Body(theme, 7.4f, d)).FontColor(Muted);
+                    .FontSize(Body(theme, (float)theme.TableRowSize, d)).SemiBold();
+                col.Item().AlignRight().Text("Signature").FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
             });
         });
     }

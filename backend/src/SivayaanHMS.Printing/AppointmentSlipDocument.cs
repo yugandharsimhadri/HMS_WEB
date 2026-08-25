@@ -30,7 +30,7 @@ public static class AppointmentSlipDocument
         {
             page.Size(PageSizes.A5);
             page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, 9, d)));
+            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
 
             page.Content().Column(col =>
             {
@@ -50,16 +50,16 @@ public static class AppointmentSlipDocument
 
                 if (!string.IsNullOrWhiteSpace(appointment.Reason))
                     col.Item().PaddingTop(6).Text($"Reason: {appointment.Reason}")
-                        .FontSize(Body(theme, 9, d));
+                        .FontSize(Body(theme, (float)theme.BodyTextSize, d));
 
                 col.Item().PaddingTop(8).AlignCenter()
                     .Text("Please arrive a few minutes early. Call the clinic to cancel or reschedule.")
-                    .FontSize(Body(theme, 7.4f, d)).FontColor(Muted);
+                    .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
 
                 var footer = Footer(clinic.FooterText, theme);
                 if (!string.IsNullOrWhiteSpace(footer))
                     col.Item().PaddingTop(3).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, 7.4f, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
             });
         });
     }

@@ -224,6 +224,18 @@ export interface DocumentTheme {
   printFontSizeDelta: number;
   titleFontFamily: string | null;
   titleFontSizeDelta: number;
+
+  // Absolute point sizes, one per role that repeats across the documents.
+  // The deltas above still apply on top, so the pills move all of these
+  // together and these set where "normal" sits.
+  letterheadNameSize: number;
+  contactLineSize: number;
+  documentKindSize: number;
+  bodyTextSize: number;
+  tableRowSize: number;
+  tableHeaderSize: number;
+  totalsSize: number;
+  footerSize: number;
 }
 
 export interface GeneralSettings {

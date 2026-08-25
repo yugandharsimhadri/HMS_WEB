@@ -32,7 +32,7 @@ public static class VaccinationHistoryDocument
         {
             page.Size(PageSizes.A5.Landscape());
             page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, 9, d)));
+            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
 
             page.Content().Column(col =>
             {
@@ -80,14 +80,14 @@ public static class VaccinationHistoryDocument
 
                 if (records.Count == 0)
                     col.Item().PaddingTop(6).Text("No doses recorded yet.")
-                        .FontSize(Body(theme, 9, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).FontColor(Muted);
 
                 Rule(col);
 
                 var footer = Footer(clinic.FooterText, theme);
                 if (!string.IsNullOrWhiteSpace(footer))
                     col.Item().PaddingTop(6).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, 7.4f, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
             });
         });
     }
@@ -96,12 +96,12 @@ public static class VaccinationHistoryDocument
     {
         foreach (var cell in cells)
             table.Cell().BorderBottom(1).PaddingBottom(2).Text(cell)
-                .FontSize(Body(theme, 7.5f, d)).Bold();
+                .FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
     }
 
     private static void Row(TableDescriptor table, DocumentTheme theme, float d, params string[] cells)
     {
         foreach (var cell in cells)
-            table.Cell().PaddingVertical(1.5f).Text(cell).FontSize(Body(theme, 8.5f, d));
+            table.Cell().PaddingVertical(1.5f).Text(cell).FontSize(Body(theme, (float)theme.TableRowSize, d));
     }
 }

@@ -37,6 +37,35 @@ const FONT_SIZE_STEPS: { delta: number; label: string }[] = [
   { delta: 2, label: 'Largest' },
 ];
 
+/**
+ * The roles that repeat across all nine printed documents, in the order they
+ * appear down a page. Anything not listed here — the "Rx" mark, a section
+ * heading — is a proportion within one document rather than a house style,
+ * and still moves with the print size adjustment.
+ */
+const ELEMENT_SIZES: { key: keyof typeof DESKTOP_SIZES; label: string }[] = [
+  { key: 'letterheadNameSize', label: 'Clinic name' },
+  { key: 'contactLineSize', label: 'Address & phone' },
+  { key: 'documentKindSize', label: 'Document title' },
+  { key: 'bodyTextSize', label: 'Body text' },
+  { key: 'tableHeaderSize', label: 'Table headings' },
+  { key: 'tableRowSize', label: 'Table rows' },
+  { key: 'totalsSize', label: 'Amount total' },
+  { key: 'footerSize', label: 'Footer & notes' },
+];
+
+/** The desktop's own sizes, which are also the server's defaults. */
+const DESKTOP_SIZES = {
+  letterheadNameSize: 15,
+  contactLineSize: 8,
+  documentKindSize: 8.6,
+  bodyTextSize: 9,
+  tableHeaderSize: 7.5,
+  tableRowSize: 8.5,
+  totalsSize: 13,
+  footerSize: 7.4,
+};
+
 function SavedNotice({ shown }: { shown: boolean }) {
   return shown ? <p className="hint">Saved.</p> : null;
 }
@@ -647,6 +676,40 @@ function BrandingTab() {
           On top of the print size, for the clinic's name in the letterhead alone — the one line a clinic
           usually wants larger than everything else.
         </p>
+      </div>
+
+      {/* The absolute sizes. The two settings above move the whole page at
+          once, which is what most clinics want; this is for the one that has
+          a printer, a paper size and an opinion of its own. Defaults are the
+          desktop's numbers, so an untouched install prints an identical page. */}
+      <div className="settings-block">
+        <span className="field-title">Element sizes</span>
+        <div className="size-grid">
+          {ELEMENT_SIZES.map((el) => (
+            <label key={el.key} className="size-field">
+              <span>{el.label}</span>
+              <input
+                type="number"
+                min={4}
+                max={40}
+                step={0.1}
+                value={theme[el.key]}
+                onChange={(e) =>
+                  setTheme({ ...theme, [el.key]: Number(e.target.value) })
+                }
+              />
+              <span className="size-unit">pt</span>
+            </label>
+          ))}
+        </div>
+        <p className="hint">
+          Points, before the print size adjustment above is added. The identity grid under the
+          letterhead follows the table sizes — its label sits just under the table header and its
+          value just under the table row, which is what makes it read as a grid.
+        </p>
+        <button type="button" className="pill" onClick={() => setTheme({ ...theme, ...DESKTOP_SIZES })}>
+          Reset to desktop defaults
+        </button>
       </div>
 
       {error && <p className="auth-error">{error}</p>}

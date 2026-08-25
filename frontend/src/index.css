@@ -1342,3 +1342,53 @@ button.pick.selected { background: var(--c-accent-weak); color: var(--c-accent);
      absorbs the free space either way. */
   margin-left: auto;
 }
+
+/* Eight numbers that belong to one decision, so they are laid out as one
+   block rather than eight stacked rows the eye has to walk down. This is a
+   column, not a `.settings-row`: the heading, the grid and the note each
+   want the full width, where a settings row lays its children side by side. */
+.settings-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-block > .field-title {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* auto-fill means it collapses to a single column on a narrow screen
+   without needing a media query. */
+.size-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 8px 20px;
+}
+
+/* Out-specifies `.settings-form label`, which stacks label over control -
+   right for a text box on its own line, wrong for a name and a number that
+   belong on one line. */
+.settings-form .size-field {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+/* The name takes the slack, which lines every box up on the right - the
+   same left-title/right-control shape as the switches. */
+.settings-form .size-field > span:first-child { flex: 1; }
+
+.settings-form .size-field input {
+  width: 72px;
+  text-align: right;
+}
+
+.size-unit {
+  color: var(--c-text-3);
+  font-size: 12.5px;
+}
+
+.settings-block > button.pill { align-self: flex-start; }

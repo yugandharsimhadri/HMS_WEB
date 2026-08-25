@@ -24,25 +24,19 @@ public static class DocumentStyle
     /// the *body* of those documents only; see <see cref="Header"/>.</summary>
     public const float ClinicalSizeDelta = 2f;
 
-    // Letterhead sizes, in absolute points, taken from the desktop's
-    // DocumentBuilder so a web-printed page matches one already in a
-    // patient's file. None of them takes a per-document delta.
-
-    /// <summary>The desktop's ClinicNameFontSize — IdentityNameFontSize + 2,
-    /// "a specific ask, not derived from anything else on the page".</summary>
-    private const float ClinicNameSize = 15f;
-
-    /// <summary>Address lines, phone and GSTIN.</summary>
-    private const float ContactSize = 8f;
-
-    /// <summary>"CASH RECEIPT", "TAX INVOICE". 8.6 on the desktop — a label
-    /// over the rule, not a headline.</summary>
-    private const float DocumentKindSize = 8.6f;
-
-    /// <summary>The identity grid: the desktop's 6.6 label over a 7.8 value,
-    /// both of which do take the clinical delta.</summary>
-    private const float IdentityLabelSize = 6.6f;
-    private const float IdentityValueSize = 7.8f;
+    // Letterhead and grid sizes come from DocumentTheme now, so a clinic can
+    // tune them from Settings > Document branding. The defaults there are the
+    // desktop's own numbers, taken from its DocumentBuilder, so an untouched
+    // install still prints a page that matches one already in a patient's
+    // file. None of the letterhead sizes takes a per-document delta.
+    //
+    // The identity grid is derived rather than stored: its label sat 0.9
+    // under the table header and its value 0.7 under the table row on the
+    // desktop, and that relationship is what makes the grid read as a grid.
+    // Deriving it keeps two fewer knobs on screen, and keeps them in step
+    // when somebody moves the table.
+    private const float IdentityLabelDrop = 0.9f;
+    private const float IdentityValueDrop = 0.7f;
 
     public static string Muted => Colors.Grey.Darken1;
 
@@ -93,7 +87,7 @@ public static class DocumentStyle
 
         if (!string.IsNullOrWhiteSpace(documentKind))
             col.Item().PaddingTop(4).AlignCenter().Text(documentKind)
-                .FontSize(Body(theme, DocumentKindSize)).Bold();
+                .FontSize(Body(theme, (float)theme.DocumentKindSize)).Bold();
 
         col.Item().PaddingTop(4).LineHorizontal(0.75f).LineColor(Muted);
 
@@ -101,16 +95,16 @@ public static class DocumentStyle
         {
             c.Item().AlignCenter().Text(name)
                 .FontFamily(TitleFont(theme))
-                .FontSize(Body(theme, ClinicNameSize, (float)theme.TitleFontSizeDelta)).Bold();
+                .FontSize(Body(theme, (float)theme.LetterheadNameSize, (float)theme.TitleFontSizeDelta)).Bold();
 
             if (!string.IsNullOrWhiteSpace(addressLine))
-                c.Item().AlignCenter().Text(addressLine).FontSize(Body(theme, ContactSize)).FontColor(Muted);
+                c.Item().AlignCenter().Text(addressLine).FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(Muted);
             if (!string.IsNullOrWhiteSpace(addressLine2))
-                c.Item().AlignCenter().Text(addressLine2).FontSize(Body(theme, ContactSize)).FontColor(Muted);
+                c.Item().AlignCenter().Text(addressLine2).FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(Muted);
             if (!string.IsNullOrWhiteSpace(phone))
-                c.Item().AlignCenter().Text($"Phone: {phone}").FontSize(Body(theme, ContactSize)).FontColor(Muted);
+                c.Item().AlignCenter().Text($"Phone: {phone}").FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(Muted);
             if (!string.IsNullOrWhiteSpace(gstin))
-                c.Item().AlignCenter().Text($"GSTIN: {gstin}").FontSize(Body(theme, ContactSize)).FontColor(Muted);
+                c.Item().AlignCenter().Text($"GSTIN: {gstin}").FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(Muted);
         }
     }
 
@@ -167,8 +161,8 @@ public static class DocumentStyle
         void Cell(IContainer container, (string Label, string Value) pair)
             => container.Text(text =>
             {
-                text.Span($"{pair.Label}: ").FontSize(Body(theme, IdentityLabelSize, delta)).FontColor(Muted);
-                text.Span(pair.Value).FontSize(Body(theme, IdentityValueSize, delta));
+                text.Span($"{pair.Label}: ").FontSize(Body(theme, (float)theme.TableHeaderSize - IdentityLabelDrop, delta)).FontColor(Muted);
+                text.Span(pair.Value).FontSize(Body(theme, (float)theme.TableRowSize - IdentityValueDrop, delta));
             });
     }
 
@@ -191,8 +185,8 @@ public static class DocumentStyle
         void Cell(IContainer container, (string Label, string Value) pair)
             => container.Text(text =>
             {
-                text.Span($"{pair.Label}: ").FontSize(Body(theme, IdentityLabelSize, delta)).FontColor(Muted);
-                text.Span(pair.Value).FontSize(Body(theme, IdentityValueSize, delta));
+                text.Span($"{pair.Label}: ").FontSize(Body(theme, (float)theme.TableHeaderSize - IdentityLabelDrop, delta)).FontColor(Muted);
+                text.Span(pair.Value).FontSize(Body(theme, (float)theme.TableRowSize - IdentityValueDrop, delta));
             });
     }
 

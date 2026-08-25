@@ -35,7 +35,7 @@ public static class FeeReceiptDocument
         {
             page.Size(PageSizes.A5);
             page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, 9, d)));
+            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
 
             page.Content().Column(col =>
             {
@@ -67,51 +67,51 @@ public static class FeeReceiptDocument
 
                 col.Item().PaddingTop(2).Row(row =>
                 {
-                    row.RelativeItem(3).Text("PARTICULARS").FontSize(Body(theme, 7.5f, d)).Bold();
-                    row.RelativeItem(1).AlignRight().Text("AMOUNT").FontSize(Body(theme, 7.5f, d)).Bold();
+                    row.RelativeItem(3).Text("PARTICULARS").FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
+                    row.RelativeItem(1).AlignRight().Text("AMOUNT").FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
                 });
                 col.Item().PaddingTop(3).Row(row =>
                 {
                     row.RelativeItem(3).Text(string.IsNullOrWhiteSpace(visit.Doctor.Speciality)
                         ? "Consultation fee"
-                        : $"Consultation fee — {visit.Doctor.Speciality}").FontSize(Body(theme, 8.5f, d));
-                    row.RelativeItem(1).AlignRight().Text(visit.Fee.ToString("0.00")).FontSize(Body(theme, 8.5f, d));
+                        : $"Consultation fee — {visit.Doctor.Speciality}").FontSize(Body(theme, (float)theme.TableRowSize, d));
+                    row.RelativeItem(1).AlignRight().Text(visit.Fee.ToString("0.00")).FontSize(Body(theme, (float)theme.TableRowSize, d));
                 });
 
                 Rule(col);
 
                 col.Item().PaddingTop(1).AlignRight().Text($"RECEIVED   Rs. {visit.Fee:0.00}")
-                    .FontSize(Body(theme, 13, d)).Bold();
+                    .FontSize(Body(theme, (float)theme.TotalsSize, d)).Bold();
 
                 col.Item().AlignRight().Text($"Paid by {visit.FeePaymentMode?.ToString() ?? "Cash"}")
-                    .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 if (!string.IsNullOrWhiteSpace(visit.FeeTransactionNo))
                     col.Item().AlignRight().Text($"Ref: {visit.FeeTransactionNo}")
-                        .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 col.Item().PaddingTop(4).AlignRight().Text(AmountInWords.Convert(visit.Fee))
-                    .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 if (visit.FollowUpOn is { } follow)
                     col.Item().PaddingTop(5).Text($"Review on {follow:dd MMM yyyy}")
-                        .FontSize(Body(theme, 9, d)).SemiBold();
+                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).SemiBold();
 
                 // A consultation is a service, not a taxable supply - said out
                 // loud so nobody looks for a GST line that was never meant to
                 // be there.
                 col.Item().PaddingTop(8).AlignCenter()
                     .Text("Consultation services. Fees once paid are not refundable.")
-                    .FontSize(Body(theme, 7.4f, d)).FontColor(Muted);
+                    .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
 
                 var footer = Footer(clinic.FooterText, theme);
                 if (!string.IsNullOrWhiteSpace(footer))
                     col.Item().PaddingTop(3).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, 7.4f, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
 
                 if (isReprint)
                     col.Item().PaddingTop(5).AlignCenter().Text("DUPLICATE")
-                        .FontSize(Body(theme, 9, d)).Bold().FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).Bold().FontColor(Muted);
             });
         });
     }

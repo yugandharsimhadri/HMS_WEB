@@ -34,7 +34,7 @@ public static class DentalReceiptDocument
         {
             page.Size(PageSizes.A5);
             page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, 9, d)));
+            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
 
             page.Content().Column(col =>
             {
@@ -55,17 +55,17 @@ public static class DentalReceiptDocument
 
                 col.Item().PaddingTop(1).AlignRight()
                     .Text($"AMOUNT RECEIVED   Rs. {payment.Amount:0.00}")
-                    .FontSize(Body(theme, 13, d)).Bold();
+                    .FontSize(Body(theme, (float)theme.TotalsSize, d)).Bold();
 
                 col.Item().AlignRight().Text($"Paid by {payment.PaymentMode}")
-                    .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 if (!string.IsNullOrWhiteSpace(payment.TransactionNo))
                     col.Item().AlignRight().Text($"Ref: {payment.TransactionNo}")
-                        .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 col.Item().PaddingTop(3).AlignRight().Text(AmountInWords.Convert(payment.Amount))
-                    .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 Rule(col);
 
@@ -82,11 +82,11 @@ public static class DentalReceiptDocument
                 var footer = Footer(clinic.FooterText, theme);
                 if (!string.IsNullOrWhiteSpace(footer))
                     col.Item().PaddingTop(6).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, 7.4f, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
 
                 if (isReprint)
                     col.Item().PaddingTop(5).AlignCenter().Text("DUPLICATE")
-                        .FontSize(Body(theme, 9, d)).Bold().FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).Bold().FontColor(Muted);
             });
         });
     }
@@ -94,7 +94,7 @@ public static class DentalReceiptDocument
     private static void TotalLine(ColumnDescriptor col, DocumentTheme theme, float d, string label, string value)
         => col.Item().Row(row =>
         {
-            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, 9, d));
-            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, 9, d));
+            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, (float)theme.BodyTextSize, d));
+            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, (float)theme.BodyTextSize, d));
         });
 }

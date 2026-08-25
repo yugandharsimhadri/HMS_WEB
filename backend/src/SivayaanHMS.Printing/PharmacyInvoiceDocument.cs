@@ -68,30 +68,31 @@ public static class PharmacyInvoiceDocument
                     });
                 }
 
-                col.Item().PaddingTop(4).AlignCenter().Text(title).FontSize(Body(theme, 8.6f)).Bold();
+                col.Item().PaddingTop(4).AlignCenter().Text(title).FontSize(Body(theme, (float)theme.DocumentKindSize)).Bold();
                 col.Item().PaddingTop(4).LineHorizontal(0.75f).LineColor(muted);
 
                 void Identity(ColumnDescriptor c)
                 {
-                    // 13, not the clinic's 15: the desktop prints the pharmacy's
+                    // Two points under the clinic's letterhead size, whatever
+                    // that has been set to: the desktop prints the pharmacy's
                     // own identity a size smaller and unboxed, matching its
                     // reference bill.
                     c.Item().AlignCenter().Text(pharmacy.Name)
                         .FontFamily(theme.TitleFontFamily ?? theme.PrintFontFamily ?? "Segoe UI")
-                        .FontSize((float)(13 + theme.PrintFontSizeDelta + theme.TitleFontSizeDelta)).Bold();
+                        .FontSize((float)(theme.LetterheadNameSize - 2 + theme.PrintFontSizeDelta + theme.TitleFontSizeDelta)).Bold();
 
                     if (!string.IsNullOrWhiteSpace(pharmacy.AddressLine))
-                        c.Item().AlignCenter().Text(pharmacy.AddressLine).FontSize(Body(theme, 8f)).FontColor(muted);
+                        c.Item().AlignCenter().Text(pharmacy.AddressLine).FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(muted);
                     if (!string.IsNullOrWhiteSpace(pharmacy.AddressLine2))
-                        c.Item().AlignCenter().Text(pharmacy.AddressLine2).FontSize(Body(theme, 8f)).FontColor(muted);
+                        c.Item().AlignCenter().Text(pharmacy.AddressLine2).FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(muted);
                     if (!string.IsNullOrWhiteSpace(pharmacy.Phone))
-                        c.Item().AlignCenter().Text($"Phone: {pharmacy.Phone}").FontSize(Body(theme, 8f)).FontColor(muted);
+                        c.Item().AlignCenter().Text($"Phone: {pharmacy.Phone}").FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(muted);
 
                     // A pharmacy not registered for GST issues a plain invoice.
                     // Printing a GSTIN on one, or calling it a tax invoice,
                     // would be a false claim — same rule the desktop enforced.
                     if (sale.IsTaxInvoice && !string.IsNullOrWhiteSpace(pharmacy.Gstin))
-                        c.Item().AlignCenter().Text($"GSTIN: {pharmacy.Gstin}").FontSize(Body(theme, 8f)).FontColor(muted);
+                        c.Item().AlignCenter().Text($"GSTIN: {pharmacy.Gstin}").FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(muted);
                 }
             });
 
@@ -173,7 +174,7 @@ public static class PharmacyInvoiceDocument
                 var slabs = sale.Items.GroupBy(i => i.GstRate).OrderBy(g => g.Key).ToList();
                 if (sale.IsTaxInvoice && slabs.Count > 0)
                 {
-                    col.Item().PaddingTop(6).Text("GST SUMMARY").FontSize(Body(theme, 7.5f)).SemiBold().FontColor(muted);
+                    col.Item().PaddingTop(6).Text("GST SUMMARY").FontSize(Body(theme, (float)theme.TableHeaderSize)).SemiBold().FontColor(muted);
 
                     col.Item().PaddingTop(2).Table(table =>
                     {
@@ -211,25 +212,25 @@ public static class PharmacyInvoiceDocument
                     if (sale.RoundOff != 0) TotalLine(theme, totals, "Round off", sale.RoundOff.ToString("+0.00;-0.00"));
                 });
 
-                col.Item().PaddingTop(3).AlignRight().Text($"NET PAYABLE   Rs. {sale.NetAmount:0.00}").FontSize(Body(theme, 13f)).Bold();
-                col.Item().AlignRight().Text($"Paid by {sale.PaymentMode}").FontSize(Body(theme, 8f)).FontColor(muted);
-                col.Item().PaddingTop(3).AlignRight().Text(AmountInWords.Convert(sale.NetAmount)).FontSize(Body(theme, 8f)).FontColor(muted);
+                col.Item().PaddingTop(3).AlignRight().Text($"NET PAYABLE   Rs. {sale.NetAmount:0.00}").FontSize(Body(theme, (float)theme.TotalsSize)).Bold();
+                col.Item().AlignRight().Text($"Paid by {sale.PaymentMode}").FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(muted);
+                col.Item().PaddingTop(3).AlignRight().Text(AmountInWords.Convert(sale.NetAmount)).FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(muted);
 
                 col.Item().PaddingTop(4).LineHorizontal(0.75f).LineColor(muted);
 
                 if (!string.IsNullOrWhiteSpace(pharmacy.PharmacistName))
-                    col.Item().PaddingTop(2).Text($"Pharmacist: {pharmacy.PharmacistName}").FontSize(Body(theme, 8f)).FontColor(muted);
+                    col.Item().PaddingTop(2).Text($"Pharmacist: {pharmacy.PharmacistName}").FontSize(Body(theme, (float)theme.ContactLineSize)).FontColor(muted);
 
                 if (sale.Items.Count > 0)
                     col.Item().Text($"HSN: {string.Join(", ", sale.Items.Select(i => i.HsnCode).Distinct())}")
-                        .FontSize(Body(theme, 7.5f)).FontColor(muted);
+                        .FontSize(Body(theme, (float)theme.TableHeaderSize)).FontColor(muted);
 
                 // The pharmacy's own footer, set on the Pharmacy settings
                 // tab, takes over from the shared document theme footer
                 // once it is typed.
                 var footer = string.IsNullOrWhiteSpace(pharmacy.FooterText) ? theme.Footer : pharmacy.FooterText;
                 if (!string.IsNullOrWhiteSpace(footer))
-                    col.Item().PaddingTop(6).AlignCenter().Text(footer).FontSize(Body(theme, 7.5f)).FontColor(muted);
+                    col.Item().PaddingTop(6).AlignCenter().Text(footer).FontSize(Body(theme, (float)theme.TableHeaderSize)).FontColor(muted);
             });
         });
     }
@@ -237,19 +238,19 @@ public static class PharmacyInvoiceDocument
     private static void Header(DocumentTheme theme, TableDescriptor table, params string[] cells)
     {
         foreach (var cell in cells)
-            table.Cell().BorderBottom(1).PaddingBottom(2).Text(cell).FontSize(Body(theme, 7.5f)).Bold();
+            table.Cell().BorderBottom(1).PaddingBottom(2).Text(cell).FontSize(Body(theme, (float)theme.TableHeaderSize)).Bold();
     }
 
     private static void Row(DocumentTheme theme, TableDescriptor table, params string[] cells)
     {
         foreach (var cell in cells)
-            table.Cell().PaddingVertical(1.5f).Text(cell).FontSize(Body(theme, 8.5f));
+            table.Cell().PaddingVertical(1.5f).Text(cell).FontSize(Body(theme, (float)theme.TableRowSize));
     }
 
     private static void TotalLine(DocumentTheme theme, ColumnDescriptor column, string label, string value)
         => column.Item().Row(row =>
         {
-            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, 9f));
-            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, 9f));
+            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, (float)theme.BodyTextSize));
+            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, (float)theme.BodyTextSize));
         });
 }

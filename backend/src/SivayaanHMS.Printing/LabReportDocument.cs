@@ -33,7 +33,7 @@ public static class LabReportDocument
         {
             page.Size(PageSizes.A4);
             page.Margin(24);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, 9, d)));
+            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
 
             page.Content().Column(col =>
             {
@@ -94,7 +94,7 @@ public static class LabReportDocument
 
                     if (!string.IsNullOrWhiteSpace(orderReport.Notes))
                         col.Item().PaddingTop(2).Text($"Interpretation: {orderReport.Notes}")
-                            .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                            .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
                 }
 
                 Rule(col);
@@ -105,14 +105,14 @@ public static class LabReportDocument
 
                 col.Item().PaddingTop(1).AlignRight()
                     .Text($"AMOUNT PAID   Rs. {order.FinalAmount:0.00}")
-                    .FontSize(Body(theme, 13, d)).Bold();
+                    .FontSize(Body(theme, (float)theme.TotalsSize, d)).Bold();
 
                 col.Item().AlignRight().Text($"Paid by {order.PaymentMode}")
-                    .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 if (!string.IsNullOrWhiteSpace(order.Remarks))
                     col.Item().PaddingTop(3).Text($"Remarks: {order.Remarks}")
-                        .FontSize(Body(theme, 8, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
                 Rule(col);
 
@@ -125,12 +125,12 @@ public static class LabReportDocument
                 if (verifiedOn is not null)
                     col.Item().PaddingTop(4).AlignRight()
                         .Text($"Verified by {verifiedBy} on {verifiedOn:dd/MM/yyyy HH:mm}")
-                        .FontSize(Body(theme, 7.6f, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
 
                 var footer = Footer(clinic.FooterText, theme);
                 if (!string.IsNullOrWhiteSpace(footer))
                     col.Item().PaddingTop(6).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, 7.4f, d)).FontColor(Muted);
+                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
             });
         });
     }
@@ -139,19 +139,19 @@ public static class LabReportDocument
     {
         foreach (var cell in cells)
             table.Cell().BorderBottom(1).PaddingBottom(2).Text(cell)
-                .FontSize(Body(theme, 7.5f, d)).Bold();
+                .FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
     }
 
     private static void Cell(TableDescriptor table, DocumentTheme theme, float d, string text, bool emphasise)
     {
-        var span = table.Cell().PaddingVertical(1.5f).Text(text).FontSize(Body(theme, 8.5f, d));
+        var span = table.Cell().PaddingVertical(1.5f).Text(text).FontSize(Body(theme, (float)theme.TableRowSize, d));
         if (emphasise) span.Bold();
     }
 
     private static void TotalLine(ColumnDescriptor col, DocumentTheme theme, float d, string label, string value)
         => col.Item().Row(row =>
         {
-            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, 9, d));
-            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, 9, d));
+            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, (float)theme.BodyTextSize, d));
+            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, (float)theme.BodyTextSize, d));
         });
 }

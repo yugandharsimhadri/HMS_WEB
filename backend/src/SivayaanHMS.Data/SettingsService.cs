@@ -127,10 +127,13 @@ public class DocumentTheme
 
     /// <summary>
     /// Added to every font size on every printed document. Zero by default,
-    /// so nothing changes size until a clinic asks it to. Kept as one number
-    /// applied everywhere rather than a size per document: the documents'
-    /// own internal proportions are a design decision, not something to
-    /// expose as separate knobs.
+    /// so nothing changes size until a clinic asks it to.
+    ///
+    /// This is now the *global nudge* that sits on top of the per-element
+    /// sizes below — move everything together without editing eight fields.
+    /// It once carried the whole job, on the reasoning that a document's
+    /// internal proportions are a design decision rather than a setting; that
+    /// call has since been overridden deliberately.
     /// </summary>
     public double PrintFontSizeDelta { get; set; }
 
@@ -148,6 +151,43 @@ public class DocumentTheme
     /// everything else on the page — the two stack. Zero by default.
     /// </summary>
     public double TitleFontSizeDelta { get; set; }
+
+    // ── Per-element sizes ────────────────────────────────────────────────
+    //
+    // Every default below is the number the desktop's DocumentBuilder uses,
+    // so a clinic that never opens this screen prints exactly what HMS_WPF
+    // prints. PrintFontSizeDelta still nudges all of them together on top.
+    //
+    // These are the recurring roles across all nine documents, not one knob
+    // per document: the same eight sizes account for nearly every literal in
+    // the printing layer, so exposing the roles covers the page without
+    // asking a clinic to reason about nine separate layouts.
+
+    /// <summary>The clinic's own name in the letterhead. The pharmacy's
+    /// prints two points smaller, as on the desktop.</summary>
+    public double LetterheadNameSize { get; set; } = 15;
+
+    /// <summary>Address lines, phone and GSTIN under the name.</summary>
+    public double ContactLineSize { get; set; } = 8;
+
+    /// <summary>"CASH RECEIPT", "TAX INVOICE" — a label over the rule.</summary>
+    public double DocumentKindSize { get; set; } = 8.6;
+
+    /// <summary>The page default: prescription lines, notes, most prose.</summary>
+    public double BodyTextSize { get; set; } = 9;
+
+    /// <summary>Line items in the medicine, test and procedure tables.</summary>
+    public double TableRowSize { get; set; } = 8.5;
+
+    /// <summary>Column headings, and the small labels beside them.</summary>
+    public double TableHeaderSize { get; set; } = 7.5;
+
+    /// <summary>The one figure a patient looks for — "RECEIVED", "NET
+    /// PAYABLE".</summary>
+    public double TotalsSize { get; set; } = 13;
+
+    /// <summary>The footer note at the bottom of every document.</summary>
+    public double FooterSize { get; set; } = 7.4;
 }
 
 /// <summary>How the application itself behaves, as opposed to who it is speaking for.</summary>
@@ -284,6 +324,15 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
     private const string KeyDocsTitleFontFamily = "docs.title.fontfamily";
     private const string KeyDocsTitleFontSizeDelta = "docs.title.fontsizedelta";
 
+    private const string KeyDocsLetterheadNameSize = "docs.size.letterheadname";
+    private const string KeyDocsContactLineSize = "docs.size.contactline";
+    private const string KeyDocsDocumentKindSize = "docs.size.documentkind";
+    private const string KeyDocsBodyTextSize = "docs.size.bodytext";
+    private const string KeyDocsTableRowSize = "docs.size.tablerow";
+    private const string KeyDocsTableHeaderSize = "docs.size.tableheader";
+    private const string KeyDocsTotalsSize = "docs.size.totals";
+    private const string KeyDocsFooterSize = "docs.size.footer";
+
     // ── General ────────────────────────────────────────────────────────────
     private const string KeyQueueLayout = "opd.queuelayout";
     private const string KeyTheme = "ui.theme";
@@ -391,7 +440,15 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
             PrintFontFamily = map.TryGetValue(KeyDocsPrintFontFamily, out var font) && !string.IsNullOrWhiteSpace(font) ? font : null,
             PrintFontSizeDelta = Double(map, KeyDocsPrintFontSizeDelta, fallback.PrintFontSizeDelta),
             TitleFontFamily = map.TryGetValue(KeyDocsTitleFontFamily, out var titleFont) && !string.IsNullOrWhiteSpace(titleFont) ? titleFont : null,
-            TitleFontSizeDelta = Double(map, KeyDocsTitleFontSizeDelta, fallback.TitleFontSizeDelta)
+            TitleFontSizeDelta = Double(map, KeyDocsTitleFontSizeDelta, fallback.TitleFontSizeDelta),
+            LetterheadNameSize = Double(map, KeyDocsLetterheadNameSize, fallback.LetterheadNameSize),
+            ContactLineSize = Double(map, KeyDocsContactLineSize, fallback.ContactLineSize),
+            DocumentKindSize = Double(map, KeyDocsDocumentKindSize, fallback.DocumentKindSize),
+            BodyTextSize = Double(map, KeyDocsBodyTextSize, fallback.BodyTextSize),
+            TableRowSize = Double(map, KeyDocsTableRowSize, fallback.TableRowSize),
+            TableHeaderSize = Double(map, KeyDocsTableHeaderSize, fallback.TableHeaderSize),
+            TotalsSize = Double(map, KeyDocsTotalsSize, fallback.TotalsSize),
+            FooterSize = Double(map, KeyDocsFooterSize, fallback.FooterSize)
         };
     }
 
@@ -406,6 +463,16 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
         await SetAsync(db, KeyDocsPrintFontSizeDelta, theme.PrintFontSizeDelta.ToString(System.Globalization.CultureInfo.InvariantCulture));
         await SetAsync(db, KeyDocsTitleFontFamily, theme.TitleFontFamily ?? "");
         await SetAsync(db, KeyDocsTitleFontSizeDelta, theme.TitleFontSizeDelta.ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        await SetAsync(db, KeyDocsLetterheadNameSize, theme.LetterheadNameSize.ToString(inv));
+        await SetAsync(db, KeyDocsContactLineSize, theme.ContactLineSize.ToString(inv));
+        await SetAsync(db, KeyDocsDocumentKindSize, theme.DocumentKindSize.ToString(inv));
+        await SetAsync(db, KeyDocsBodyTextSize, theme.BodyTextSize.ToString(inv));
+        await SetAsync(db, KeyDocsTableRowSize, theme.TableRowSize.ToString(inv));
+        await SetAsync(db, KeyDocsTableHeaderSize, theme.TableHeaderSize.ToString(inv));
+        await SetAsync(db, KeyDocsTotalsSize, theme.TotalsSize.ToString(inv));
+        await SetAsync(db, KeyDocsFooterSize, theme.FooterSize.ToString(inv));
 
         await db.SaveChangesAsync();
     }
