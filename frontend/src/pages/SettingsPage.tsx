@@ -23,6 +23,20 @@ const TABS: { id: Tab; label: string }[] = [
   { id: 'health', label: 'Data health' },
 ];
 
+/**
+ * Print size as a few named steps rather than a free number box.
+ *
+ * The underlying field is a delta in points, and a box would invite "20",
+ * which produces a prescription with three words on it. These are the range
+ * that still lays out.
+ */
+const FONT_SIZE_STEPS: { delta: number; label: string }[] = [
+  { delta: -1, label: 'Smaller' },
+  { delta: 0, label: 'Normal' },
+  { delta: 1, label: 'Larger' },
+  { delta: 2, label: 'Largest' },
+];
+
 function SavedNotice({ shown }: { shown: boolean }) {
   return shown ? <p className="hint">Saved.</p> : null;
 }
@@ -590,6 +604,50 @@ function BrandingTab() {
           onChange={(e) => setTheme({ ...theme, titleFontFamily: e.target.value || null })}
         />
       </label>
+
+      {/* An adjustment, not an absolute size. Every printed document is laid
+          out around the sizes the desktop uses, and a nudge moves all of them
+          together — which keeps a receipt looking like a receipt instead of
+          letting one field grow out of proportion to the rest. */}
+      <div className="settings-row">
+        <label>Print size</label>
+        <div className="inline-form">
+          {FONT_SIZE_STEPS.map((s) => (
+            <button
+              key={s.delta}
+              type="button"
+              className={theme.printFontSizeDelta === s.delta ? 'pill active' : 'pill'}
+              onClick={() => setTheme({ ...theme, printFontSizeDelta: s.delta })}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <p className="hint">
+          Applies to every document — prescriptions, receipts, invoices, reports. Normal matches the
+          desktop exactly; the others shift every size on the page by the same amount.
+        </p>
+      </div>
+
+      <div className="settings-row">
+        <label>Clinic name size</label>
+        <div className="inline-form">
+          {FONT_SIZE_STEPS.map((s) => (
+            <button
+              key={s.delta}
+              type="button"
+              className={theme.titleFontSizeDelta === s.delta ? 'pill active' : 'pill'}
+              onClick={() => setTheme({ ...theme, titleFontSizeDelta: s.delta })}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+        <p className="hint">
+          On top of the print size, for the clinic's name in the letterhead alone — the one line a clinic
+          usually wants larger than everything else.
+        </p>
+      </div>
 
       {error && <p className="auth-error">{error}</p>}
       <div className="settings-actions">

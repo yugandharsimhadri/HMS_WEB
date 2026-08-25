@@ -3,6 +3,7 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using SivayaanHMS.Core;
 using SivayaanHMS.Data;
+using static SivayaanHMS.Printing.DocumentStyle;
 
 namespace SivayaanHMS.Printing;
 
@@ -67,7 +68,7 @@ public static class PharmacyInvoiceDocument
                     });
                 }
 
-                col.Item().PaddingTop(4).AlignCenter().Text(title).FontSize(8.6f).Bold();
+                col.Item().PaddingTop(4).AlignCenter().Text(title).FontSize(Body(theme, 8.6f)).Bold();
                 col.Item().PaddingTop(4).LineHorizontal(0.75f).LineColor(muted);
 
                 void Identity(ColumnDescriptor c)
@@ -80,17 +81,17 @@ public static class PharmacyInvoiceDocument
                         .FontSize((float)(13 + theme.PrintFontSizeDelta + theme.TitleFontSizeDelta)).Bold();
 
                     if (!string.IsNullOrWhiteSpace(pharmacy.AddressLine))
-                        c.Item().AlignCenter().Text(pharmacy.AddressLine).FontSize(8).FontColor(muted);
+                        c.Item().AlignCenter().Text(pharmacy.AddressLine).FontSize(Body(theme, 8f)).FontColor(muted);
                     if (!string.IsNullOrWhiteSpace(pharmacy.AddressLine2))
-                        c.Item().AlignCenter().Text(pharmacy.AddressLine2).FontSize(8).FontColor(muted);
+                        c.Item().AlignCenter().Text(pharmacy.AddressLine2).FontSize(Body(theme, 8f)).FontColor(muted);
                     if (!string.IsNullOrWhiteSpace(pharmacy.Phone))
-                        c.Item().AlignCenter().Text($"Phone: {pharmacy.Phone}").FontSize(8).FontColor(muted);
+                        c.Item().AlignCenter().Text($"Phone: {pharmacy.Phone}").FontSize(Body(theme, 8f)).FontColor(muted);
 
                     // A pharmacy not registered for GST issues a plain invoice.
                     // Printing a GSTIN on one, or calling it a tax invoice,
                     // would be a false claim — same rule the desktop enforced.
                     if (sale.IsTaxInvoice && !string.IsNullOrWhiteSpace(pharmacy.Gstin))
-                        c.Item().AlignCenter().Text($"GSTIN: {pharmacy.Gstin}").FontSize(8).FontColor(muted);
+                        c.Item().AlignCenter().Text($"GSTIN: {pharmacy.Gstin}").FontSize(Body(theme, 8f)).FontColor(muted);
                 }
             });
 
@@ -119,7 +120,7 @@ public static class PharmacyInvoiceDocument
                             c.RelativeColumn(3.2f); c.RelativeColumn(1.4f); c.RelativeColumn(0.9f);
                             c.RelativeColumn(0.7f); c.RelativeColumn(0.9f); c.RelativeColumn(0.7f); c.RelativeColumn(1.1f);
                         });
-                        Header(table, "MEDICINE", "BATCH", "EXPIRY", "QTY", "MRP", "GST%", "AMOUNT");
+                        Header(theme, table, "MEDICINE", "BATCH", "EXPIRY", "QTY", "MRP", "GST%", "AMOUNT");
                     }
                     else
                     {
@@ -128,7 +129,7 @@ public static class PharmacyInvoiceDocument
                             c.RelativeColumn(3.6f); c.RelativeColumn(1.4f); c.RelativeColumn(0.9f);
                             c.RelativeColumn(0.8f); c.RelativeColumn(1.0f); c.RelativeColumn(1.2f);
                         });
-                        Header(table, "MEDICINE", "BATCH", "EXPIRY", "QTY", "MRP", "AMOUNT");
+                        Header(theme, table, "MEDICINE", "BATCH", "EXPIRY", "QTY", "MRP", "AMOUNT");
                     }
 
                     // One heading per medicine, its batches beneath it — a
@@ -147,9 +148,9 @@ public static class PharmacyInvoiceDocument
                             var qtyDesc = PackMath.Describe(quantity, unit.UnitsPerPack, unit.PackLabel);
 
                             if (sale.IsTaxInvoice)
-                                Row(table, medicine.Key, "", "", qtyDesc, "", "", total);
+                                Row(theme, table, medicine.Key, "", "", qtyDesc, "", "", total);
                             else
-                                Row(table, medicine.Key, "", "", qtyDesc, "", total);
+                                Row(theme, table, medicine.Key, "", "", qtyDesc, "", total);
                         }
 
                         foreach (var item in medicine)
@@ -159,10 +160,10 @@ public static class PharmacyInvoiceDocument
                             var name = split ? "    from batch" : item.ProductName;
 
                             if (sale.IsTaxInvoice)
-                                Row(table, name, item.BatchNo, expiry, qty,
+                                Row(theme, table, name, item.BatchNo, expiry, qty,
                                     item.Mrp.ToString("0.00"), item.GstRate.ToString("0.#"), item.LineTotal.ToString("0.00"));
                             else
-                                Row(table, name, item.BatchNo, expiry, qty,
+                                Row(theme, table, name, item.BatchNo, expiry, qty,
                                     item.Mrp.ToString("0.00"), item.LineTotal.ToString("0.00"));
                         }
                     }
@@ -172,7 +173,7 @@ public static class PharmacyInvoiceDocument
                 var slabs = sale.Items.GroupBy(i => i.GstRate).OrderBy(g => g.Key).ToList();
                 if (sale.IsTaxInvoice && slabs.Count > 0)
                 {
-                    col.Item().PaddingTop(6).Text("GST SUMMARY").FontSize(7.5f).SemiBold().FontColor(muted);
+                    col.Item().PaddingTop(6).Text("GST SUMMARY").FontSize(Body(theme, 7.5f)).SemiBold().FontColor(muted);
 
                     col.Item().PaddingTop(2).Table(table =>
                     {
@@ -181,7 +182,7 @@ public static class PharmacyInvoiceDocument
                             c.RelativeColumn(1.2f); c.RelativeColumn(1.4f); c.RelativeColumn(1.2f);
                             c.RelativeColumn(1.2f); c.RelativeColumn(1.2f);
                         });
-                        Header(table, "RATE", "TAXABLE", "CGST", "SGST", "TOTAL GST");
+                        Header(theme, table, "RATE", "TAXABLE", "CGST", "SGST", "TOTAL GST");
 
                         foreach (var slab in slabs)
                         {
@@ -189,7 +190,7 @@ public static class PharmacyInvoiceDocument
                             var tax = slab.Sum(i => i.GstAmount);
                             var half = Math.Round(tax / 2m, 2, MidpointRounding.AwayFromZero);
 
-                            Row(table, $"{slab.Key:0.#}%", taxable.ToString("0.00"),
+                            Row(theme, table, $"{slab.Key:0.#}%", taxable.ToString("0.00"),
                                 (tax - half).ToString("0.00"), half.ToString("0.00"), tax.ToString("0.00"));
                         }
                     });
@@ -199,56 +200,56 @@ public static class PharmacyInvoiceDocument
 
                 col.Item().PaddingTop(4).AlignRight().Column(totals =>
                 {
-                    TotalLine(totals, "Gross", sale.GrossAmount.ToString("0.00"));
-                    if (sale.DiscountAmount > 0) TotalLine(totals, "Discount", $"-{sale.DiscountAmount:0.00}");
+                    TotalLine(theme, totals, "Gross", sale.GrossAmount.ToString("0.00"));
+                    if (sale.DiscountAmount > 0) TotalLine(theme, totals, "Discount", $"-{sale.DiscountAmount:0.00}");
                     if (sale.IsTaxInvoice)
                     {
-                        TotalLine(totals, "Taxable value", sale.TaxableAmount.ToString("0.00"));
-                        TotalLine(totals, "CGST", sale.CgstAmount.ToString("0.00"));
-                        TotalLine(totals, "SGST", sale.SgstAmount.ToString("0.00"));
+                        TotalLine(theme, totals, "Taxable value", sale.TaxableAmount.ToString("0.00"));
+                        TotalLine(theme, totals, "CGST", sale.CgstAmount.ToString("0.00"));
+                        TotalLine(theme, totals, "SGST", sale.SgstAmount.ToString("0.00"));
                     }
-                    if (sale.RoundOff != 0) TotalLine(totals, "Round off", sale.RoundOff.ToString("+0.00;-0.00"));
+                    if (sale.RoundOff != 0) TotalLine(theme, totals, "Round off", sale.RoundOff.ToString("+0.00;-0.00"));
                 });
 
-                col.Item().PaddingTop(3).AlignRight().Text($"NET PAYABLE   Rs. {sale.NetAmount:0.00}").FontSize(13).Bold();
-                col.Item().AlignRight().Text($"Paid by {sale.PaymentMode}").FontSize(8).FontColor(muted);
-                col.Item().PaddingTop(3).AlignRight().Text(AmountInWords.Convert(sale.NetAmount)).FontSize(8).FontColor(muted);
+                col.Item().PaddingTop(3).AlignRight().Text($"NET PAYABLE   Rs. {sale.NetAmount:0.00}").FontSize(Body(theme, 13f)).Bold();
+                col.Item().AlignRight().Text($"Paid by {sale.PaymentMode}").FontSize(Body(theme, 8f)).FontColor(muted);
+                col.Item().PaddingTop(3).AlignRight().Text(AmountInWords.Convert(sale.NetAmount)).FontSize(Body(theme, 8f)).FontColor(muted);
 
                 col.Item().PaddingTop(4).LineHorizontal(0.75f).LineColor(muted);
 
                 if (!string.IsNullOrWhiteSpace(pharmacy.PharmacistName))
-                    col.Item().PaddingTop(2).Text($"Pharmacist: {pharmacy.PharmacistName}").FontSize(8).FontColor(muted);
+                    col.Item().PaddingTop(2).Text($"Pharmacist: {pharmacy.PharmacistName}").FontSize(Body(theme, 8f)).FontColor(muted);
 
                 if (sale.Items.Count > 0)
                     col.Item().Text($"HSN: {string.Join(", ", sale.Items.Select(i => i.HsnCode).Distinct())}")
-                        .FontSize(7.5f).FontColor(muted);
+                        .FontSize(Body(theme, 7.5f)).FontColor(muted);
 
                 // The pharmacy's own footer, set on the Pharmacy settings
                 // tab, takes over from the shared document theme footer
                 // once it is typed.
                 var footer = string.IsNullOrWhiteSpace(pharmacy.FooterText) ? theme.Footer : pharmacy.FooterText;
                 if (!string.IsNullOrWhiteSpace(footer))
-                    col.Item().PaddingTop(6).AlignCenter().Text(footer).FontSize(7.5f).FontColor(muted);
+                    col.Item().PaddingTop(6).AlignCenter().Text(footer).FontSize(Body(theme, 7.5f)).FontColor(muted);
             });
         });
     }
 
-    private static void Header(TableDescriptor table, params string[] cells)
+    private static void Header(DocumentTheme theme, TableDescriptor table, params string[] cells)
     {
         foreach (var cell in cells)
-            table.Cell().BorderBottom(1).PaddingBottom(2).Text(cell).FontSize(7.5f).Bold();
+            table.Cell().BorderBottom(1).PaddingBottom(2).Text(cell).FontSize(Body(theme, 7.5f)).Bold();
     }
 
-    private static void Row(TableDescriptor table, params string[] cells)
+    private static void Row(DocumentTheme theme, TableDescriptor table, params string[] cells)
     {
         foreach (var cell in cells)
-            table.Cell().PaddingVertical(1.5f).Text(cell).FontSize(8.5f);
+            table.Cell().PaddingVertical(1.5f).Text(cell).FontSize(Body(theme, 8.5f));
     }
 
-    private static void TotalLine(ColumnDescriptor column, string label, string value)
+    private static void TotalLine(DocumentTheme theme, ColumnDescriptor column, string label, string value)
         => column.Item().Row(row =>
         {
-            row.RelativeItem().AlignRight().Text(label).FontSize(9);
-            row.ConstantItem(70).AlignRight().Text(value).FontSize(9);
+            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, 9f));
+            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, 9f));
         });
 }
