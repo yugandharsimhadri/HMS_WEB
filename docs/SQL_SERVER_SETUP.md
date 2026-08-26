@@ -138,6 +138,12 @@ dotnet ef migrations script --idempotent --project backend/src/SivayaanHMS.Data 
 `--idempotent` guards every step against `__EFMigrationsHistory`, so the file
 is safe to run repeatedly.
 
+> Run it as `sqlcmd -I -b -i db/migrate.sql`. `-I` sets `QUOTED_IDENTIFIER
+> ON`, without which the filtered index on `Products` cannot be created;
+> `-b` makes sqlcmd stop on the first error instead of continuing and
+> exiting zero. The bundle above needs neither — it sets its own options.
+> See `docs/FIRST_DEPLOYMENT.md`.
+
 ### The two CI guards that keep this honest
 
 Both are cheap and catch different mistakes.

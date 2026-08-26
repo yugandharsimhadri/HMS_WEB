@@ -159,9 +159,18 @@ public class AppDbContext : DbContext
             // the name being used again. Scoped to tenant like every other
             // uniqueness constraint below — two clinics can each have their own
             // "Paracetamol 500mg".
+            //
+            // Bracket-quoted, not "IsDeleted" in double quotes. That form is
+            // left over from SQLite and only works on SQL Server while
+            // QUOTED_IDENTIFIER is ON, which SqlClient sets and sqlcmd does
+            // not. So `dotnet ef database update` built the index and a
+            // deployment that ran the generated script through sqlcmd did
+            // not — it failed the one statement, carried on, and wrote the
+            // migration down as applied. The result was a database that
+            // looked migrated but had lost this uniqueness guarantee.
             e.HasIndex(x => new { x.TenantId, x.SearchKey })
              .IsUnique()
-             .HasFilter("\"IsDeleted\" = 0");
+             .HasFilter("[IsDeleted] = 0");
 
             e.Ignore(x => x.StockOnHand);
             e.Ignore(x => x.PackDescription);

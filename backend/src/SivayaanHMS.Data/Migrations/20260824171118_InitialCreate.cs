@@ -1956,7 +1956,7 @@ namespace SivayaanHMS.Data.Migrations
                 table: "Products",
                 columns: new[] { "TenantId", "SearchKey" },
                 unique: true,
-                filter: "\"IsDeleted\" = 0");
+                filter: "[IsDeleted] = 0");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ReminderLogs_DueOn",

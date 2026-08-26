@@ -1,4 +1,23 @@
+/**
+ * Where the backend lives. Supplied at *build* time, not run time — Vite
+ * substitutes it into the bundle — so a hosted build takes it from the build
+ * environment (on Cloudflare Pages, a Pages environment variable), not from a
+ * file on the server.
+ *
+ * Thrown rather than defaulted. There is no sensible default: guessing the
+ * current origin would be wrong for every split deployment, and leaving it
+ * undefined sends every request to `undefined/api/...`, which fails as a
+ * confusing network error on each screen instead of once, loudly, at the
+ * moment the mistake was actually made.
+ */
 export const API_URL = import.meta.env.VITE_API_URL as string;
+
+if (!API_URL) {
+  throw new Error(
+    'VITE_API_URL was not set when this build was made. Set it to the backend origin ' +
+      '(for example https://api.your-clinic.example) and rebuild.',
+  );
+}
 const TOKEN_KEY = 'sivayaanhms.token';
 
 export function getToken(): string | null {

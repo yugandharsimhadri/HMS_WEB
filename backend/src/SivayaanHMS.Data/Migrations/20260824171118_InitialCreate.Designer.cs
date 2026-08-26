@@ -2202,7 +2202,7 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("TenantId", "SearchKey")
                         .IsUnique()
-                        .HasFilter("\"IsDeleted\" = 0");
+                        .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("Products");
                 });
