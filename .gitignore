@@ -22,6 +22,10 @@ frontend/dist-ssr/
 # to git history stays there whatever gets deleted afterwards.
 appsettings.Local.json
 
+# The server's own copy, written on the machine and never in the repo. The
+# .template beside it is committed; this filled-in version is not.
+appsettings.Production.json
+
 ## IDE
 .vs/
 .vscode/

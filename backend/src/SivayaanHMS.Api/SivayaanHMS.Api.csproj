@@ -17,4 +17,23 @@
     <ProjectReference Include="..\SivayaanHMS.Printing\SivayaanHMS.Printing.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!--
+      appsettings.Local.json is a developer's own file: the SQL password and
+      the platform-support password live in it, and .gitignore keeps it out of
+      the repository.
+
+      The Web SDK's default glob is appsettings*.json, so without this it was
+      copied into `dotnet publish` output and shipped with the build - both
+      passwords, and a connection string pointing at a developer's LocalDB.
+      Because Program.cs loads it *last*, it would then have overridden
+      appsettings.Production.json on the server: production would have quietly
+      tried to reach a database that does not exist there, with the correct
+      settings sitting in a file that never won.
+
+      Still copied to the build output, so `dotnet run` picks it up as before.
+    -->
+    <Content Update="appsettings.Local.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
 </Project>

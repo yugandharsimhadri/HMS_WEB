@@ -1,0 +1,27 @@
+{
+  "//": "TEMPLATE. Copy to appsettings.Production.json IN THE PUBLISHED FOLDER ON THE SERVER, fill in the two secrets, and do not commit the result. This file ships as a template on purpose; the filled-in copy is git-ignored.",
+
+  "ConnectionStrings": {
+    "//": "SQL Express on the same machine. Server, database, no file paths - moving the .mdf to another drive does not change this line. Use the SQL login OR delete this whole block to fall back to appsettings.json's Windows authentication, which has no password to store.",
+    "Default": "Server=.\\SQLEXPRESS;Database=HMSLite;User ID=SivayaanHMS;Password=REPLACE-ME;TrustServerCertificate=True;MultipleActiveResultSets=False;Application Name=SivayaanHMS"
+  },
+
+  "Jwt": {
+    "//": "At least 32 bytes, and nothing like the development placeholder - Program.cs refuses to start outside Development if REPLACE-BEFORE-PRODUCTION is still in it. Anyone holding this can mint a token for any clinic.",
+    "Key": "REPLACE-ME-with-at-least-32-bytes-of-random-text",
+    "Issuer": "SivayaanHMS",
+    "Audience": "SivayaanHMS",
+    "ExpiryMinutes": 480
+  },
+
+  "Cors": {
+    "//": "The Cloudflare Pages origin, and any custom domain. Not a wildcard: a bearer-token API allowing any origin would let any page on the internet read a signed-in clinic's data through a visitor's browser. Preview branches get their own hostnames and are not covered unless listed.",
+    "AllowedOrigins": ["https://your-app.pages.dev"]
+  },
+
+  "PlatformAdmin": {
+    "//": "Optional. Omit the block entirely and EnterpriseAdmin simply cannot sign in, which is the right failure for a credential nobody set.",
+    "Username": "EnterpriseAdmin",
+    "Password": "REPLACE-ME"
+  }
+}
