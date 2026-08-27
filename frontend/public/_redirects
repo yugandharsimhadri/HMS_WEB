@@ -1,0 +1,15 @@
+# Cloudflare Pages SPA fallback.
+#
+# The app routes with BrowserRouter, so /patients and /settings are paths the
+# browser really asks the server for — on a refresh, on a bookmark, and on
+# every link somebody pastes into WhatsApp. Pages looks for a file at that
+# path, finds none, and serves its 404.
+#
+# 200, not 302: the URL in the address bar has to survive, because the router
+# reads it to decide what to render. A redirect would send every deep link to
+# the dashboard.
+#
+# /api/* is deliberately absent. The API is a separate origin reached over the
+# tunnel, and a rule here would silently swallow a mis-built VITE_API_URL that
+# should fail loudly instead.
+/*    /index.html   200

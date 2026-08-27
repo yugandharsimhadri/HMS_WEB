@@ -1,0 +1,32 @@
+# Cloudflare Tunnel — publishes the API at https://hoapi.sivayaantechnologies.com
+#
+# Copy to C:\Windows\System32\config\systemprofile\.cloudflared\config.yml
+# (that is where the Windows service looks, NOT %USERPROFILE%), fill in the
+# tunnel id, then install the service. docs/DEPLOY_CLOUDFLARE.md has the
+# full sequence.
+#
+# The credentials file this points at is a secret and must not be committed.
+
+tunnel: REPLACE-WITH-TUNNEL-ID
+credentials-file: C:\Windows\System32\config\systemprofile\.cloudflared\REPLACE-WITH-TUNNEL-ID.json
+
+# Cloudflare terminates TLS at its edge and hands the request to this machine
+# over the tunnel. The hop from cloudflared to Kestrel is plain HTTP on
+# loopback, which never leaves the machine — so the API needs no certificate
+# of its own, and should not listen on anything but localhost.
+ingress:
+  - hostname: hoapi.sivayaantechnologies.com
+    service: http://localhost:6051
+    originRequest:
+      # A slow report or an Excel export must not be cut off mid-response.
+      # cloudflared's default read timeout is 30s; Cloudflare's own edge
+      # timeout (100s on the free plan) still applies above this.
+      connectTimeout: 30s
+      # Kestrel is listening as http on loopback, so no origin TLS settings
+      # are needed here. If the API is ever moved behind IIS with a real
+      # certificate, this becomes https:// and noTLSVerify stays absent.
+      httpHostHeader: hoapi.sivayaantechnologies.com
+
+  # Required last rule: anything not matched above gets a clean 404 rather
+  # than reaching the API. Without it cloudflared refuses to start.
+  - service: http_status:404

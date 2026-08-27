@@ -1,5 +1,7 @@
+using System.Net;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SivayaanHMS.Api.Auth;
@@ -202,6 +204,25 @@ if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
+
+// Behind a tunnel or reverse proxy the request reaches Kestrel as plain HTTP
+// from the loopback address, and the browser's original scheme survives only
+// in X-Forwarded-Proto. Without this the app believes every request arrived
+// over http://, which matters in two ways: UseHttpsRedirection below starts
+// issuing redirects the moment an HTTPS port is configured, and a redirected
+// CORS preflight reaches the browser as an opaque "CORS error" rather than
+// anything that names the redirect — an afternoon lost to the wrong problem.
+//
+// Only the loopback proxies are trusted, and the proxy runs on this machine.
+// Trusting these headers from anywhere else would let a caller claim any
+// scheme and any client IP simply by setting them.
+var forwarded = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor,
+};
+forwarded.KnownProxies.Add(IPAddress.Loopback);
+forwarded.KnownProxies.Add(IPAddress.IPv6Loopback);
+app.UseForwardedHeaders(forwarded);
 
 app.UseHttpsRedirection();
 
