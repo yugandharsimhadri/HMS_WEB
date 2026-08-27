@@ -37,14 +37,23 @@ real server, where encryption **should** be on.
 
 ---
 
-## 2 · The one manual step
+## 2 · The one manual step — done, but read the note
 
-**Everything below is already done except this.** It needs Windows
-administrator rights, which the setup could not take.
+> **Since checked:** `SQLEXPRESS` has restarted at some point and mixed mode
+> is live — `SERVERPROPERTY('IsIntegratedSecurityOnly')` returns `0`. The
+> restart below is no longer needed.
+>
+> What is *not* done: the `SivayaanHMS` login does not exist on `SQLEXPRESS`,
+> and neither does `HMSLite`. The instance is empty. The application has been
+> running against `(localdb)\MSSQLLocalDB` instead — see
+> `docs/STORAGE_PATHS.md` §3. Creating the login is part of the first
+> deployment (`docs/FIRST_DEPLOYMENT.md`), not of this step.
 
-The instance is currently **Windows-authentication only**, so the
-`SivayaanHMS` SQL login exists but cannot yet sign in. The registry value has
-already been set to enable mixed mode; it takes effect on restart.
+The original instruction, kept for a machine that has not had it done:
+
+The instance starts **Windows-authentication only**, so a SQL login cannot
+sign in until mixed mode is enabled. The registry value turns it on; it takes
+effect on restart.
 
 Run this **as Administrator**:
 
