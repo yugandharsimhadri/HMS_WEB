@@ -49,8 +49,12 @@ starts Vite, seeds a clinic, and runs all eight workflows headless.
    same call the sign-up form makes — signs in as its admin, turns on Diagnostics and Pediatrics
    from Settings > Features (both off by default), adds two patients and books one visit.
 4. Starts Vite on its own dedicated port with `VITE_API_URL` pointed at the throwaway API.
-5. Runs the eight `[Fact]`s in `SivayaanHMS.UatTests`, each opening its own headless Chromium
-   session, signing in through the real login form, and running one workflow.
+5. Runs the fourteen `[Fact]`s in `SivayaanHMS.UatTests`, each opening its own headless Chromium
+   session, signing in through the real login form, and running one workflow. Eight are the
+   product's own business journeys; six are negative paths — a taken clinic code refused by name,
+   every module switched off at once refused with the reason, an expired session bounced to sign-in
+   with the stale token actually cleared, a stale link answered with a real page instead of a blank
+   one, a patient search that matches nobody, and an existing patient's own record edited in place.
 
 ## Why a publish, not `dotnet run`
 
@@ -130,6 +134,10 @@ all and would simply be pointed at the wrong thing.
    reach for `c.Dialog` the moment a step needs to find a control inside an open dialog: the page
    behind a dialog is never unmounted, only visually covered, and several screens keep a `<select>`
    of their own in the header that a plain role-based lookup can bind to instead.
+   `GetByPlaceholder`/`GetByLabel` matching is a case-insensitive **substring** by default, which
+   bit three of the negative workflows during development: "twinkle" matched "**Twinkle** Children's
+   Hospital" too, and "Phone" matched "Name or **phone** number" too. Pass `Exact = true` whenever
+   one placeholder or label could plausibly be a substring of another on the same screen.
 3. Register it in `WorkflowCatalog.All`.
 4. Add a `[Fact]` in `SivayaanHMS.UatTests` calling `RunWorkflowAsync("YourKey")`.
 
