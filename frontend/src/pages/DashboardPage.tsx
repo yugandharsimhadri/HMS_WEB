@@ -12,9 +12,9 @@ const money = (n: number) => `₹${n.toFixed(2)}`;
 const delta = (percent: number) => `${percent >= 0 ? '▲' : '▼'} ${Math.abs(Math.round(percent))}%`;
 
 const CATEGORY_COLORS = {
-  opd: 'var(--accent, #0f766e)',
-  pharmacy: 'var(--accent-2, #b45309)',
-  diagnostics: 'var(--accent-3, #6d28d9)',
+  opd: 'var(--c-chart-1)',
+  pharmacy: 'var(--c-chart-2)',
+  diagnostics: 'var(--c-chart-3)',
 } as const;
 
 /**
@@ -53,7 +53,6 @@ export function DashboardPage() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  useHotkey('f9', 'Refresh the figures', 'Dashboard', () => { if (!busy) void load(); });
 
   const load = useCallback(async () => {
     setBusy(true);
@@ -149,6 +148,10 @@ export function DashboardPage() {
       diagnostics: { line: line(series.diagnostics), end: endPoint(series.diagnostics) },
     };
   }, [data]);
+
+  // Above the early returns: a hook must run on every render, and this screen
+  // returns early while it is loading and again on failure.
+  useHotkey('f9', 'Refresh the figures', 'Dashboard', () => { if (!busy) void load(); });
 
   if (error) return <div className="page"><p className="auth-error">{error}</p></div>;
   if (!data) return <div className="page"><p className="hint">Loading…</p></div>;

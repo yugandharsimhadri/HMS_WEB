@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { DispensingUnit, DrugSchedule, Product } from '../api/types';
 import { DISPENSING_UNITS, unitsFromPacking, unitWordFor } from './packing';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   existing: Product | null;
@@ -186,9 +187,11 @@ export function MedicineEditorDialog({ existing, basedOn, onClose, onSaved }: Pr
     return found.find((p) => p.name === saved)?.id ?? null;
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Medicine">
-      <div className="overlay-card wide">
+      <div className="overlay-card wide" ref={cardRef}>
         <div className="overlay-head">
           <h2>
             {existing ? `Medicine — ${existing.name}`

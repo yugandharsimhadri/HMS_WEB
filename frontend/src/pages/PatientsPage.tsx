@@ -1,7 +1,8 @@
+import { useGeneralSettings } from '../settings/SettingsContext';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, openPdf } from '../api/client';
 import type {
-  DiagnosticBill, GeneralSettings, GrowthMeasurement, Patient, Sale,
+  DiagnosticBill, GrowthMeasurement, Patient, Sale,
   VaccinationRecord, Visit,
 } from '../api/types';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
@@ -29,7 +30,7 @@ export function PatientsPage() {
   const [diagnosticBills, setDiagnosticBills] = useState<DiagnosticBill[]>([]);
   const [vaccinations, setVaccinations] = useState<VaccinationRecord[]>([]);
   const [growth, setGrowth] = useState<GrowthMeasurement[]>([]);
-  const [general, setGeneral] = useState<GeneralSettings | null>(null);
+  const general = useGeneralSettings();
 
   const [editing, setEditing] = useState<Patient | null | undefined>(undefined);
   const [status, setStatus] = useState('');
@@ -56,19 +57,16 @@ export function PatientsPage() {
 
   useEffect(() => { void find(''); }, [find]);
 
-  // Which histories are worth showing at all. A clinic that has never turned
-  // Pediatrics on should not see two permanently empty tables.
-  useEffect(() => {
-    void api.get<GeneralSettings>('/api/settings/general').then(setGeneral).catch(() => {});
-  }, []);
-
   useEffect(() => {
     if (!selected) {
       setHistory([]); setBills([]); setDiagnosticBills([]); setVaccinations([]); setGrowth([]);
       return;
     }
     const id = selected.id;
-    void api.get<Visit[]>(`/api/visits/by-patient/${id}`).then(setHistory).catch(() => {});
+    void api.get<Visit[]>(`/api/visits/by-patient/${id}`).then(setHistory).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
     void api.get<Sale[]>(`/api/pharmacy/sales/by-patient/${id}`).then(setBills).catch(() => setBills([]));
     void api.get<DiagnosticBill[]>(`/api/diagnostics/bills/by-patient/${id}`)
       .then(setDiagnosticBills).catch(() => setDiagnosticBills([]));

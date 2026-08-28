@@ -1,3 +1,4 @@
+import { useGeneralSettings } from '../settings/SettingsContext';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError, openPdf } from '../api/client';
 import type {
@@ -5,7 +6,6 @@ import type {
   AppointmentModuleContext,
   CheckInResult,
   Doctor,
-  GeneralSettings,
   Patient,
   ReminderItem,
 } from '../api/types';
@@ -13,6 +13,7 @@ import { PatientPicker } from '../shell/PatientPicker';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
+import { usePatientSearch } from '../shell/usePatientSearch';
 
 /** Today as a naive local date, deliberately NOT `toISOString().slice(0,10)`
  * — that converts to UTC first, so anywhere east of Greenwich the date
@@ -55,7 +56,7 @@ export function AppointmentsPage() {
   const [tab, setTab] = useState<Tab>('today');
 
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [general, setGeneral] = useState<GeneralSettings | null>(null);
+  const general = useGeneralSettings();
 
   // ── Today's appointments ───────────────────────────────────────────────
   const [date, setDate] = useState(today);
@@ -73,8 +74,6 @@ export function AppointmentsPage() {
   const [dailyError, setDailyError] = useState<string | null>(null);
 
   // ── Book ───────────────────────────────────────────────────────────────
-  const [search, setSearch] = useState('');
-  const [matches, setMatches] = useState<Patient[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [addingPatient, setAddingPatient] = useState(false);
   const [doctorId, setDoctorId] = useState('');
@@ -121,8 +120,10 @@ export function AppointmentsPage() {
         // load, so holding the old object silently blanks the picker.
         setDoctorId((current) => (d.some((x) => x.id === current) ? current : (d[0]?.id ?? '')));
       })
-      .catch(() => {});
-    void api.get<GeneralSettings>('/api/settings/general').then(setGeneral).catch(() => {});
+      .catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, []);
 
   useEffect(() => {
@@ -215,34 +216,14 @@ export function AppointmentsPage() {
 
   // ── Booking ────────────────────────────────────────────────────────────
 
-  const findPatients = useCallback(async (term: string) => {
-    if (!term.trim()) {
-      setMatches([]);
-      return;
-    }
-    try {
-      const found = await api.get<Patient[]>(`/api/patients?term=${encodeURIComponent(term.trim())}&take=20`);
-      setMatches(found);
-      // One match is the overwhelmingly common case; making the desk click it
-      // is a keystroke that never carries information.
-      if (found.length === 1) {
-        setPatient(found[0]);
-        setSearch('');
-        setMatches([]);
-      }
-    } catch {
-      setMatches([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handle = setTimeout(() => void findPatients(search), 250);
-    return () => clearTimeout(handle);
-  }, [search, findPatients]);
+  // One hook for the debounce, the fetch, the cancel and the single-match
+  // rule - see usePatientSearch for why this stopped being written per page.
+  const { search, setSearch, matches, reset: resetSearch } = usePatientSearch({
+    onSingleMatch: setPatient,
+  });
 
   const resetBooking = () => {
-    setSearch('');
-    setMatches([]);
+    resetSearch();
     setPatient(null);
     setReason('');
     setNotes('');
@@ -262,9 +243,6 @@ export function AppointmentsPage() {
   // F2 clears the form for the next booking, F4 books, F8 books and prints
   // the slip -- the same three meanings as every other screen.
   const G = 'Appointments';
-  useHotkey('f2', 'Start a new booking', G, () => resetBooking());
-  useHotkey('f4', 'Book the appointment', G, () => { if (!busy) void book(false); });
-  useHotkey('f8', 'Book and print the slip', G, () => { if (!busy) void book(true); });
 
   const book = async (print: boolean) => {
     setBookingError(null);
@@ -335,6 +313,12 @@ export function AppointmentsPage() {
 
   // Always the row as it stands in the list right now.
   const selected = list.find((a) => a.id === selectedId) ?? null;
+
+  // Registered after the actions they call, so no binding refers to a
+  // function declared further down the file.
+  useHotkey('f2', 'Start a new booking', G, () => resetBooking());
+  useHotkey('f4', 'Book the appointment', G, () => { if (!busy) void book(false); });
+  useHotkey('f8', 'Book and print the slip', G, () => { if (!busy) void book(true); });
 
   return (
     <div className="page">
@@ -466,7 +450,7 @@ export function AppointmentsPage() {
               <div className="counter-selected">
                 <strong>{patient.name}</strong>
                 <span className="hint"> · {patient.age}{patient.gender.charAt(0)}{patient.phone && ` · ${patient.phone}`}</span>
-                <button type="button" className="ghost" onClick={() => { setPatient(null); setSearch(''); setMatches([]); }}>
+                <button type="button" className="ghost" onClick={() => { setPatient(null); resetSearch(); }}>
                   Change patient
                 </button>
               </div>
@@ -476,7 +460,7 @@ export function AppointmentsPage() {
                 search={search}
                 onSearchChange={setSearch}
                 matches={matches}
-                onPick={(p) => { setPatient(p); setSearch(''); setMatches([]); }}
+                onPick={(p) => { setPatient(p); resetSearch(); }}
                 onNewPatient={() => setAddingPatient(true)}
                 label={(p) => (
                   <>
@@ -609,8 +593,7 @@ export function AppointmentsPage() {
           onSaved={(_message, saved) => {
             if (saved) setPatient(saved);
             setAddingPatient(false);
-            setSearch('');
-            setMatches([]);
+            resetSearch();
           }}
         />
       )}

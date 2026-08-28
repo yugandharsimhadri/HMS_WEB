@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Doctor, Gender, Patient, Visit } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 /** Digits and phone punctuation only, and enough of them to be a number —
  * the desktop's OpdService.LooksLikePhone, which decides whether a search
@@ -158,9 +159,11 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
     setError(null);
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Book a visit">
-      <div className="overlay-card wide">
+      <div className="overlay-card wide" ref={cardRef}>
         <div className="overlay-head">
           <h2>Book a visit — {new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
             weekday: 'short', day: '2-digit', month: 'short',

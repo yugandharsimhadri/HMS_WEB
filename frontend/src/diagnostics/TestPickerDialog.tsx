@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { DiagnosticTest } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   patientName: string;
@@ -48,9 +49,11 @@ export function TestPickerDialog({
 
   const visible = tests.filter((t) => !billedTestIds.includes(t.id));
 
+  const cardRef = useModalBehaviour(onDone);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Add tests">
-      <div className="overlay-card wide">
+      <div className="overlay-card wide" ref={cardRef}>
         <div className="overlay-head">
           <h2>Add tests{patientName && ` — ${patientName}`}</h2>
           <button type="button" onClick={onDone}>Close</button>

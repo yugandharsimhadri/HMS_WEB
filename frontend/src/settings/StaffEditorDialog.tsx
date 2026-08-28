@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { ClinicUser, TemporaryPasswordResponse, UserRole } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   existing: ClinicUser | null;
@@ -59,9 +60,11 @@ export function StaffEditorDialog({ existing, clinicCode, onClose, onSaved }: Pr
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Staff login">
-      <div className="overlay-card">
+      <div className="overlay-card" ref={cardRef}>
         <div className="overlay-head">
           <h2>{existing ? existing.username : 'Add someone'}</h2>
           <button type="button" onClick={onClose}>Close</button>

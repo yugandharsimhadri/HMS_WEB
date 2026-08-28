@@ -38,6 +38,41 @@ export class ApiError extends Error {
   }
 }
 
+const SESSION_KEY = 'sivayaanhms.session';
+
+/**
+ * What to do when the server says the token is no longer good.
+ *
+ * The token lasts eight hours, so this fires reliably once a shift. Before
+ * this existed the browser kept believing it was signed in — the session
+ * object was still in local storage, so the route guards still rendered the
+ * shell — while every request behind it failed. Screens that report errors
+ * showed one each; the screens that swallow a failed load showed stale or
+ * empty data and said nothing. To the person at the desk that reads as the
+ * system having lost their patients.
+ *
+ * Handled here rather than in each caller because every call already funnels
+ * through `request`, and an expired session is not a per-screen concern.
+ *
+ * A hard navigation, not a router push: this module cannot reach the router,
+ * and a full reload is the honest thing to do anyway — it clears every
+ * screen's in-memory state, none of which is valid without a session.
+ */
+function onSessionExpired(): void {
+  try {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    // Storage refusing to co-operate must not stop the redirect.
+  }
+
+  // Guard against a redirect loop: the login screen's own calls failing with
+  // 401 would otherwise navigate to the login screen forever.
+  if (!window.location.pathname.startsWith('/login')) {
+    window.location.href = '/login?expired=1';
+  }
+}
+
 /** One fetch wrapper for every call: attaches the bearer token when present,
  * and turns a non-2xx response into a thrown ApiError with whatever message
  * the API sent (ASP.NET Core's ProblemDetails "title", a plain string body,
@@ -60,6 +95,14 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     } catch {
       if (text) message = text;
     }
+
+    // A 401 on the sign-in call itself is "wrong password", which the login
+    // screen must be allowed to show. Anywhere else it means the token has
+    // expired or been revoked.
+    if (response.status === 401 && !path.startsWith('/api/auth/login')) {
+      onSessionExpired();
+    }
+
     throw new ApiError(message, response.status);
   }
 
@@ -85,6 +128,7 @@ export async function openPdf(path: string): Promise<void> {
 
   if (!response.ok) {
     const text = await response.text();
+    if (response.status === 401) onSessionExpired();
     throw new ApiError(text || response.statusText, response.status);
   }
 
@@ -100,7 +144,10 @@ export async function openPdf(path: string): Promise<void> {
 }
 
 export const api = {
-  get: <T>(path: string) => request<T>(path),
+  /** The optional signal lets a caller abandon a request it no longer wants —
+   *  a search whose term has already moved on. An aborted fetch rejects with
+   *  an AbortError, which callers ignore rather than report. */
+  get: <T>(path: string, signal?: AbortSignal) => request<T>(path, { signal }),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'POST', body: body === undefined ? undefined : JSON.stringify(body) }),
   put: <T>(path: string, body?: unknown) =>
@@ -126,6 +173,7 @@ export async function downloadFile(path: string, fallbackName: string): Promise<
 
   if (!response.ok) {
     const text = await response.text();
+    if (response.status === 401) onSessionExpired();
     throw new ApiError(text || response.statusText, response.status);
   }
 

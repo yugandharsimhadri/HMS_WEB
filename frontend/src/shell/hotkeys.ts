@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useSyncExternalStore } from 'react';
 
 /**
@@ -163,8 +163,24 @@ function attach() {
 /**
  * Bind one shortcut for as long as the component is mounted.
  *
- * `deps` works like useEffect's: pass anything the handler closes over, or
- * the binding keeps calling the first render's copy.
+ * The handler and the `when` guard are held in refs and read at key-press
+ * time, so this registers once per mount rather than once per render.
+ *
+ * They used to sit in the dependency array. Every call site passes an inline
+ * arrow, which is a new function on every render, so the effect re-ran on
+ * every render: a Map write, a `seq` increment and an `announce()` per
+ * shortcut per keystroke. `announce()` wakes every `useShortcutList`
+ * subscriber, and `ShortcutHints` — mounted at the foot of most screens —
+ * is one. On the pharmacy counter, with nine shortcuts on the page plus the
+ * shell's five and the picker's four, a single character typed into the
+ * medicine box re-registered eighteen bindings and re-rendered the hint strip
+ * eighteen times. Invisible on a developer's laptop; not on the machine a
+ * clinic buys.
+ *
+ * Refs are the right tool precisely because a keystroke is not a render: the
+ * handler only has to be current when a key is actually pressed, and a ref is
+ * always current by then. The old doc comment described a `deps` parameter
+ * this function has never had.
  */
 export function useHotkey(
   combo: string,
@@ -175,11 +191,29 @@ export function useHotkey(
 ) {
   const { whileTyping = false, enabled = true, when } = opts;
 
+  const handlerRef = useRef(handler);
+  const whenRef = useRef(when);
+
+  // useLayoutEffect, not render and not useEffect: assigning during render is
+  // a side effect React is entitled to discard, and a plain effect runs after
+  // paint, which would leave a stale handler for a key pressed in that gap.
+  // Layout effects flush before the browser paints, so the ref is current by
+  // the time anyone can press anything.
+  useLayoutEffect(() => {
+    handlerRef.current = handler;
+    whenRef.current = when;
+  });
+
   useEffect(() => {
     if (!enabled) return;
     attach();
 
     const key = combo.toLowerCase();
+
+    // Stable wrappers: the registry holds these for the lifetime of the
+    // binding, and they read whatever the refs currently point at.
+    const stableHandler = (e: KeyboardEvent) => handlerRef.current(e);
+    const stableWhen = () => (whenRef.current ? whenRef.current() : true);
 
     // Re-stamped on every registration, not just the first. Keeping the
     // first number a combo ever got meant the sheet ordered by whichever
@@ -189,18 +223,18 @@ export function useHotkey(
     // ones that work anywhere.
     order.set(key, seq++);
 
-    registry.set(key, { combo: key, label, group, handler, whileTyping, when });
+    registry.set(key, { combo: key, label, group, handler: stableHandler, whileTyping, when: stableWhen });
     dirty = true;
     announce();
 
     return () => {
       // Only clear it if we are still the owner. Two screens binding F2 in
       // sequence during a route change must not leave the key dead.
-      if (registry.get(key)?.handler === handler) {
+      if (registry.get(key)?.handler === stableHandler) {
         registry.delete(key);
         dirty = true;
         announce();
       }
     };
-  }, [combo, label, group, handler, whileTyping, enabled, when]);
+  }, [combo, label, group, whileTyping, enabled]);
 }

@@ -1,8 +1,7 @@
+import { useGeneralSettings } from '../settings/SettingsContext';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
-import { api } from '../api/client';
-import type { GeneralSettings } from '../api/types';
 import { CommandPalette, type Destination, type PaletteAction } from '../shell/CommandPalette';
 import { ShortcutSheet } from '../shell/ShortcutSheet';
 import { ANYWHERE, describeCombo, useHotkey } from '../shell/hotkeys';
@@ -32,7 +31,10 @@ function applyDensity(density: Density) {
 export function AppShell() {
   const { session, logout } = useAuth();
   const navigate = useNavigate();
-  const [general, setGeneral] = useState<GeneralSettings | null>(null);
+  // From the shared provider, which also owns re-reading it when Features
+  // is saved — the rail, the palette and the shortcut sheet all read this
+  // one value, so they cannot disagree about which modules exist.
+  const general = useGeneralSettings();
 
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -45,21 +47,6 @@ export function AppShell() {
   const [theme, setTheme] = useState<Theme | null>(
     () => localStorage.getItem(THEME_KEY) as Theme | null,
   );
-
-  useEffect(() => {
-    // Mirrors the desktop: a module switched off under Settings -> Features
-    // disappears from the nav entirely, not just greyed out.
-    const read = () =>
-      void api.get<GeneralSettings>('/api/settings/general').then(setGeneral).catch(() => {});
-
-    read();
-
-    // Re-read when Features is saved. Reading only on mount meant the nav
-    // kept the module set the shell started with, so turning a module on
-    // appeared to do nothing at all until the next full page load.
-    window.addEventListener('sivayaanhms:general-settings-changed', read);
-    return () => window.removeEventListener('sivayaanhms:general-settings-changed', read);
-  }, []);
 
   // The clinic's stored theme is the starting point; a local toggle overrides
   // it. `GeneralSettings.Theme` was carried across in the port and then read

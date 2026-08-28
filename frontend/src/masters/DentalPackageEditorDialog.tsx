@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { DentalPackageItem, DentalPackageMaster, Procedure } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   existing: DentalPackageMaster | null;
@@ -38,7 +39,10 @@ export function DentalPackageEditorDialog({ existing, onClose, onSaved }: Props)
 
   useEffect(() => {
     void api.get<Procedure[]>('/api/pediatrics/procedures?department=Dentist&activeOnly=true')
-      .then(setProcedures).catch(() => {});
+      .then(setProcedures).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, []);
 
   // Loaded only when editing — the list screen carries the price, not the
@@ -51,7 +55,10 @@ export function DentalPackageEditorDialog({ existing, onClose, onSaved }: Props)
         procedureName: r.procedureName,
         quantity: r.quantity,
       }))))
-      .catch(() => {});
+      .catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, [existing]);
 
   const listPrice = useMemo(
@@ -125,9 +132,11 @@ export function DentalPackageEditorDialog({ existing, onClose, onSaved }: Props)
 
   const price = Number(packagePrice) || 0;
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Dental package">
-      <div className="overlay-card wide">
+      <div className="overlay-card wide" ref={cardRef}>
         <div className="overlay-head">
           <h2>{existing ? existing.name : 'New package'}</h2>
           <button type="button" onClick={onClose}>Close</button>

@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError, openPdf } from '../api/client';
 import type { PaymentMode, Visit } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   visit: Visit;
@@ -82,9 +83,11 @@ export function CollectFeeDialog({ visit, onClose, onCollected }: Props) {
 
   const scheduled = new Date(visit.scheduledOn);
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Consultation fee">
-      <div className="overlay-card">
+      <div className="overlay-card" ref={cardRef}>
         <div className="overlay-head">
           <h2>Token {visit.tokenNo} — {visit.patient.name}</h2>
           <button type="button" className="ghost" onClick={onClose}>Close</button>

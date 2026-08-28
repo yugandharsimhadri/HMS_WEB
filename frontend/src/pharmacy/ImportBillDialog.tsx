@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { API_URL, ApiError, api, getToken } from '../api/client';
 import type { ImportPreview, ImportProfile, ImportResult } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   onClose: () => void;
@@ -79,9 +80,11 @@ export function ImportBillDialog({ onClose, onImported }: Props) {
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Import a purchase bill">
-      <div className="overlay-card wide">
+      <div className="overlay-card wide" ref={cardRef}>
         <div className="overlay-head">
           <h2>Import a purchase bill</h2>
           <button type="button" onClick={onClose}>Close</button>

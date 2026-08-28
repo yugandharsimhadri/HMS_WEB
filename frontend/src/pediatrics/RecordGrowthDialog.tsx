@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 export interface GrowthDraft {
   measuredOn: string;
@@ -48,9 +49,11 @@ export function RecordGrowthDialog({ onClose, onSave }: Props) {
     onSave(draft);
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Record growth">
-      <div className="overlay-card">
+      <div className="overlay-card" ref={cardRef}>
         <div className="overlay-head">
           <h2>Record growth measurement</h2>
           <button type="button" onClick={onClose}>Close</button>

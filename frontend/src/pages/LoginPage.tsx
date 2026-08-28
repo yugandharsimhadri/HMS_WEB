@@ -1,11 +1,18 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PLATFORM_ADMIN_ROLE, useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
 
 export function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [params] = useSearchParams();
+
+  // Set by the API client when a request comes back 401 and the session is
+  // cleared. Without it the user is dropped here mid-shift with no
+  // explanation, which reads as the application having logged them out at
+  // random rather than a token reaching its eight-hour limit.
+  const expired = params.get('expired') === '1';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +44,9 @@ export function LoginPage() {
       <form className="auth-card" onSubmit={onSubmit}>
         <h1>Sivayaan HMS</h1>
         <p className="auth-subtitle">Sign in to your clinic</p>
+        {expired && (
+          <p className="status-line">Your session ended. Please sign in again.</p>
+        )}
 
         <label>
           Username

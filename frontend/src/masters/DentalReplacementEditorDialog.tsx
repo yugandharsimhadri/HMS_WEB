@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { DentalReplacementMaster } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   existing: DentalReplacementMaster | null;
@@ -62,9 +63,11 @@ export function DentalReplacementEditorDialog({ existing, onClose, onSaved }: Pr
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Replacement">
-      <div className="overlay-card">
+      <div className="overlay-card" ref={cardRef}>
         <div className="overlay-head">
           <h2>{existing ? existing.name : 'New replacement'}</h2>
           <button type="button" onClick={onClose}>Close</button>

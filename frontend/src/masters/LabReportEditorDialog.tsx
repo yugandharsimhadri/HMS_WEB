@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { LabAnalyte, LabReport } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   existing: LabReport | null;
@@ -32,12 +33,18 @@ export function LabReportEditorDialog({ existing, onClose, onSaved }: Props) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void api.get<LabAnalyte[]>('/api/lab/analytes?activeOnly=true').then(setAllAnalytes).catch(() => {});
+    void api.get<LabAnalyte[]>('/api/lab/analytes?activeOnly=true').then(setAllAnalytes).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, []);
 
   useEffect(() => {
     if (!existing) return;
-    void api.get<LabAnalyte[]>(`/api/lab/reports/${existing.id}/analytes`).then(setChosen).catch(() => {});
+    void api.get<LabAnalyte[]>(`/api/lab/reports/${existing.id}/analytes`).then(setChosen).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, [existing]);
 
   const add = () => {
@@ -100,9 +107,11 @@ export function LabReportEditorDialog({ existing, onClose, onSaved }: Props) {
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Lab report">
-      <div className="overlay-card wide">
+      <div className="overlay-card wide" ref={cardRef}>
         <div className="overlay-head">
           <h2>{existing ? existing.name : 'New report'}</h2>
           <button type="button" onClick={onClose}>Close</button>

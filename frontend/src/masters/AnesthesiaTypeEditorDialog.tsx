@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { AnesthesiaTypeMaster } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   existing: AnesthesiaTypeMaster | null;
@@ -43,9 +44,11 @@ export function AnesthesiaTypeEditorDialog({ existing, onClose, onSaved }: Props
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Anesthesia type">
-      <div className="overlay-card">
+      <div className="overlay-card" ref={cardRef}>
         <div className="overlay-head">
           <h2>{existing ? existing.name : 'New anesthesia type'}</h2>
           <button type="button" onClick={onClose}>Close</button>

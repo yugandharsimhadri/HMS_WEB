@@ -1,13 +1,24 @@
+import { useGeneralSettings } from '../settings/SettingsContext';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api, ApiError, openPdf } from '../api/client';
-import type { CatalogueEntry, GeneralSettings, Visit } from '../api/types';
+import type { CatalogueEntry, Visit } from '../api/types';
 import { DOSE_OPTIONS, describePacks, unitsForCourse } from '../clinical/doseMath';
 import { medicineDisplayName } from '../pharmacy/packing';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
 
 interface RxLine {
+  /**
+   * Identity for React's list reconciliation, not something the server sees.
+   *
+   * The rows were keyed by array index. Every cell is read-only today, so
+   * removing one still rendered correctly — but the moment a cell becomes
+   * editable, deleting a line hands its state to the line that moves up into
+   * its place, and a dose lands against the wrong medicine. On a prescription
+   * that is not a bug worth waiting for.
+   */
+  key: string;
   productId: string | null;
   medicine: string;
   dosage: string;
@@ -37,7 +48,10 @@ export function ConsultationPage() {
   const [visit, setVisit] = useState<Visit | null>(null);
   const [products, setProducts] = useState<CatalogueEntry[]>([]);
   const [tests, setTests] = useState<DiagnosticTest[]>([]);
-  const [diagnosticsEnabled, setDiagnosticsEnabled] = useState(false);
+  // From the shared settings rather than a fetch of its own. It decides only
+  // whether the test box offers the catalogue or takes free text, and the
+  // provider already knows.
+  const diagnosticsEnabled = useGeneralSettings()?.diagnosticsEnabled ?? false;
 
   const [complaint, setComplaint] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
@@ -102,6 +116,7 @@ export function ConsultationPage() {
           v.prescription.map((p) => {
             const product = p.productId ? catalogue.find((c) => c.id === p.productId) : undefined;
             return {
+              key: crypto.randomUUID(),
               productId: p.productId,
               medicine: p.medicineName,
               dosage: p.dosage ?? '',
@@ -116,22 +131,31 @@ export function ConsultationPage() {
         );
         setRequestedTests(v.diagnosticRequests.map((r) => ({ testId: r.testId, testName: r.testName })));
 
-        const general = await api.get<GeneralSettings>('/api/settings/general');
-        setDiagnosticsEnabled(general.diagnosticsEnabled);
-        if (general.diagnosticsEnabled) {
-          try {
-            setTests(await api.get<DiagnosticTest[]>('/api/diagnostics/tests?activeOnly=true'));
-          } catch {
-            // Diagnostics endpoints aren't built yet — free-text still works,
-            // which is exactly what the desktop falls back to when the module
-            // is off.
-          }
-        }
       } catch (err) {
         setError(err instanceof ApiError ? err.message : 'Could not load the consultation.');
       }
     })();
   }, [visitId]);
+
+  // The test catalogue, in its own effect keyed on the module flag.
+  //
+  // It used to sit inside the visit load, which read the flag from a fetch of
+  // its own. Now the flag arrives from the shared settings provider — a tick
+  // or two later than the first render — so loading the catalogue in the
+  // visit effect would have run once, while the flag was still false, and
+  // never again. Keyed on the flag, it runs when the answer is actually
+  // known.
+  useEffect(() => {
+    if (!diagnosticsEnabled) return;
+    void api
+      .get<DiagnosticTest[]>('/api/diagnostics/tests?activeOnly=true')
+      .then(setTests)
+      .catch(() => {
+        // The module is on but the catalogue would not load. Free text still
+        // works, which is what the desktop falls back to as well, so this is
+        // a degraded box rather than a broken screen.
+      });
+  }, [diagnosticsEnabled]);
 
   // The form as it was last read from or written to the server — cheaper and
   // harder to get wrong than a dirty flag on every field.
@@ -246,6 +270,7 @@ export function ConsultationPage() {
     setLines((prev) => [
       ...prev,
       {
+        key: crypto.randomUUID(),
         productId: pickedMedicine?.id ?? null,
         medicine: name.trim(),
         dosage,
@@ -330,9 +355,6 @@ export function ConsultationPage() {
     medicineRef.current?.focus();
     medicineRef.current?.select();
   }, { whileTyping: true });
-  useHotkey('f4', 'Save the consultation', G, () => { if (!saving) void save(); });
-  useHotkey('f8', 'Save and print', G, () => { if (!saving) void print(); });
-  useHotkey('f9', 'Mark the visit completed', G, () => { if (!saving) void complete(); });
 
   const save = async () => {
     if (await persist(false)) setStatus('Consultation saved.');
@@ -350,6 +372,11 @@ export function ConsultationPage() {
       setStatus(err instanceof ApiError ? err.message : 'Could not open the prescription.');
     }
   };
+  // Registered after the actions they call, so no binding refers to a
+  // function declared further down the file.
+  useHotkey('f4', 'Save the consultation', G, () => { if (!saving) void save(); });
+  useHotkey('f8', 'Save and print', G, () => { if (!saving) void print(); });
+  useHotkey('f9', 'Mark the visit completed', G, () => { if (!saving) void complete(); });
 
   const close = () => {
     // Anything typed but not saved is worth one question — a half-entered
@@ -498,7 +525,7 @@ export function ConsultationPage() {
           </thead>
           <tbody>
             {lines.map((l, i) => (
-              <tr key={i}>
+              <tr key={l.key}>
                 <td>
                   {l.medicine}
                   {l.instructions && <div className="hint">{l.instructions}</div>}

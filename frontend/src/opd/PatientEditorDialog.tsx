@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Gender, Patient } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   existing: Patient | null;
@@ -105,9 +106,11 @@ export function PatientEditorDialog({ existing, onClose, onSaved }: Props) {
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Patient">
-      <div className="overlay-card wide">
+      <div className="overlay-card wide" ref={cardRef}>
         <div className="overlay-head">
           <h2>{existing ? existing.name : 'New patient'}</h2>
           <button type="button" className="ghost" onClick={onClose}>Close</button>

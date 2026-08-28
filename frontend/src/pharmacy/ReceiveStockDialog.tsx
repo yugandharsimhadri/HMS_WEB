@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Product } from '../api/types';
 import { unitWordFor } from './packing';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   product: Product;
@@ -73,9 +74,11 @@ export function ReceiveStockDialog({ product, onClose, onReceived }: Props) {
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Receive stock">
-      <div className="overlay-card wide">
+      <div className="overlay-card wide" ref={cardRef}>
         <div className="overlay-head">
           <h2>Receive stock — {product.name}</h2>
           <button type="button" className="ghost" onClick={onClose}>Close</button>

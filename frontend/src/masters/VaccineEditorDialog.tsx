@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { VaccineMaster } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   existing: VaccineMaster | null;
@@ -50,7 +51,10 @@ export function VaccineEditorDialog({ existing, onClose, onSaved }: Props) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void api.get<string[]>('/api/pediatrics/vaccines/categories').then(setCategories).catch(() => {});
+    void api.get<string[]>('/api/pediatrics/vaccines/categories').then(setCategories).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, []);
 
   const save = async (e: FormEvent) => {
@@ -99,9 +103,11 @@ export function VaccineEditorDialog({ existing, onClose, onSaved }: Props) {
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Vaccine">
-      <div className="overlay-card">
+      <div className="overlay-card" ref={cardRef}>
         <div className="overlay-head">
           <h2>{existing ? `${existing.name} · dose ${existing.doseNumber}` : 'New vaccine'}</h2>
           <button type="button" onClick={onClose}>Close</button>

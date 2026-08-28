@@ -1,7 +1,8 @@
+import { useGeneralSettings } from '../settings/SettingsContext';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import type {
-  AnesthesiaTypeMaster, DentalPackageMaster, DentalReplacementMaster, GeneralSettings,
+  AnesthesiaTypeMaster, DentalPackageMaster, DentalReplacementMaster,
   LabAnalyte, LabPackageMaster, LabReport, Procedure, ProcedureDepartment, VaccineMaster,
 } from '../api/types';
 import { VaccineEditorDialog, describeAgeDays } from '../masters/VaccineEditorDialog';
@@ -36,7 +37,7 @@ const DEPARTMENTS: ProcedureDepartment[] = ['General', 'Pediatrics', 'Dentist'];
  * a lab is not shown three tabs of lab vocabulary.
  */
 export function MastersPage() {
-  const [general, setGeneral] = useState<GeneralSettings | null>(null);
+  const general = useGeneralSettings();
   const [tab, setTab] = useState<TabId>('procedures');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -67,10 +68,6 @@ export function MastersPage() {
     searchRef.current?.focus();
     searchRef.current?.select();
   }, { whileTyping: true });
-
-  useEffect(() => {
-    void api.get<GeneralSettings>('/api/settings/general').then(setGeneral).catch(() => {});
-  }, []);
 
   const tabs = useMemo(() => {
     const list: { id: TabId; label: string; group: string }[] = [

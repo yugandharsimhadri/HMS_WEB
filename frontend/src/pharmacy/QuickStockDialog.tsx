@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Batch, Product } from '../api/types';
 import { lastReceivedMrp } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   product: Product;
@@ -67,9 +68,11 @@ export function QuickStockDialog({ product, onClose, onAdded }: Props) {
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Quick stock">
-      <div className="overlay-card">
+      <div className="overlay-card" ref={cardRef}>
         <div className="overlay-head">
           <h2>Add stock — {product.name}</h2>
           <button type="button" className="ghost" onClick={onClose}>Close</button>

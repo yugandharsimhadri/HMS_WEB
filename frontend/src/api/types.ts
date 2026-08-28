@@ -320,21 +320,6 @@ export function lastReceivedMrp(product: Product): number | null {
   return latest?.mrp ?? null;
 }
 
-export interface CartLine {
-  productId: string;
-  batchId: string;
-  productName: string;
-  batchNo: string;
-  expiryDate: string;
-  quantity: number;
-  unitsPerPack: number;
-  packLabel: string | null;
-  mrp: number;
-  discountPercent: number;
-  gstRate: number;
-  schedule: DrugSchedule;
-}
-
 export interface Sale {
   id: string;
   billNo: string;
@@ -509,7 +494,6 @@ export type ProcedureDepartment = 'Pediatrics' | 'Dentist' | 'General';
 
 /** Deliberately simpler than DiagnosticBillStatus — a procedure bill has no
  * lab workflow to move through. */
-export type ProcedureBillStatus = 'Ordered' | 'Completed';
 
 export type ImmunizationStatus = 'Given' | 'Overdue' | 'DueSoon' | 'Upcoming';
 
@@ -576,33 +560,6 @@ export interface GrowthMeasurement {
    * and height are not always both present on the same visit, so a BMI that
    * exists is a BMI that was genuinely measurable. */
   bmiValue: number | null;
-}
-
-export interface ProcedureBillItem {
-  id: string;
-  procedureId: string | null;
-  procedureName: string;
-  price: number;
-  quantity: number;
-  amount: number;
-}
-
-export interface ProcedureBill {
-  id: string;
-  billNo: string;
-  billDate: string;
-  patientId: string;
-  patientName: string;
-  patientNo: string;
-  totalAmount: number;
-  discount: number;
-  finalAmount: number;
-  paymentMode: PaymentMode;
-  transactionNo: string | null;
-  status: ProcedureBillStatus;
-  visitId: string | null;
-  referredBy: string | null;
-  items: ProcedureBillItem[];
 }
 
 export interface ProcedureBillResult {

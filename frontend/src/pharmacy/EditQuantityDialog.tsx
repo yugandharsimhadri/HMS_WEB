@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import type { SaleRow } from '../pages/PharmacyCounterPage';
 import { describePacks } from '../clinical/doseMath';
 import { lineAmounts } from '../clinical/gst';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   row: SaleRow;
@@ -33,9 +34,11 @@ export function EditQuantityDialog({ row, onClose, onConfirm }: Props) {
     if (quantity > 0) onConfirm(quantity);
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Change quantity">
-      <div className="overlay-card">
+      <div className="overlay-card" ref={cardRef}>
         <div className="overlay-head">
           <h2>{row.productName}</h2>
           <button type="button" className="ghost" onClick={onClose}>Close</button>

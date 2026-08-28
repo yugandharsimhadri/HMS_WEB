@@ -14,6 +14,7 @@ import { PatientPicker } from '../shell/PatientPicker';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
+import { usePatientSearch } from '../shell/usePatientSearch';
 
 const PAYMENT_MODES: PaymentMode[] = ['Cash', 'Upi', 'Card'];
 
@@ -52,8 +53,6 @@ const money = (n: number) => `₹${n.toFixed(2)}`;
 
 export function PathologyLabPage() {
   // ── Patient ────────────────────────────────────────────────────────────
-  const [search, setSearch] = useState('');
-  const [matches, setMatches] = useState<Patient[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [addingPatient, setAddingPatient] = useState(false);
 
@@ -88,8 +87,14 @@ export function PathologyLabPage() {
   const selectedOrder = orders.find((o) => o.id === selectedOrderId) ?? null;
 
   useEffect(() => {
-    void api.get<LabReport[]>('/api/lab/reports').then(setReports).catch(() => {});
-    void api.get<LabPackageMaster[]>('/api/lab/packages').then(setPackages).catch(() => {});
+    void api.get<LabReport[]>('/api/lab/reports').then(setReports).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
+    void api.get<LabPackageMaster[]>('/api/lab/packages').then(setPackages).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, []);
 
   const loadOrders = useCallback(async (patientId: string) => {
@@ -102,35 +107,22 @@ export function PathologyLabPage() {
 
   const selectPatient = useCallback((p: Patient) => {
     setPatient(p);
-    setSearch('');
-    setMatches([]);
     setError(null);
     setSelectedOrderId(null);
     setResultRows([]);
     void loadOrders(p.id);
   }, [loadOrders]);
 
-  const findPatients = useCallback(async (term: string) => {
-    if (!term.trim()) { setMatches([]); return; }
-    try {
-      const found = await api.get<Patient[]>(`/api/patients?term=${encodeURIComponent(term.trim())}&take=20`);
-      setMatches(found);
-      if (found.length === 1) selectPatient(found[0]);
-    } catch {
-      setMatches([]);
-    }
-  }, [selectPatient]);
-
-  useEffect(() => {
-    if (patient) return;
-    const handle = setTimeout(() => void findPatients(search), 250);
-    return () => clearTimeout(handle);
-  }, [search, findPatients, patient]);
+  // One hook for the debounce, the fetch, the cancel and the single-match
+  // rule - see usePatientSearch for why this stopped being written per page.
+  const { search, setSearch, matches, reset: resetSearch } = usePatientSearch({
+    onSingleMatch: selectPatient,
+    enabled: !patient,
+  });
 
   const changePatient = () => {
     setPatient(null);
-    setSearch('');
-    setMatches([]);
+    resetSearch();
     setOrders([]);
     setSelectedOrderId(null);
     setResultRows([]);
@@ -205,11 +197,6 @@ export function PathologyLabPage() {
    * for result entry.
    */
   const G = 'Pathology Lab';
-  useHotkey('f2', 'Start a new order', G, () => newOrderForm());
-  useHotkey('f7', 'Apply a package', G, () => { if (patient) void applyPackage(); });
-  useHotkey('f4', 'Save the order', G, () => { if (patient) void saveOrder(); });
-  useHotkey('f6', 'Mark sample collected', G, () => markCollected());
-  useHotkey('f8', 'Save the results', G, () => saveResults());
 
   const applyPackage = async () => {
     const pkg = packages.find((p) => p.id === packageToApply);
@@ -356,6 +343,14 @@ export function PathologyLabPage() {
     return [...groups.entries()];
   }, [resultRows]);
 
+  // Registered after the actions they call, so no binding refers to a
+  // function declared further down the file.
+  useHotkey('f2', 'Start a new order', G, () => newOrderForm());
+  useHotkey('f7', 'Apply a package', G, () => { if (patient) void applyPackage(); });
+  useHotkey('f4', 'Save the order', G, () => { if (patient) void saveOrder(); });
+  useHotkey('f6', 'Mark sample collected', G, () => markCollected());
+  useHotkey('f8', 'Save the results', G, () => saveResults());
+
   return (
     <div className="page">
       <div className="page-head">
@@ -378,7 +373,7 @@ export function PathologyLabPage() {
             search={search}
             onSearchChange={setSearch}
             matches={matches}
-            onPick={selectPatient}
+            onPick={(p) => { selectPatient(p); resetSearch(); }}
             onNewPatient={() => setAddingPatient(true)}
           />
         )}

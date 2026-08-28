@@ -1,3 +1,66 @@
+/* ------------------------------------------------------------ 0. typefaces */
+
+/*
+  Self-hosted, not fetched from fonts.googleapis.com.
+  ---------------------------------------------------
+  The stylesheet link in index.html was a render-blocking request to a third
+  party on every cold load: two DNS lookups and two TLS handshakes before any
+  text could be drawn, at a clinic whose *backend* is on the local network and
+  answering in milliseconds. It also meant the application did not fully work
+  without internet access, and it sent every viewer's IP address to Google —
+  which for a system holding patient records is a question worth not having.
+
+  Both families are SIL Open Font License, so hosting them here is permitted.
+
+  Only the latin and latin-ext subsets are shipped; the Cyrillic, Greek and
+  Vietnamese subsets Google serves are not reachable from anything this
+  application renders. That is 180 KB of woff2 in total, and a browser only
+  fetches the subset a page actually needs.
+
+  Both are variable fonts, so one file covers every weight — hence the
+  `font-weight` ranges rather than a file per weight.
+
+  `font-display: swap` is kept from the original: text appears immediately in
+  the fallback and reflows when the face arrives, which is the right trade for
+  a queue screen someone is reading at a glance.
+*/
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 /* ============================================================================
    Sivayaan HMS — interface system
    ----------------------------------------------------------------------------
@@ -48,6 +111,16 @@
   --c-crit-weak:   #fdeaea;
   --c-info:        #2f62e0;
   --c-info-weak:   #e8eefc;
+
+  /* Chart series. Their own tokens rather than the accent: a donut segment is
+     data, not something to click, and the two must stay tellable apart. Three
+     is all the charts here need — the dashboard's OPD/pharmacy/diagnostics
+     split and the growth line — and three that are distinguishable beats a
+     longer ramp that is not. */
+  --c-chart-1:     #2f62e0;
+  --c-chart-2:     #b45309;
+  --c-chart-3:     #6d28d9;
+  --c-chart-axis:  #6f7d95;
 
   --shadow-1: 0 1px 2px rgba(15, 22, 32, 0.05);
   --shadow-2: 0 2px 4px rgba(15, 22, 32, 0.06), 0 1px 2px rgba(15, 22, 32, 0.04);
@@ -116,6 +189,11 @@
     --c-info:        #5b8dff;
     --c-info-weak:   #1a2740;
 
+    --c-chart-1:     #5b8dff;
+    --c-chart-2:     #e0a252;
+    --c-chart-3:     #a78bfa;
+    --c-chart-axis:  #7d8ba3;
+
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.45);
     --shadow-3: 0 16px 34px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
@@ -150,6 +228,11 @@
   --c-crit-weak:   #3a1c1e;
   --c-info:        #5b8dff;
   --c-info-weak:   #1a2740;
+
+  --c-chart-1:     #5b8dff;
+  --c-chart-2:     #e0a252;
+  --c-chart-3:     #a78bfa;
+  --c-chart-axis:  #7d8ba3;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-2: 0 2px 6px rgba(0, 0, 0, 0.45);
@@ -1392,3 +1475,73 @@ button.pick.selected { background: var(--c-accent-weak); color: var(--c-accent);
 }
 
 .settings-block > button.pill { align-self: flex-start; }
+
+/* ------------------------------------------------------------- 7. crash */
+
+/* The error boundary's screen. Deliberately plain and self-contained: it has
+   to render when something else could not, so it leans on nothing but the
+   tokens. */
+.crash {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: var(--c-canvas);
+}
+
+.crash-card {
+  max-width: 480px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  box-shadow: var(--shadow-2);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.crash-card h1 { margin: 0; font-size: 20px; }
+.crash-card p { margin: 0; color: var(--c-text-2); }
+
+/* The message is for whoever is being asked "what does it say?" over the
+   phone, so it stays readable rather than being hidden behind a toggle. */
+.crash-detail {
+  font-family: var(--font-num);
+  font-size: 12.5px;
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow-wrap: anywhere;
+}
+
+.crash-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+
+/* ------------------------------------------------- 8. wide tables on narrow */
+
+/*
+   A table wider than its card scrolls inside the card, rather than pushing the
+   whole page sideways.
+
+   Tables were bare `<table width:100%>` with nothing to contain them. On a
+   desktop that is fine — the layout was built for one. On a tablet, and on the
+   Reports screen where the columns come from the server and there can be a
+   dozen of them, the page itself gained a horizontal scrollbar and the
+   navigation rail slid off the left edge.
+
+   Applied to the card rather than to a wrapper element so no markup had to
+   move: `overflow-x: auto` creates a scroll container, and the negative margin
+   plus matching padding lets the scrolled content still meet the card's edges
+   instead of appearing inset.
+*/
+.card:has(> table) {
+  overflow-x: auto;
+}
+
+@media (max-width: 900px) {
+  /* Below the layout's own width the rail stacks, and a table that cannot
+     shrink any further gets its own scrollbar rather than dragging the page. */
+  .card { overflow-x: auto; }
+  table { min-width: max-content; }
+}

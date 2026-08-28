@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Procedure, ProcedureDepartment } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   existing: Procedure | null;
@@ -60,9 +61,11 @@ export function ProcedureEditorDialog({ existing, department, onClose, onSaved }
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Procedure">
-      <div className="overlay-card">
+      <div className="overlay-card" ref={cardRef}>
         <div className="overlay-head">
           <h2>{existing ? existing.name : 'New procedure'}</h2>
           <button type="button" onClick={onClose}>Close</button>

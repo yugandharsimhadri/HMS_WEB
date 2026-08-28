@@ -1,4 +1,5 @@
 import { ANYWHERE, describeCombo, useShortcutList } from './hotkeys';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 /**
  * The sheet behind `?`.
@@ -25,9 +26,12 @@ export function ShortcutSheet({ onClose }: { onClose: () => void }) {
     ([a], [b]) => Number(a === ANYWHERE) - Number(b === ANYWHERE),
   );
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" onMouseDown={onClose} role="presentation">
       <div
+        ref={cardRef}
         className="overlay-card"
         role="dialog"
         aria-modal="true"

@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { DiagnosticTest } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 interface Props {
   existing: DiagnosticTest | null;
@@ -25,7 +26,10 @@ export function TestEditorDialog({ existing, onClose, onSaved }: Props) {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
-    void api.get<string[]>('/api/diagnostics/tests/categories').then(setCategories).catch(() => {});
+    void api.get<string[]>('/api/diagnostics/tests/categories').then(setCategories).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, []);
 
   const save = async (e: FormEvent) => {
@@ -73,9 +77,11 @@ export function TestEditorDialog({ existing, onClose, onSaved }: Props) {
     }
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Test">
-      <div className="overlay-card">
+      <div className="overlay-card" ref={cardRef}>
         <div className="overlay-head">
           <h2>{existing ? existing.name : 'New test'}</h2>
           <button type="button" onClick={onClose}>Close</button>

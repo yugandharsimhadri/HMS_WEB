@@ -16,6 +16,8 @@ import { PatientPicker } from '../shell/PatientPicker';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
+import { usePatientSearch } from '../shell/usePatientSearch';
+import { useLoadedList } from '../shell/useLoadedList';
 
 const PAYMENT_MODES: PaymentMode[] = ['Cash', 'Upi', 'Card'];
 
@@ -34,16 +36,18 @@ export function DentistPage() {
   const [tab, setTab] = useState<Tab>('cases');
 
   // ── Patient ────────────────────────────────────────────────────────────
-  const [search, setSearch] = useState('');
-  const [matches, setMatches] = useState<Patient[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [addingPatient, setAddingPatient] = useState(false);
 
   // ── Catalogues ─────────────────────────────────────────────────────────
-  const [procedures, setProcedures] = useState<Procedure[]>([]);
-  const [packages, setPackages] = useState<DentalPackageMaster[]>([]);
-  const [replacements, setReplacements] = useState<DentalReplacementMaster[]>([]);
-  const [anesthesiaTypes, setAnesthesiaTypes] = useState<AnesthesiaTypeMaster[]>([]);
+  // Loaded through useLoadedList so an empty list and a failed request stay
+  // tellable apart. The empty states below say "none set up yet", which is a
+  // statement about the clinic's data and must not be printed when the truth
+  // is that the request did not arrive.
+  const { items: procedures } = useLoadedList<Procedure>('/api/dentist/procedures');
+  const { items: packages, failed: packagesFailed } = useLoadedList<DentalPackageMaster>('/api/dentist/packages');
+  const { items: replacements, failed: replacementsFailed } = useLoadedList<DentalReplacementMaster>('/api/dentist/replacements');
+  const { items: anesthesiaTypes, failed: anesthesiaFailed } = useLoadedList<AnesthesiaTypeMaster>('/api/dentist/anesthesia-types');
   const [doctors, setDoctors] = useState<Doctor[]>([]);
 
   // ── Cases ──────────────────────────────────────────────────────────────
@@ -81,14 +85,13 @@ export function DentistPage() {
   const selectedCase = cases.find((c) => c.id === selectedCaseId) ?? null;
 
   useEffect(() => {
-    void api.get<Procedure[]>('/api/dentist/procedures').then(setProcedures).catch(() => {});
-    void api.get<DentalPackageMaster[]>('/api/dentist/packages').then(setPackages).catch(() => {});
-    void api.get<DentalReplacementMaster[]>('/api/dentist/replacements').then(setReplacements).catch(() => {});
-    void api.get<AnesthesiaTypeMaster[]>('/api/dentist/anesthesia-types').then(setAnesthesiaTypes).catch(() => {});
     void api.get<Doctor[]>('/api/doctors').then((d) => {
       setDoctors(d);
       setDoctorId((current) => (d.some((x) => x.id === current) ? current : (d[0]?.id ?? '')));
-    }).catch(() => {});
+    }).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, []);
 
   const loadCases = useCallback(async (patientId: string) => {
@@ -101,38 +104,22 @@ export function DentistPage() {
 
   const selectPatient = useCallback((p: Patient) => {
     setPatient(p);
-    setSearch('');
-    setMatches([]);
     setError(null);
     setSelectedCaseId(null);
     void loadCases(p.id);
   }, [loadCases]);
 
-  const findPatients = useCallback(async (term: string) => {
-    if (!term.trim()) {
-      setMatches([]);
-      return;
-    }
-    try {
-      const found = await api.get<Patient[]>(`/api/patients?term=${encodeURIComponent(term.trim())}&take=20`);
-      setMatches(found);
-      if (found.length === 1) selectPatient(found[0]);
-    } catch {
-      setMatches([]);
-    }
-  }, [selectPatient]);
-
-  useEffect(() => {
-    if (patient) return;
-    const handle = setTimeout(() => void findPatients(search), 250);
-    return () => clearTimeout(handle);
-  }, [search, findPatients, patient]);
+  // One hook for the debounce, the fetch, the cancel and the single-match
+  // rule - see usePatientSearch for why this stopped being written per page.
+  const { search, setSearch, matches, reset: resetSearch } = usePatientSearch({
+    onSingleMatch: selectPatient,
+    enabled: !patient,
+  });
 
   /** A case belonging to the previous patient must not survive the switch. */
   const changePatient = () => {
     setPatient(null);
-    setSearch('');
-    setMatches([]);
+    resetSearch();
     setCases([]);
     setSelectedCaseId(null);
   };
@@ -154,8 +141,6 @@ export function DentistPage() {
   // Same meanings as the other counters where they apply. A dental case is
   // opened rather than billed, so F2 opens the case and F7 adds a sitting.
   const G = 'Dentist';
-  useHotkey('f2', 'Open a case', G, () => { if (patient) openCase(); });
-  useHotkey('f7', 'Add a sitting', G, () => { if (selectedCase) addSitting(); });
 
   // ── Actions ────────────────────────────────────────────────────────────
 
@@ -282,6 +267,11 @@ export function DentistPage() {
     <p className="hint">Pick a case on the Cases tab first.</p>
   );
 
+  // Registered after the actions they call, so no binding refers to a
+  // function declared further down the file.
+  useHotkey('f2', 'Open a case', G, () => { if (patient) openCase(); });
+  useHotkey('f7', 'Add a sitting', G, () => { if (selectedCase) addSitting(); });
+
   return (
     <div className="page">
       <div className="page-head">
@@ -304,7 +294,7 @@ export function DentistPage() {
             search={search}
             onSearchChange={setSearch}
             matches={matches}
-            onPick={selectPatient}
+            onPick={(p) => { selectPatient(p); resetSearch(); }}
             onNewPatient={() => setAddingPatient(true)}
           />
         )}
@@ -353,7 +343,7 @@ export function DentistPage() {
                   {packages.map((p) => <option key={p.id} value={p.id}>{p.name} — {money(p.packagePrice)}</option>)}
                 </select>
                 {packages.length === 0 && (
-                  <p className="hint">No packages set up yet — they arrive with the Masters module.</p>
+                  <p className={packagesFailed ? "hint warn" : "hint"}>{packagesFailed ? "Packages could not be loaded." : "No packages set up yet — they arrive with the Masters module."}</p>
                 )}
               </div>
               <div className="settings-row">
@@ -449,7 +439,7 @@ export function DentistPage() {
                       {anesthesiaTypes.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
                     {anesthesiaTypes.length === 0 && (
-                      <p className="hint">No anesthesia types set up yet — they arrive with the Masters module.</p>
+                      <p className={anesthesiaFailed ? "hint warn" : "hint"}>{anesthesiaFailed ? "Anesthesia types could not be loaded." : "No anesthesia types set up yet — they arrive with the Masters module."}</p>
                     )}
                   </div>
                   <div className="settings-row">
@@ -508,7 +498,7 @@ export function DentistPage() {
                   <button type="button" disabled={!canWork} onClick={addReplacement}>Add</button>
                 </div>
                 {replacements.length === 0 && (
-                  <p className="hint">No replacements set up yet — they arrive with the Masters module.</p>
+                  <p className={replacementsFailed ? "hint warn" : "hint"}>{replacementsFailed ? "Replacements could not be loaded." : "No replacements set up yet — they arrive with the Masters module."}</p>
                 )}
 
                 <table>

@@ -93,10 +93,16 @@ export function PharmacyCounterPage() {
   useEffect(() => {
     void api.get<PharmacyProfile>('/api/settings/pharmacy')
       .then((p) => setGstRegistered(p.gstRegistered))
-      .catch(() => {});
+      .catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
     void api.get<Visit[]>('/api/visits')
       .then((vs) => setPrescribedVisits(vs.filter((v) => v.status === 'Completed' || v.status === 'InConsultation')))
-      .catch(() => {});
+      .catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, []);
 
   // Filters as the operator types — no button to press.

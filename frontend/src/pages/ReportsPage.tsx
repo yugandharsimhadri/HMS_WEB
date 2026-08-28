@@ -179,9 +179,6 @@ export function ReportsPage() {
   // Nothing here is saved, so F4 has no meaning on this screen and is left
   // unbound rather than given a second job.
   const G = 'Reports';
-  useHotkey('f9', 'Refresh this report', G, () => { void load(tab); });
-  useHotkey('f7', 'Export to Excel', G, () => { void exportAs('excel'); });
-  useHotkey('f8', 'Export to PDF', G, () => { void exportAs('pdf'); });
 
   const exportAs = async (format: 'pdf' | 'excel') => {
     if (tab.kind === 'None') return;
@@ -252,6 +249,12 @@ export function ReportsPage() {
   const hasDatePicker = tab.id === 'diagnostics'
     || (tab.kind !== 'GstSummary' && tab.kind !== 'ScheduleH1'
         && tab.kind !== 'StockRegister' && tab.kind !== 'LowStock' && tab.kind !== 'None');
+
+  // Registered after the actions they call, so no binding refers to a
+  // function declared further down the file.
+  useHotkey('f9', 'Refresh this report', G, () => { void load(tab); });
+  useHotkey('f7', 'Export to Excel', G, () => { void exportAs('excel'); });
+  useHotkey('f8', 'Export to PDF', G, () => { void exportAs('pdf'); });
 
   return (
     <div className="page">

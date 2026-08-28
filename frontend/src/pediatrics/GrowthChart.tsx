@@ -105,18 +105,18 @@ export function GrowthChart({ patient, history, metric }: Props) {
         <polyline
           points={chart.expected}
           fill="none"
-          stroke="var(--muted, #9aa5b1)"
+          stroke="var(--c-chart-axis)"
           strokeWidth={1.5}
           strokeDasharray="4 3"
         />
         <polyline
           points={chart.patient}
           fill="none"
-          stroke="var(--accent, #0f766e)"
+          stroke="var(--c-chart-1)"
           strokeWidth={2}
         />
         {chart.dots.map((d, i) => (
-          <circle key={i} cx={d.cx} cy={d.cy} r={DOT_RADIUS} fill="var(--accent, #0f766e)" />
+          <circle key={i} cx={d.cx} cy={d.cy} r={DOT_RADIUS} fill="var(--c-chart-1)" />
         ))}
       </svg>
       <div className="growth-chart-axes">

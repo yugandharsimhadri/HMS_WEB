@@ -6,14 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
 
-    <!-- Loaded here rather than with @import in the stylesheet, which would
-         make the browser fetch the CSS before it discovers the fonts. -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap"
-    />
+    <!-- The typefaces are self-hosted from /fonts and declared in index.css;
+         see the note at the top of that file for why they stopped coming from
+         Google. Preloaded here because a browser only discovers a @font-face
+         after the stylesheet has parsed, and the UI face is needed on every
+         screen — this starts it in parallel with the CSS instead of after it.
+         Only the latin subsets are preloaded: latin-ext is real but rarely
+         reached, and preloading a file that goes unused is wasted bandwidth. -->
+    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin />
 
     <title>Sivayaan HMS</title>
   </head>

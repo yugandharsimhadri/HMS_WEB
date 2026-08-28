@@ -14,6 +14,7 @@ import { useHotkey } from '../shell/hotkeys';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
 import { TestEditorDialog } from '../diagnostics/TestEditorDialog';
 import { TestPickerDialog } from '../diagnostics/TestPickerDialog';
+import { usePatientSearch } from '../shell/usePatientSearch';
 
 /** One line on the bill being built. `testId` is null for a test requested
  * as free text during a consultation — one we do not run in-house, still
@@ -45,8 +46,6 @@ export function DiagnosticsPage() {
   const [tab, setTab] = useState<Tab>('billing');
 
   // ── Billing ────────────────────────────────────────────────────────────
-  const [search, setSearch] = useState('');
-  const [matches, setMatches] = useState<Patient[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [addingPatient, setAddingPatient] = useState(false);
 
@@ -124,39 +123,25 @@ export function DiagnosticsPage() {
 
   // ── Patient search ─────────────────────────────────────────────────────
 
-  const findPatients = useCallback(async (term: string) => {
-    if (!term.trim()) {
-      setMatches([]);
-      return;
-    }
-    try {
-      const found = await api.get<Patient[]>(`/api/patients?term=${encodeURIComponent(term.trim())}&take=20`);
-      setMatches(found);
-      if (found.length === 1) {
-        setPatient(found[0]);
-        setSearch('');
-        setMatches([]);
-        // "Select a patient first." must not still be on screen once one is
-        // selected — an error that contradicts the page is worse than none.
-        setError(null);
-      }
-    } catch {
-      setMatches([]);
-    }
+  const selectPatient = useCallback((p: Patient) => {
+    setPatient(p);
+    // "Select a patient first." must not still be on screen once one is
+    // selected — an error that contradicts the page is worse than none.
+    setError(null);
   }, []);
 
-  useEffect(() => {
-    const handle = setTimeout(() => void findPatients(search), 250);
-    return () => clearTimeout(handle);
-  }, [search, findPatients]);
+  // One hook for the debounce, the fetch, the cancel and the single-match
+  // rule - see usePatientSearch for why this stopped being written per page.
+  const { search, setSearch, matches, reset: resetSearch } = usePatientSearch({
+    onSingleMatch: selectPatient,
+  });
 
   /** Search, selection and the match list all reset together. Clearing only
    * the search box left stale matches ready to reappear the moment the
    * picker became visible again. */
   const changePatient = () => {
     setPatient(null);
-    setSearch('');
-    setMatches([]);
+    resetSearch();
   };
 
   // ── Totals ─────────────────────────────────────────────────────────────
@@ -181,9 +166,8 @@ export function DiagnosticsPage() {
 
   const newBill = () => {
     setLines([]);
-    setSearch('');
     setPatient(null);
-    setMatches([]);
+    resetSearch();
     setDiscount('0');
     setRemarks('');
     setPaymentMode('Cash');
@@ -265,8 +249,6 @@ export function DiagnosticsPage() {
 
   useHotkey('f2', 'Start a new bill', G, () => newBill());
   useHotkey('f6', 'Load tests requested in consultation', G, () => { if (patient) void loadFromConsultation(); });
-  useHotkey('f4', 'Save the bill', G, () => { if (!busy && canEdit) void save(false); });
-  useHotkey('f8', 'Save and print', G, () => { if (!busy && canEdit) void save(true); });
 
   const save = async (print: boolean) => {
     setError(null);
@@ -314,6 +296,11 @@ export function DiagnosticsPage() {
       setBusy(false);
     }
   };
+
+  // Registered after `save`, so the binding does not refer to a function
+  // declared further down the file.
+  useHotkey('f4', 'Save the bill', G, () => { if (!busy && canEdit) void save(false); });
+  useHotkey('f8', 'Save and print', G, () => { if (!busy && canEdit) void save(true); });
 
   const changeStatus = async (next: DiagnosticBillStatus) => {
     if (!billId) return;
@@ -439,7 +426,7 @@ export function DiagnosticsPage() {
                 search={search}
                 onSearchChange={setSearch}
                 matches={matches}
-                onPick={(p) => { setPatient(p); setSearch(''); setMatches([]); setError(null); }}
+                onPick={(p) => { selectPatient(p); resetSearch(); }}
                 onNewPatient={() => setAddingPatient(true)}
               />
             )}
@@ -713,8 +700,7 @@ export function DiagnosticsPage() {
           onSaved={(_message, saved) => {
             if (saved) setPatient(saved);
             setAddingPatient(false);
-            setSearch('');
-            setMatches([]);
+            resetSearch();
           }}
         />
       )}

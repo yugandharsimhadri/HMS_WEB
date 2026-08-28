@@ -25,9 +25,25 @@ export const PLATFORM_ADMIN_ROLE = 'EnterpriseAdmin';
 
 const SESSION_KEY = 'sivayaanhms.session';
 
+/**
+ * The stored session, or null.
+ *
+ * Guarded, because this runs inside AuthProvider's state initialiser — during
+ * the very first render of the tree. A half-written or tampered-with value
+ * threw from there, which React treats as a failed render of the whole
+ * application: a blank page with no message and no route back, not even to
+ * the login screen. A corrupt session should mean "signed out", which is
+ * recoverable, and never "nothing works".
+ */
 function loadSession(): Session | null {
-  const raw = localStorage.getItem(SESSION_KEY);
-  return raw ? (JSON.parse(raw) as Session) : null;
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? (JSON.parse(raw) as Session) : null;
+  } catch {
+    // Also covers localStorage itself throwing, which it does in a locked-down
+    // browser profile as well as on corrupt JSON.
+    return null;
+  }
 }
 
 interface AuthContextValue {

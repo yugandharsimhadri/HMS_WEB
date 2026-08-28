@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { api } from '../api/client';
 import { nextBatchMrp, type Product, type VaccineMaster } from '../api/types';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
 
 /** What the form hands back: enough to both record the dose and charge for
  * it. The vaccine is the clinical "type" from Vaccine Master; everything
@@ -107,9 +108,11 @@ export function RecordVaccinationDialog({ vaccines, preselectVaccineId, onClose,
     });
   };
 
+  const cardRef = useModalBehaviour(onClose);
+
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-label="Record vaccination">
-      <div className="overlay-card wide">
+      <div className="overlay-card wide" ref={cardRef}>
         <div className="overlay-head">
           <h2>Record vaccination</h2>
           <button type="button" onClick={onClose}>Close</button>

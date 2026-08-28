@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
+    "//lint:ci": "Fails on any NEW rule violation. --max-warnings is set to the count that existed when the build gained this gate, so the number can only come down; lower it whenever it does.",
+    "lint:ci": "oxlint --max-warnings 39",
     "preview": "vite preview"
   },
   "dependencies": {

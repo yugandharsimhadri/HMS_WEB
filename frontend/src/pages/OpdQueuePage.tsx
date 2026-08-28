@@ -1,7 +1,8 @@
+import { useGeneralSettings } from '../settings/SettingsContext';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError, openPdf } from '../api/client';
-import type { ClinicProfile, ClinicSession, Doctor, GeneralSettings, Visit, VisitStatus } from '../api/types';
+import type { ClinicProfile, ClinicSession, Doctor, Visit, VisitStatus } from '../api/types';
 import { describeSession, isInSession, SESSIONS } from '../opd/session';
 import { BookVisitDialog } from '../opd/BookVisitDialog';
 import { CollectFeeDialog } from '../opd/CollectFeeDialog';
@@ -48,7 +49,11 @@ export function OpdQueuePage() {
   const [all, setAll] = useState<Visit[]>([]);
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [clinic, setClinic] = useState<ClinicProfile | null>(null);
-  const [useTiles, setUseTiles] = useState(true);
+  // Tiles vs rows is a Settings choice. Derived rather than held in state:
+  // it is a straight read of a value the provider already has, and copying
+  // it into local state only created a window where the two disagreed.
+  const general = useGeneralSettings();
+  const useTiles = general ? general.queueLayout === 'Tiles' : true;
 
   const [doctorTab, setDoctorTab] = useState<string | null>(null); // null = All
   const [session, setSession] = useState<ClinicSession>('FullDay');
@@ -73,13 +78,14 @@ export function OpdQueuePage() {
   }, []);
 
   useEffect(() => {
-    void api.get<Doctor[]>('/api/doctors').then(setDoctors).catch(() => {});
-    void api.get<ClinicProfile>('/api/settings/clinic').then(setClinic).catch(() => {});
-    // Tiles vs rows is a Settings choice, re-read every time this opens.
-    void api
-      .get<GeneralSettings>('/api/settings/general')
-      .then((g) => setUseTiles(g.queueLayout === 'Tiles'))
-      .catch(() => {});
+    void api.get<Doctor[]>('/api/doctors').then(setDoctors).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
+    void api.get<ClinicProfile>('/api/settings/clinic').then(setClinic).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, []);
 
   useEffect(() => {

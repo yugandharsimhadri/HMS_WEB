@@ -19,6 +19,8 @@ import { RecordVaccinationDialog, type VaccinationDraft } from '../pediatrics/Re
 import { PatientPicker } from '../shell/PatientPicker';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
+import { useModalBehaviour } from '../shell/useModalBehaviour';
+import { usePatientSearch } from '../shell/usePatientSearch';
 
 /** One line on the bill being built. A vaccine line carries the draft dose
  * it will record once the bill saves — removing the line drops both, which
@@ -63,8 +65,6 @@ export function PediatricsPage() {
   const [tab, setTab] = useState<Tab>('growth');
 
   // ── The one patient, chosen above the tabs ─────────────────────────────
-  const [search, setSearch] = useState('');
-  const [matches, setMatches] = useState<Patient[]>([]);
   const [patient, setPatient] = useState<Patient | null>(null);
   const [addingPatient, setAddingPatient] = useState(false);
 
@@ -86,6 +86,12 @@ export function PediatricsPage() {
   const [referredBy, setReferredBy] = useState('');
 
   const [addingProcedure, setAddingProcedure] = useState(false);
+
+  // This one dialog lives inside the page rather than in its own file, so it
+  // takes the behaviour directly. useCallback because the hook keeps the close
+  // function in a ref, and a stable reference is the tidier thing to hand it.
+  const closeAddProcedure = useCallback(() => setAddingProcedure(false), []);
+  const addProcedureRef = useModalBehaviour(closeAddProcedure);
   const [procedureId, setProcedureId] = useState('');
   const [procedureQty, setProcedureQty] = useState('1');
   const [procedureMissing, setProcedureMissing] = useState(false);
@@ -103,9 +109,15 @@ export function PediatricsPage() {
 
   useEffect(() => {
     void api.get<Procedure[]>('/api/pediatrics/procedures?department=Pediatrics&activeOnly=true')
-      .then(setProcedures).catch(() => {});
+      .then(setProcedures).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
     void api.get<VaccineMaster[]>('/api/pediatrics/vaccines?activeOnly=true')
-      .then(setVaccines).catch(() => {});
+      .then(setVaccines).catch(() => {
+      // Optional enrichment: an empty list here costs a little typing, not
+      // correctness, and no screen states anything about it being empty.
+    });
   }, []);
 
   /** Everything about this child, in one go — the desktop loads all four
@@ -123,8 +135,6 @@ export function PediatricsPage() {
 
   const selectPatient = useCallback((p: Patient) => {
     setPatient(p);
-    setSearch('');
-    setMatches([]);
     setError(null);
     // Whatever metric was showing for the last child may not exist for this
     // one; weight is the reading most likely on file, so it beats landing
@@ -133,25 +143,12 @@ export function PediatricsPage() {
     void loadPatientData(p.id);
   }, [loadPatientData]);
 
-  const findPatients = useCallback(async (term: string) => {
-    if (!term.trim()) {
-      setMatches([]);
-      return;
-    }
-    try {
-      const found = await api.get<Patient[]>(`/api/patients?term=${encodeURIComponent(term.trim())}&take=20`);
-      setMatches(found);
-      if (found.length === 1) selectPatient(found[0]);
-    } catch {
-      setMatches([]);
-    }
-  }, [selectPatient]);
-
-  useEffect(() => {
-    if (patient) return;
-    const handle = setTimeout(() => void findPatients(search), 250);
-    return () => clearTimeout(handle);
-  }, [search, findPatients, patient]);
+  // One hook for the debounce, the fetch, the cancel and the single-match
+  // rule - see usePatientSearch for why this stopped being written per page.
+  const { search, setSearch, matches, reset: resetSearch } = usePatientSearch({
+    onSingleMatch: selectPatient,
+    enabled: !patient,
+  });
 
   // ── The bill ───────────────────────────────────────────────────────────
 
@@ -170,11 +167,6 @@ export function PediatricsPage() {
   // Same meanings as the queue and the counter: F2 starts a new one, F4
   // takes the money, F8 finishes. F6 and F7 are this screen's own work.
   const G = 'Pediatrics';
-  useHotkey('f2', 'Start a new bill', G, newBill);
-  useHotkey('f6', 'Record growth', G, () => { if (patient) setRecordingGrowth(true); });
-  useHotkey('f7', 'Add a procedure', G, () => { if (patient) setAddingProcedure(true); });
-  useHotkey('f4', 'Save the bill', G, () => { if (lines.length > 0) void saveBill(false); });
-  useHotkey('f8', 'Save and print', G, () => { if (lines.length > 0) void saveBill(true); });
 
   const setLine = (key: string, patch: Partial<BillRow>) =>
     setLines((current) => current.map((l) => (l.key === key ? { ...l, ...patch } : l)));
@@ -329,6 +321,14 @@ export function PediatricsPage() {
     then();
   };
 
+  // Registered after the actions they call, so no binding refers to a
+  // function declared further down the file.
+  useHotkey('f2', 'Start a new bill', G, newBill);
+  useHotkey('f6', 'Record growth', G, () => { if (patient) setRecordingGrowth(true); });
+  useHotkey('f7', 'Add a procedure', G, () => { if (patient) setAddingProcedure(true); });
+  useHotkey('f4', 'Save the bill', G, () => { if (lines.length > 0) void saveBill(false); });
+  useHotkey('f8', 'Save and print', G, () => { if (lines.length > 0) void saveBill(true); });
+
   return (
     <div className="page">
       <div className="page-head">
@@ -354,7 +354,7 @@ export function PediatricsPage() {
             <button
               type="button"
               className="ghost"
-              onClick={() => { setPatient(null); setSearch(''); setMatches([]); setGrowth([]); setHistory([]); setCard([]); }}
+              onClick={() => { setPatient(null); resetSearch(); setGrowth([]); setHistory([]); setCard([]); }}
             >
               Change patient
             </button>
@@ -372,7 +372,7 @@ export function PediatricsPage() {
             search={search}
             onSearchChange={setSearch}
             matches={matches}
-            onPick={selectPatient}
+            onPick={(p) => { selectPatient(p); resetSearch(); }}
             onNewPatient={() => setAddingPatient(true)}
           />
         )}
@@ -639,7 +639,7 @@ export function PediatricsPage() {
 
       {addingProcedure && (
         <div className="overlay" role="dialog" aria-modal="true" aria-label="Add procedure">
-          <div className="overlay-card">
+          <div className="overlay-card" ref={addProcedureRef}>
             <div className="overlay-head">
               <h2>Add procedure</h2>
               <button type="button" onClick={() => setAddingProcedure(false)}>Close</button>
