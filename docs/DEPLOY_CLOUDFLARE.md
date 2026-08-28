@@ -132,6 +132,13 @@ call. `000` means it is not listening; check the Windows event log.
 Each check isolates one layer, so run them in order and stop at the first
 failure - the next check cannot pass anyway.
 
+> **`-C` is not optional with ODBC Driver 18.** sqlcmd 18 encrypts by
+> default *and* validates the certificate, and SQL Server Express presents a
+> self-signed one — so without `-C` it fails with "The certificate chain was
+> issued by an authority that is not trusted" before it ever reaches the
+> database. The application is unaffected: its connection string already
+> carries `TrustServerCertificate=True`, which is the same decision.
+
 > **`curl` is not curl in PowerShell 5.1.** It is an alias for
 > `Invoke-WebRequest`, so `curl -s -o` fails with a confusing parameter
 > error. Write **`curl.exe`** every time.
@@ -139,7 +146,7 @@ failure - the next check cannot pass anyway.
 ### 1 - the database, before the app
 
 ```bash
-sqlcmd -S ".\SIVASQLEXPRESS" -U Sivayaanhms -P "SivAyAAnHMS@123" -d HMSLite -Q "select db_name() as db, suser_name() as login;"
+sqlcmd -S ".\SIVASQLEXPRESS" -U Sivayaanhms -P "SivAyAAnHMS@123" -d HMSLite -C -Q "select db_name() as db, suser_name() as login;"
 ```
 
 If this fails the API cannot possibly work, and the message here is far
@@ -150,7 +157,7 @@ on `HMSLite`.
 Then confirm the migration actually ran:
 
 ```bash
-sqlcmd -S ".\SIVASQLEXPRESS" -U Sivayaanhms -P "SivAyAAnHMS@123" -d HMSLite -Q "select count(*) as migrations from __EFMigrationsHistory;"
+sqlcmd -S ".\SIVASQLEXPRESS" -U Sivayaanhms -P "SivAyAAnHMS@123" -d HMSLite -C -Q "select count(*) as migrations from __EFMigrationsHistory;"
 ```
 
 Zero rows, or a missing table, means the schema step was skipped.

@@ -27,7 +27,7 @@ dotnet ef migrations script --idempotent --project backend/src/SivayaanHMS.Data 
 ```
 
 ```bash
-sqlcmd -S ".\SQLEXPRESS" -d HMSLite -E -I -b -i db/migrate.sql
+sqlcmd -S ".\SQLEXPRESS" -d HMSLite -E -C -I -b -i db/migrate.sql
 ```
 
 > **`-I` is not optional.** It sets `QUOTED_IDENTIFIER ON`. Filtered indexes
@@ -37,6 +37,11 @@ sqlcmd -S ".\SQLEXPRESS" -d HMSLite -E -I -b -i db/migrate.sql
 >
 > `-b` makes sqlcmd stop on error rather than carry on and report success.
 > Use both, every time.
+>
+> `-C` trusts the server certificate. ODBC Driver 18 encrypts by default
+> and validates the chain, and Express presents a self-signed certificate,
+> so without it sqlcmd fails on the certificate before reaching the
+> database at all.
 
 ### Or: a bundle, with no SDK on the target
 
