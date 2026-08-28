@@ -92,6 +92,14 @@ well on Windows authentication.
 
 ## 3 · How upgrades work from here
 
+> **Superseded in practice by
+> [DATABASE_RELEASES.md](DATABASE_RELEASES.md).** This section explains the
+> mechanics and still holds. What it predates is a deployed database with a
+> clinic's records in it — the backup, the ordering against the API restart,
+> and the rules for writing a migration that can be rolled back live there,
+> along with `deploy/Migrate-Database.ps1`, which is the release step this
+> section describes by hand.
+
 The rule: **the application never changes the schema in production.**
 Migration is a deployment step that runs once, before the new build serves
 traffic. `Program.cs` still migrates at startup, but only under

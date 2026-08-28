@@ -20,6 +20,12 @@ browser ──https──> healthone.sivayaantechnologies.com   (Cloudflare Page
 split deployment. This is the runbook for **these two hostnames and this
 port**, and it only covers what that adds.
 
+> **The first deployment has happened.** Everything from here is an upgrade of
+> a database holding a clinic's real records, which is a different job with a
+> different order and a mandatory backup. Start at
+> **[DATABASE_RELEASES.md](DATABASE_RELEASES.md)**; come back here for the
+> tunnel and Pages.
+
 Hostnames are lower-cased throughout. DNS is case-insensitive, so
 `HOAPi.sivayaantechnologies.com` resolves the same — but the **CORS
 allow-list is not**, and an origin string that differs by a capital letter
