@@ -127,6 +127,119 @@ call. `000` means it is not listening; check the Windows event log.
 
 ---
 
+## 1b · Testing the API on the server, before any tunnel
+
+Each check isolates one layer, so run them in order and stop at the first
+failure - the next check cannot pass anyway.
+
+> **`curl` is not curl in PowerShell 5.1.** It is an alias for
+> `Invoke-WebRequest`, so `curl -s -o` fails with a confusing parameter
+> error. Write **`curl.exe`** every time.
+
+### 1 - the database, before the app
+
+```bash
+sqlcmd -S ".\SIVASQLEXPRESS" -U Sivayaanhms -P "SivAyAAnHMS@123" -d HMSLite -Q "select db_name() as db, suser_name() as login;"
+```
+
+If this fails the API cannot possibly work, and the message here is far
+clearer than the one the API will give. `Cannot open database` means the
+database is missing; `Login failed` means the login exists but has no rights
+on `HMSLite`.
+
+Then confirm the migration actually ran:
+
+```bash
+sqlcmd -S ".\SIVASQLEXPRESS" -U Sivayaanhms -P "SivAyAAnHMS@123" -d HMSLite -Q "select count(*) as migrations from __EFMigrationsHistory;"
+```
+
+Zero rows, or a missing table, means the schema step was skipped.
+
+### 2 - the app in the foreground, not as a service
+
+Run it by hand first. A service writes its startup failure to the event log
+and then simply says "the service could not be started"; run in a window and
+it tells you exactly what is wrong.
+
+```
+cd C:\SivayaanHMS\api
+$env:ASPNETCORE_ENVIRONMENT = "Production"
+.\SivayaanHMS.Api.exe
+```
+
+Expect `Now listening on: http://localhost:6051`. Common first failures:
+
+| It says | It means |
+|---|---|
+| `A network-related or instance-specific error` | wrong instance name in the connection string |
+| `Login failed for user` | the SQL login has no rights on `HMSLite` |
+| `The JWT signing key ... REPLACE` | `appsettings.Production.json` was not picked up, or was not edited |
+| `Failed to load ... Microsoft.AspNetCore.App` | the ASP.NET Core 10 runtime is not installed |
+
+### 3 - is it listening
+
+From a second window:
+
+```
+Test-NetConnection -ComputerName localhost -Port 6051
+```
+
+`TcpTestSucceeded : True`. If the app printed "Now listening" and this is
+False, something else is on 6051 - `netstat -ano | findstr :6051` names the
+process.
+
+### 4 - does it answer
+
+```bash
+curl.exe -s -o NUL -w "%{http_code}\n" http://localhost:6051/api/settings/general
+```
+
+**401 is the pass.** The API is up and refusing an unauthenticated call. A
+200 here would mean clinic settings were readable by anyone. `000` means
+nothing is listening.
+
+### 5 - register the first clinic
+
+This is the only way to create an account; there is no seed user.
+
+```bash
+curl.exe -s -X POST http://localhost:6051/api/tenants/register -H "Content-Type: application/json" -d "{\"clinicName\":\"Health One\",\"clinicCode\":\"healthone\",\"username\":\"admin\",\"password\":\"ChangeMe#2026\"}"
+```
+
+It returns the tenant id, the slug, and the admin username - which is
+`admin@healthone`, the local part plus the clinic code. That full form is
+what you sign in with.
+
+### 6 - sign in, and use the token
+
+```bash
+curl.exe -s -X POST http://localhost:6051/api/auth/login -H "Content-Type: application/json" -d "{\"username\":\"admin@healthone\",\"password\":\"ChangeMe#2026\"}"
+```
+
+The response carries the JWT. In PowerShell, keep it and make a real call:
+
+```
+$r = Invoke-RestMethod -Uri http://localhost:6051/api/auth/login -Method Post -ContentType 'application/json' -Body '{"username":"admin@healthone","password":"ChangeMe#2026"}'
+Invoke-RestMethod -Uri http://localhost:6051/api/settings/general -Headers @{ Authorization = "Bearer $($r.token)" }
+```
+
+Settings coming back as JSON means auth, the tenant claim and the database
+are all working together. That is the real end-to-end proof, and everything
+before it was only ruling out a layer.
+
+### 7 - print something
+
+Worth doing explicitly, because it is the one path that uses native code and
+the only one that can fail long after everything else looks healthy - see the
+`QuestPdfSkia.dll` note above. Book a visit in the UI and print a receipt, or
+call a print endpoint directly with the token from step 6. A PDF back means
+Skia loaded.
+
+Only once all seven pass is there any point starting the tunnel: everything
+in section 2 assumes the API already answers on 6051.
+
+---
+
 ## 2 · The tunnel
 
 ```bash
