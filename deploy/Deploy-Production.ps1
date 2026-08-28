@@ -19,8 +19,17 @@
 .PARAMETER SkipPublish
     Reconfigure and restart the service without rebuilding.
 
+.PARAMETER SqlInstance
+    The SQL Server instance name, without the machine prefix. Default
+    SQLEXPRESS. Pass SIVASQLEXPRESS, or whatever the installer was told,
+    if the instance is not the default one - the Windows service is named
+    after it, and the service dependency below has to match or the API
+    loses the startup race after every reboot.
+
 .EXAMPLE
     .\Deploy-Production.ps1
+.EXAMPLE
+    .\Deploy-Production.ps1 -SqlInstance SIVASQLEXPRESS
 .EXAMPLE
     .\Deploy-Production.ps1 -Root D:\Apps\HMS -SkipPublish
 #>
@@ -28,13 +37,14 @@
 [CmdletBinding()]
 param(
     [string] $Root = 'C:\SivayaanHMS\api',
+    [string] $SqlInstance = 'SQLEXPRESS',
     [switch] $SkipPublish
 )
 
 $ErrorActionPreference = 'Stop'
 
 $ServiceName = 'SivayaanHMSApi'
-$SqlService  = 'MSSQL$SQLEXPRESS'
+$SqlService  = "MSSQL`$$SqlInstance"
 $Port        = 6051
 $Project     = Join-Path $PSScriptRoot '..\backend\src\SivayaanHMS.Api'
 $Settings    = Join-Path $Root 'appsettings.Production.json'
@@ -54,7 +64,16 @@ if (-not $admin) { Die 'Run this from an elevated PowerShell - creating a servic
 
 $sql = Get-Service -Name $SqlService -ErrorAction SilentlyContinue
 if (-not $sql) {
-    Die "SQL Server Express ($SqlService) is not installed. The API cannot start without it - see docs/FIRST_DEPLOYMENT.md."
+    # Name every instance that does exist rather than only saying no. A
+    # non-default instance name is the usual cause, and guessing it from a
+    # bare "not installed" wastes an afternoon.
+    $found = Get-Service -Name 'MSSQL$*' -ErrorAction SilentlyContinue
+    if ($found) {
+        Warn 'SQL Server instances present on this machine:'
+        $found | ForEach-Object { Write-Host "      $($_.Name)  ($($_.Status))" }
+        Die "'$SqlService' is not one of them. Re-run with -SqlInstance <name> using the part after the dollar sign."
+    }
+    Die "No SQL Server instance found ('$SqlService'). The API cannot start without it - see docs/FIRST_DEPLOYMENT.md."
 }
 if ($sql.Status -ne 'Running') {
     Warn "$SqlService is $($sql.Status). Starting it."
@@ -150,6 +169,15 @@ if (-not (Test-Path $Settings)) {
 }
 
 $conf = Get-Content $Settings -Raw | ConvertFrom-Json
+
+# The connection string names the instance too. If it and -SqlInstance
+# disagree, the service dependency guards an instance the app never talks to
+# and the reboot race comes back silently.
+if ($conf.ConnectionStrings -and $conf.ConnectionStrings.Default) {
+    if ($conf.ConnectionStrings.Default -notmatch [regex]::Escape($SqlInstance)) {
+        Warn "The connection string does not mention '$SqlInstance'. Check it matches the instance this script is guarding, or the service dependency protects the wrong one."
+    }
+}
 
 if ($conf.Jwt.Key -like '*REPLACE*') { Die 'The JWT key in appsettings.Production.json is still a placeholder. The API refuses to start outside Development with it.' }
 if ($conf.Jwt.Key.Length -lt 32)     { Die 'The JWT key is shorter than 32 characters.' }
