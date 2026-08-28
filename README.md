@@ -106,6 +106,21 @@ handoff listed as outstanding. Every desktop module now has a web equivalent.
 | Check a module against the desktop | the `PARITY_*.md` files below |
 | Reset a locked-out clinic admin | [PLATFORM_ADMIN.md](docs/PLATFORM_ADMIN.md) |
 | See what is still missing | [GAP_ANALYSIS.md](docs/GAP_ANALYSIS.md) |
+| Run or add a real-browser end-to-end test | [SivayaanHMS.Automation/README.md](backend/tools/SivayaanHMS.Automation/README.md) |
+
+## Testing
+
+```bash
+dotnet test backend                              # 85 unit/integration tests, real SQL Server
+dotnet test backend/tests/SivayaanHMS.UatTests    # 8 real-browser journeys, real API, throwaway database
+```
+
+The second suite is not a mock of the app — it publishes the actual API, creates a throwaway SQL
+Server database, starts the actual Vite client, registers a clinic through the real sign-up
+endpoint, and drives Playwright through eight business journeys (signing in, registering a
+patient, booking a visit, reading back today's OPD register, and more) exactly as a person would.
+See its own README for the shape and the reasoning; it is built on the same tools as the sibling
+TransTrack and ABPS_WEB projects' own UAT suites.
 
 ## Known open risks
 
@@ -114,8 +129,9 @@ handoff listed as outstanding. Every desktop module now has a web equivalent.
   deletion noticed next week, or a stolen machine — and the data lives on one
   machine in a clinic. This is the largest open item; see
   [DATABASE_RELEASES.md §5](docs/DATABASE_RELEASES.md).
-- **No frontend tests.** The backend has 85 and they run against real SQL
-  Server. The frontend has none; it is verified by driving the running app.
+- **Frontend testing is browser-driven, not component-level.** The 8-workflow
+  UAT suite above proves the real journeys end to end; there is still no
+  Vitest/RTL layer for testing a single component in isolation.
 - **Pediatric procedures are not seeded.** A new clinic gets 20 dental
   procedures and zero pediatric ones.
 

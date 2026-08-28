@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api, ApiError, downloadFile, openPdf } from '../api/client';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
@@ -124,35 +124,60 @@ export function ReportsPage() {
     return p.toString();
   }, [date, from, to, expiringDays, includeZeroStock, stockSearch, paymentMode]);
 
+  // The generation a load belongs to. Switching tabs quickly — click Day
+  // Book, then OPD Register before the first request has returned — starts
+  // a second fetch while the first is still in flight, and nothing before
+  // this ordered them: whichever response happened to arrive *last* won
+  // setTable(), not whichever tab was actually selected last. The active
+  // tab button's own highlight comes from tab.id alone, with no network
+  // dependency, so it always showed the right tab — only the table under it
+  // could be left showing the previous tab's rows and columns, silently.
+  // Bumped once per call and captured in a closure, so a response is only
+  // allowed to update state if it is still the most recent request made.
+  const loadGeneration = useRef(0);
+
   const load = useCallback(async (t: Tab) => {
+    const generation = ++loadGeneration.current;
+    const isCurrent = () => generation === loadGeneration.current;
+
     setBusy(true);
     setError(null);
     try {
       setSelectedRow(null);
 
       if (t.id === 'diagnostics') {
-        setDiagnostics(await api.get<DiagnosticsReport>(`/api/reports/diagnostics?${query()}`));
+        // Cleared eagerly, same as the branch below: switching away from
+        // whichever report was on screen should read as "leaving that
+        // report" immediately, not only once the new one has arrived.
         setTable(null);
         setSummary(null);
+        const result = await api.get<DiagnosticsReport>(`/api/reports/diagnostics?${query()}`);
+        if (!isCurrent()) return;
+        setDiagnostics(result);
         return;
       }
       setDiagnostics(null);
 
       const path = t.path ?? `/api/reports/${t.kind}?${query()}`;
-      setTable(await api.get<ReportTable>(path));
+      const result = await api.get<ReportTable>(path);
+      if (!isCurrent()) return;
+      setTable(result);
 
       // The cards belong to the day book alone — they are not rows of any
       // other report.
       if (t.kind === 'DayBook') {
-        setSummary(await api.get<DayBookSummary>(`/api/reports/day-book/summary?date=${date}`));
+        const dayBookSummary = await api.get<DayBookSummary>(`/api/reports/day-book/summary?date=${date}`);
+        if (!isCurrent()) return;
+        setSummary(dayBookSummary);
       } else {
         setSummary(null);
       }
     } catch (err) {
+      if (!isCurrent()) return;
       setError(err instanceof ApiError ? err.message : 'Could not load the report.');
       setTable(null);
     } finally {
-      setBusy(false);
+      if (isCurrent()) setBusy(false);
     }
   }, [query, date]);
 

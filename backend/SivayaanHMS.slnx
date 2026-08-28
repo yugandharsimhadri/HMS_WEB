@@ -7,5 +7,9 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/SivayaanHMS.Tests/SivayaanHMS.Tests.csproj" />
+    <Project Path="tests/SivayaanHMS.UatTests/SivayaanHMS.UatTests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/SivayaanHMS.Automation/SivayaanHMS.Automation.csproj" />
   </Folder>
 </Solution>

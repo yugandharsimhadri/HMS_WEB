@@ -26,6 +26,13 @@ appsettings.Local.json
 # .template beside it is committed; this filled-in version is not.
 appsettings.Production.json
 
+## UAT automation
+# Everything a UAT run produces on the machine that ran it: the throwaway
+# API publish output, and screenshots taken on a workflow failure. Nothing
+# here is meant to be read back by a later run or by another machine — see
+# backend/tools/SivayaanHMS.Automation/README.md.
+backend/artifacts/
+
 ## IDE
 .vs/
 .vscode/
