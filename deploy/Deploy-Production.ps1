@@ -67,6 +67,17 @@ if (-not $SkipPublish) {
     if (-not $dotnet) { Die 'dotnet SDK not found on PATH. Needed to publish; use -SkipPublish on a machine without it.' }
 }
 
+# The published build is framework-dependent, so the ASP.NET Core runtime has
+# to exist on this machine. Without it the service installs happily and then
+# fails to start with a message about a missing framework, which reads like an
+# application fault rather than a missing prerequisite.
+$runtimes = & dotnet --list-runtimes 2>$null
+$aspnet = $runtimes | Where-Object { $_ -match '^Microsoft\.AspNetCore\.App 10\.' }
+if (-not $aspnet) {
+    Die 'ASP.NET Core 10 runtime not found. Install the ASP.NET Core Hosting Bundle (or the runtime) before deploying - dotnet --list-runtimes should show Microsoft.AspNetCore.App 10.x.'
+}
+Write-Host "    Runtime   : $(($aspnet | Select-Object -First 1))"
+
 # ------------------------------------------------------------------ stop first
 
 $existing = Get-Service -Name $ServiceName -ErrorAction SilentlyContinue
@@ -94,8 +105,24 @@ if (-not $SkipPublish) {
         Write-Host "    Existing settings backed up to $backup"
     }
 
-    & dotnet publish $Project -c Release -o $Root --nologo
+    # -r win-x64 rather than a portable publish. QuestPDF's Skia binaries ship
+    # for every runtime identifier, so a portable build carries 109 MB of
+    # Linux and macOS native libraries to a Windows clinic machine: 187 MB
+    # against 55 MB for the same application. --self-contained false keeps it
+    # framework-dependent, so the .NET runtime check above still applies.
+    & dotnet publish $Project -c Release -r win-x64 --self-contained false -o $Root --nologo
     if ($LASTEXITCODE -ne 0) { Die 'dotnet publish failed.' }
+
+    # RID-specific publishing flattens native libraries to the root instead of
+    # runtimes/<rid>/native. If this one goes missing the API still starts and
+    # every screen works - printing is the only thing that fails, and only when
+    # somebody first tries it.
+    if (-not (Test-Path (Join-Path $Root 'QuestPdfSkia.dll'))) {
+        Die 'QuestPdfSkia.dll is missing from the published output. PDFs would fail at the first print.'
+    }
+    if (-not (Test-Path (Join-Path $Root 'LatoFont'))) {
+        Warn 'LatoFont is missing from the published output; PDFs may fall back to a substitute typeface.'
+    }
 
     if ($backup -and -not (Test-Path $Settings)) {
         Copy-Item $backup $Settings

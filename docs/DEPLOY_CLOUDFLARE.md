@@ -47,12 +47,29 @@ Everything in `FIRST_DEPLOYMENT.md` §"What has to exist" applies first:
 SQL Server Express installed, `HMSLite` created, the login granted, and the
 migration run. The API will not start without it.
 
-Publish, excluding the developer's secrets (the `.csproj` already handles
-this — verify rather than assume):
+The published build is **framework-dependent**, so the machine needs the
+ASP.NET Core 10 runtime (the Hosting Bundle will do). Without it the service
+installs happily and then fails to start with a missing-framework message
+that reads like an application fault.
 
 ```bash
-dotnet publish backend/src/SivayaanHMS.Api -c Release -o C:\SivayaanHMS\api
+dotnet --list-runtimes
 ```
+
+Publish targeted at Windows, excluding the developer's secrets (the `.csproj`
+already handles the second part - verify rather than assume):
+
+```bash
+dotnet publish backend/src/SivayaanHMS.Api -c Release -r win-x64 --self-contained false -o C:\SivayaanHMS\api
+```
+
+`-r win-x64` is not cosmetic. QuestPDF's Skia binaries ship for every runtime
+identifier, so a portable publish carries 109 MB of Linux and macOS native
+libraries onto a Windows clinic machine - **187 MB against 55 MB** for the
+same application. It also flattens the native libraries to the root rather
+than `runtimes/<rid>/native`, so check `QuestPdfSkia.dll` is beside the exe:
+if it goes missing the API still starts and every screen works, and only
+printing fails, the first time somebody tries it.
 
 ```bash
 ls C:\SivayaanHMS\api\appsettings*.json
