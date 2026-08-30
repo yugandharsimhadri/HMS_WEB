@@ -829,7 +829,7 @@ export interface DashboardResponse {
 
 export type ReportKind =
   | 'None' | 'DayBook' | 'GstSummary' | 'OpdRegister' | 'ExpiringSoon'
-  | 'LowStock' | 'StockRegister' | 'ScheduleH1' | 'Collections';
+  | 'LowStock' | 'StockRegister' | 'ScheduleH1' | 'Collections' | 'OpdByDoctor';
 
 export type ReportAlign = 'Left' | 'Right' | 'Center';
 export type ReportFormat =

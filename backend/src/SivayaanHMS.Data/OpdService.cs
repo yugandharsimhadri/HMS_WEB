@@ -146,11 +146,17 @@ public class OpdService(IDbContextFactory<AppDbContext> factory, IClock clock, I
 
     // ── Doctors ────────────────────────────────────────────────────────────
 
-    public async Task<List<Doctor>> GetDoctorsAsync()
+    /// <summary>Active doctors, for a booking picker — an inactive one has no
+    /// business showing up where a visit gets assigned to them. The Settings
+    /// screen that actually manages doctors passes <paramref
+    /// name="includeInactive"/> so deactivating one does not also make it
+    /// unreachable to reactivate.</summary>
+    public async Task<List<Doctor>> GetDoctorsAsync(bool includeInactive = false)
     {
         await using var db = await factory.CreateDbContextAsync();
-        return await db.Doctors.AsNoTracking().Where(d => !d.IsDeleted && d.IsActive)
-                                .OrderBy(d => d.Name).ToListAsync();
+        var q = db.Doctors.AsNoTracking().Where(d => !d.IsDeleted);
+        if (!includeInactive) q = q.Where(d => d.IsActive);
+        return await q.OrderBy(d => d.Name).ToListAsync();
     }
 
     public async Task SaveDoctorAsync(Doctor doctor)
@@ -225,6 +231,27 @@ public class OpdService(IDbContextFactory<AppDbContext> factory, IClock clock, I
             .Where(v => !v.IsDeleted && v.FeePaid && v.Fee > 0
                         && v.FeePaidOn != null && v.FeePaidOn >= start && v.FeePaidOn < end)
             .OrderBy(v => v.FeePaidOn)
+            .ToListAsync();
+    }
+
+    /// <summary>
+    /// Visits across a date range, with Doctor included — for the doctor-wise
+    /// OPD report, which groups by doctor rather than by patient. Kept apart
+    /// from the plain range query above rather than adding the include there:
+    /// that one is read only for its Fee/FeePaid figures and a join it never
+    /// uses would cost every trend request that never needed it.
+    /// </summary>
+    public async Task<List<Visit>> GetVisitsWithDoctorAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+
+        return await db.Visits
+            .AsNoTracking()
+            .Include(v => v.Doctor)
+            .Where(v => !v.IsDeleted && v.ScheduledOn >= start && v.ScheduledOn < end)
+            .OrderBy(v => v.ScheduledOn)
             .ToListAsync();
     }
 

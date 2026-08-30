@@ -19,7 +19,8 @@ public record SaveDoctorRequest(
 public class DoctorsController(OpdService opd, IDbContextFactory<AppDbContext> factory) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<List<Doctor>>> List() => Ok(await opd.GetDoctorsAsync());
+    public async Task<ActionResult<List<Doctor>>> List([FromQuery] bool includeInactive = false)
+        => Ok(await opd.GetDoctorsAsync(includeInactive));
 
     [HttpPost]
     public async Task<ActionResult<Doctor>> Save(SaveDoctorRequest request)

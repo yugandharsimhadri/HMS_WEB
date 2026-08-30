@@ -6,6 +6,7 @@ import type {
 } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { StaffEditorDialog } from '../settings/StaffEditorDialog';
+import { DoctorEditorDialog } from '../settings/DoctorEditorDialog';
 import { DataHealthTab } from '../settings/DataHealthTab';
 
 type Tab = 'clinic' | 'pharmacy' | 'doctors' | 'staff' | 'branding' | 'modules' | 'health';
@@ -425,75 +426,30 @@ function PharmacyTab() {
   );
 }
 
-const emptyDoctor = { name: '', speciality: '', registrationNo: '', consultationFee: '' };
-
 function DoctorsTab() {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [form, setForm] = useState(emptyDoctor);
+  const [editing, setEditing] = useState<Doctor | null | undefined>(undefined); // undefined = closed
+  const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
 
   const load = () => {
-    void api.get<Doctor[]>('/api/doctors').then(setDoctors);
+    // Inactive doctors included, unlike the booking pickers elsewhere — this
+    // is the one screen that has to be able to reactivate one.
+    void api.get<Doctor[]>('/api/doctors?includeInactive=true')
+      .then(setDoctors)
+      .catch((err) => setError(err instanceof ApiError ? err.message : 'Could not load the doctor list.'));
   };
 
   useEffect(load, []);
 
-  const onSave = async (e: FormEvent) => {
-    e.preventDefault();
-    setSaving(true);
-    setError(null);
-    try {
-      await api.post('/api/doctors', {
-        name: form.name,
-        speciality: form.speciality || null,
-        registrationNo: form.registrationNo || null,
-        consultationFee: Number(form.consultationFee) || 0,
-        isActive: true,
-      });
-      setForm(emptyDoctor);
-      load();
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not save the doctor.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="card settings-form">
-      <form className="inline-form" onSubmit={onSave}>
-        <input
-          placeholder="Name"
-          value={form.name}
-          onChange={(e) => setForm({ ...form, name: e.target.value })}
-          required
-        />
-        <input
-          placeholder="Speciality"
-          value={form.speciality}
-          onChange={(e) => setForm({ ...form, speciality: e.target.value })}
-        />
-        <input
-          placeholder="Registration no."
-          value={form.registrationNo}
-          onChange={(e) => setForm({ ...form, registrationNo: e.target.value })}
-        />
-        <input
-          placeholder="Consultation fee"
-          type="number"
-          min="0"
-          step="0.01"
-          value={form.consultationFee}
-          onChange={(e) => setForm({ ...form, consultationFee: e.target.value })}
-          required
-        />
-        <button type="submit" disabled={saving}>
-          {saving ? 'Saving…' : 'Add doctor'}
-        </button>
-      </form>
-
       {error && <p className="auth-error">{error}</p>}
+      {status && <p className="hint status-line">{status}</p>}
+
+      <div className="inline-form">
+        <button type="button" className="primary" onClick={() => setEditing(null)}>+ Add doctor</button>
+      </div>
 
       <table>
         <thead>
@@ -502,24 +458,43 @@ function DoctorsTab() {
             <th>Speciality</th>
             <th>Registration no.</th>
             <th>Fee</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {doctors.map((d) => (
-            <tr key={d.id}>
-              <td>{d.name}</td>
+            <tr key={d.id} className={d.isActive ? undefined : 'row-inactive'}>
+              <td>
+                {d.name}
+                {!d.isActive && <span className="hint"> · inactive</span>}
+              </td>
               <td>{d.speciality ?? ''}</td>
               <td>{d.registrationNo ?? ''}</td>
               <td>{d.consultationFee.toFixed(2)}</td>
+              <td className="row-actions">
+                <button type="button" className="ghost" onClick={() => setEditing(d)}>Edit</button>
+              </td>
             </tr>
           ))}
           {doctors.length === 0 && (
             <tr>
-              <td colSpan={4}>No doctors yet.</td>
+              <td colSpan={5}>No doctors yet.</td>
             </tr>
           )}
         </tbody>
       </table>
+
+      {editing !== undefined && (
+        <DoctorEditorDialog
+          existing={editing}
+          onClose={() => setEditing(undefined)}
+          onSaved={(message) => {
+            setEditing(undefined);
+            load();
+            setStatus(message);
+          }}
+        />
+      )}
     </div>
   );
 }

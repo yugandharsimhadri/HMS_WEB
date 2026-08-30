@@ -41,25 +41,30 @@ public static class PrescriptionDocument
                 col.Item().PaddingTop(3).AlignCenter().Text(visit.Doctor.Name)
                     .FontSize(Body(theme, 10, d)).SemiBold();
 
-                var credentials = new List<string>();
-                if (!string.IsNullOrWhiteSpace(visit.Doctor.Speciality)) credentials.Add(visit.Doctor.Speciality!);
-                if (!string.IsNullOrWhiteSpace(visit.Doctor.RegistrationNo)) credentials.Add($"Reg. No: {visit.Doctor.RegistrationNo}");
-                if (credentials.Count > 0)
-                    col.Item().AlignCenter().Text(string.Join("   |   ", credentials))
+                // Speciality only, here — Reg. No now has its own row below,
+                // in the identity grid rather than this muted credentials
+                // line, so it is not printed twice.
+                if (!string.IsNullOrWhiteSpace(visit.Doctor.Speciality))
+                    col.Item().AlignCenter().Text(visit.Doctor.Speciality!)
                         .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
 
+                // Visit No, Patient No and Token are internal handles — the
+                // register key and the queue position — and mean nothing to
+                // the person holding the slip, the same reasoning
+                // FeeReceiptDocument already applies to its own identity
+                // grid. Reg. No takes their place: kept even when the clinic
+                // has not recorded one, so a blank beside the label is what
+                // prompts filling it in rather than hiding that it is missing.
                 IdentityRow(col, theme, d,
-                    ("Visit No", visit.VisitNo),
                     ("Date", $"{visit.ScheduledOn:dd/MM/yyyy}"),
                     ("Time", $"{visit.ScheduledOn:hh\\:mm tt}"));
                 IdentityRow(col, theme, d,
                     ("Patient", visit.Patient.Name),
-                    ("Patient No", visit.Patient.PatientNo),
                     ("Age / Sex", $"{visit.Patient.Age} / {visit.Patient.Gender}"));
                 IdentityRow(col, theme, d,
                     ("Doctor", visit.Doctor.Name),
                     ("Speciality", visit.Doctor.Speciality ?? ""),
-                    ("Token", visit.TokenNo.ToString()));
+                    ("Reg. No", visit.Doctor.RegistrationNo ?? "—"));
 
                 Rule(col);
 

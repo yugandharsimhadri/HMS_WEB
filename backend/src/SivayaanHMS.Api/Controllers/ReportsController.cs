@@ -168,6 +168,7 @@ public class ReportsController(
             ReportKind.StockRegister => await StockRegisterAsync(includeZeroStock, search, title, label),
             ReportKind.ScheduleH1 => await H1Async(start, end, title, label),
             ReportKind.Collections => await CollectionsAsync(start, end, mode, title, label),
+            ReportKind.OpdByDoctor => await OpdByDoctorAsync(start, end, title, label),
             _ => new ReportTable(kind, title, label, [], [], [])
         };
     }
@@ -301,6 +302,46 @@ public class ReportsController(
             [
                 new("Collected", visits.Where(v => v.FeePaid).Sum(v => v.Fee)),
                 new("Patients seen", visits.Count(v => v.Status != VisitStatus.Cancelled), ReportFormat.Integer),
+            ]);
+    }
+
+    /// <summary>
+    /// OPD activity grouped by doctor over a range — how many patients each
+    /// one saw and what their consultations brought in, the two figures a
+    /// clinic actually reviews per-doctor rather than per-visit. Grouped by
+    /// <c>DoctorId</c> rather than the loaded <see cref="Doctor"/> itself:
+    /// <c>AsNoTracking</c> hands back a fresh instance per row, so grouping
+    /// by the entity would silently split one doctor into as many groups as
+    /// they had visits.
+    /// </summary>
+    private async Task<ReportTable> OpdByDoctorAsync(DateTime from, DateTime to, string title, string label)
+    {
+        var visits = await opd.GetVisitsWithDoctorAsync(from, to);
+
+        var rows = visits
+            .GroupBy(v => v.DoctorId)
+            .Select(g => new { Doctor = g.First().Doctor, Visits = g.ToList() })
+            .OrderBy(g => g.Doctor.Name)
+            .Select(g => new ReportRow(
+                [g.Doctor.Name, g.Doctor.Speciality,
+                 g.Visits.Count(v => v.Status != VisitStatus.Cancelled),
+                 g.Visits.Count(v => v.Status == VisitStatus.Cancelled),
+                 g.Visits.Where(v => v.FeePaid).Sum(v => v.Fee)]))
+            .ToList();
+
+        return new ReportTable(ReportKind.OpdByDoctor, title, label,
+            [
+                new("Doctor", ReportAlign.Left, ReportFormat.Text, 1.8),
+                new("Speciality", ReportAlign.Left, ReportFormat.Text, 1.4),
+                new("Patients seen", ReportAlign.Right, ReportFormat.Integer, 1.0),
+                new("Cancelled", ReportAlign.Right, ReportFormat.Integer, 0.9),
+                new("Fee collected", ReportAlign.Right, ReportFormat.Money, 1.1),
+            ],
+            rows,
+            [
+                new("Doctors", rows.Count, ReportFormat.Integer),
+                new("Patients seen", visits.Count(v => v.Status != VisitStatus.Cancelled), ReportFormat.Integer),
+                new("Fee collected", visits.Where(v => v.FeePaid).Sum(v => v.Fee)),
             ]);
     }
 

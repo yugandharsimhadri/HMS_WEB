@@ -18,7 +18,13 @@ public enum ReportKind
     /// Read over a range like the GST summary: a till is reconciled for one
     /// day, but a month of UPI is what gets checked against a bank
     /// statement.</summary>
-    Collections
+    Collections,
+
+    /// <summary>OPD activity grouped by doctor over a range — how many
+    /// patients each one saw and what their consultations brought in, read
+    /// over a week or a month the same way Collections is: one day rarely
+    /// says much about a doctor's own load.</summary>
+    OpdByDoctor
 }
 
 /// <summary>Display name and file-naming rules shared by the PDF and Excel
@@ -35,13 +41,14 @@ public static class ReportNaming
         ReportKind.StockRegister => "Stock Register",
         ReportKind.ScheduleH1 => "Schedule H1 Register",
         ReportKind.Collections => "Collections by payment mode",
+        ReportKind.OpdByDoctor => "OPD by Doctor",
         _ => "Report"
     };
 
     /// <summary>GST summary and the Schedule H1 register are read over a
     /// From/To range; everything else follows the single Date picker.</summary>
     public static bool IsRangeBased(ReportKind kind)
-        => kind is ReportKind.GstSummary or ReportKind.ScheduleH1 or ReportKind.Collections;
+        => kind is ReportKind.GstSummary or ReportKind.ScheduleH1 or ReportKind.Collections or ReportKind.OpdByDoctor;
 
     public static string DateLabel(ReportKind kind, DateTime date, DateTime from, DateTime to)
     {
@@ -68,6 +75,7 @@ public static class ReportNaming
             ReportKind.StockRegister => "StockRegister",
             ReportKind.ScheduleH1 => "ScheduleH1",
             ReportKind.Collections => "Collections",
+            ReportKind.OpdByDoctor => "OPDByDoctor",
             _ => "Report"
         };
 

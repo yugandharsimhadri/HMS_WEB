@@ -26,6 +26,10 @@ const TABS: Tab[] = [
   { id: 'daybook', label: 'Day Book', kind: 'DayBook' },
   { id: 'gst', label: 'GST Summary', kind: 'GstSummary' },
   { id: 'opd', label: 'OPD Register', kind: 'OpdRegister' },
+  // Grouped by doctor over a range — a day rarely says much about one
+  // doctor's own load, so this sits with Collections and the GST summary
+  // rather than the single-day OPD Register above it.
+  { id: 'opd-doctor', label: 'OPD by Doctor', kind: 'OpdByDoctor' },
   { id: 'expiring', label: 'Expiring Soon', kind: 'ExpiringSoon' },
   { id: 'partpacks', label: 'Part Packs', kind: 'None', path: '/api/reports/part-packs' },
   { id: 'reconcile', label: 'Stock to Reconcile', kind: 'None', path: '/api/reports/to-reconcile' },
@@ -270,9 +274,9 @@ export function ReportsPage() {
   // revenue-by-day plus the most-ordered tests off the From/To range — the
   // same split the day book and the GST summary already use.
   const isRangeBased = tab.kind === 'GstSummary' || tab.kind === 'ScheduleH1'
-    || tab.kind === 'Collections' || tab.id === 'diagnostics';
+    || tab.kind === 'Collections' || tab.kind === 'OpdByDoctor' || tab.id === 'diagnostics';
   const hasDatePicker = tab.id === 'diagnostics'
-    || (tab.kind !== 'GstSummary' && tab.kind !== 'ScheduleH1'
+    || (tab.kind !== 'GstSummary' && tab.kind !== 'ScheduleH1' && tab.kind !== 'OpdByDoctor'
         && tab.kind !== 'StockRegister' && tab.kind !== 'LowStock' && tab.kind !== 'None');
 
   // Registered after the actions they call, so no binding refers to a

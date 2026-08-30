@@ -598,9 +598,13 @@ export function ConsultationPage() {
       </section>
 
       <section className="card">
-        <h2>Fee and follow-up</h2>
+        <h2>Follow-up</h2>
         <div className="settings-row">
-          <label>Consultation fee<input type="number" step="0.01" value={fee} onChange={(e) => setFee(e.target.value)} /></label>
+          {/* Consultation fee is set once, at booking or fee collection —
+              editing it again here duplicated that field without a reason
+              to change it mid-consultation. `fee` still loads with the
+              visit and round-trips on save unchanged; only the input is
+              gone. */}
           <label>Review on<input type="date" value={followUpOn} onChange={(e) => setFollowUpOn(e.target.value)} /></label>
         </div>
       </section>
