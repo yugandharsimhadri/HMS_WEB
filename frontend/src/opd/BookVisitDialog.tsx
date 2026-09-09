@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Doctor, Gender, Patient, Visit } from '../api/types';
 import { useModalBehaviour } from '../shell/useModalBehaviour';
+import { ageFromDob } from './PatientEditorDialog';
 
 /** Digits and phone punctuation only, and enough of them to be a number —
  * the desktop's OpdService.LooksLikePhone, which decides whether a search
@@ -31,7 +32,15 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newAge, setNewAge] = useState('');
+  const [newDob, setNewDob] = useState('');
   const [newGender, setNewGender] = useState<Gender>('Male');
+
+  // A date of birth always wins over a typed age, same as the full patient
+  // editor — walk-in booking is quick on purpose, but a bare "Age" box with
+  // no unit on it is how an infant brought in for their first visit ends up
+  // on the register as 6 years old instead of 6 months, because a clerk who
+  // types what they were told has no way to say which unit it was in.
+  const newAgeIsEditable = !newDob;
 
   const [doctorId, setDoctorId] = useState(preferredDoctorId ?? doctors[0]?.id ?? '');
   const [time, setTime] = useState(() => new Date().toTimeString().slice(0, 5));
@@ -47,6 +56,10 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
     const doctor = doctors.find((d) => d.id === doctorId);
     if (doctor) setFee(String(doctor.consultationFee));
   }, [doctorId, doctors]);
+
+  useEffect(() => {
+    if (newDob) setNewAge(String(ageFromDob(newDob)));
+  }, [newDob]);
 
   const onFind = async (e: FormEvent) => {
     e.preventDefault();
@@ -114,7 +127,8 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
         patient = await api.post<Patient>('/api/patients', {
           name: newName.trim(),
           phone: newPhone.trim(),
-          age: Number(newAge) || 0,
+          age: newDob ? ageFromDob(newDob) : Number(newAge) || 0,
+          dateOfBirth: newDob || null,
           gender: newGender,
         });
       }
@@ -153,6 +167,7 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
     setNewName('');
     setNewPhone('');
     setNewAge('');
+    setNewDob('');
     setComplaint('');
     setTime(new Date().toTimeString().slice(0, 5));
     setStatus('');
@@ -239,12 +254,17 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
                 <div className="inline-form">
                   <input placeholder="Name" value={newName} onChange={(e) => setNewName(e.target.value)} />
                   <input placeholder="Phone" value={newPhone} onChange={(e) => setNewPhone(e.target.value)} />
+                  <label>
+                    Date of birth
+                    <input type="date" value={newDob} onChange={(e) => setNewDob(e.target.value)} />
+                  </label>
                   <input
-                    placeholder="Age"
+                    placeholder="Age (years)"
                     type="number"
                     min="0"
                     value={newAge}
                     onChange={(e) => setNewAge(e.target.value)}
+                    disabled={!newAgeIsEditable}
                   />
                   <select value={newGender} onChange={(e) => setNewGender(e.target.value as Gender)}>
                     <option value="Male">Male</option>
@@ -255,6 +275,9 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
                     Cancel
                   </button>
                 </div>
+                {!newAgeIsEditable && (
+                  <p className="hint">Age is worked out from the date of birth, so it never drifts.</p>
+                )}
               </div>
             )}
           </section>

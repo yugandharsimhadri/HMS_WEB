@@ -15,8 +15,11 @@ interface Props {
 
 const BLOOD_GROUPS = ['', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-/** Whole years between a date of birth and today — Patient.AgeFromDob. */
-function ageFromDob(dob: string): number {
+/** Whole years between a date of birth and today — Patient.AgeFromDob.
+ * Exported so BookVisitDialog's own quick "new patient" sub-form computes
+ * age the same way when it too is given a date of birth, rather than only
+ * ever trusting a bare number with no unit. */
+export function ageFromDob(dob: string): number {
   const birth = new Date(dob);
   const now = new Date();
   let age = now.getFullYear() - birth.getFullYear();
