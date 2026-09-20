@@ -11,36 +11,57 @@ using SivayaanHMS.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // Loaded last so it overrides appsettings.json, and git-ignored so it never
-// leaves the machine. This is where the platform-support password lives in
-// development — see docs/PLATFORM_ADMIN.md for the one line to put in it.
-// Optional: the app runs fine without it, with EnterpriseAdmin simply unable
-// to sign in, which is the correct failure for a missing credential.
+// leaves the machine. This is where a developer's own database password and
+// the platform-support password live — see docs/POSTGRESQL_SETUP.md and
+// docs/PLATFORM_ADMIN.md for the few lines to put in it. Optional in the
+// sense that the app starts without it as long as the database password
+// arrives some other way (Database__Password); EnterpriseAdmin is then
+// simply unable to sign in, which is the correct failure for a credential
+// nobody set.
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 // ── Database ─────────────────────────────────────────────────────────────
+// Everything about the database comes from the Database section of
+// appsettings — host, port, name, role, password, SSL, pool sizes, timeouts
+// — bound once here into DatabaseOptions, which is the only place a
+// connection string is ever assembled. See docs/POSTGRESQL_SETUP.md.
+//
+// Validated up front, so a missing password fails at startup with a message
+// that names the key, rather than at the first request with an
+// authentication error that names nothing.
+builder.Services.Configure<DatabaseOptions>(builder.Configuration.GetSection(DatabaseOptions.SectionName));
+
+var database = builder.Configuration.GetSection(DatabaseOptions.SectionName).Get<DatabaseOptions>()
+    ?? throw new InvalidOperationException("The Database section is not configured.");
+
+if (string.IsNullOrWhiteSpace(database.ConnectionString) && string.IsNullOrWhiteSpace(database.Password))
+    throw new InvalidOperationException(
+        "Database:Password is not configured. Put it in appsettings.Local.json (development), " +
+        "appsettings.Production.json (server), or the Database__Password environment variable.");
+
+var connectionString = database.BuildConnectionString();
+
 // AddDbContextFactory rather than AddDbContext: every domain service takes
 // IDbContextFactory<AppDbContext> and opens a short-lived context per call
 // (the same pattern the desktop's services already used with
 // IDbContextFactory), not one context per request.
-var connectionString = builder.Configuration.GetConnectionString("Default")
-    ?? throw new InvalidOperationException("ConnectionStrings:Default is not configured.");
-
-builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseSqlServer(connectionString));
+builder.Services.AddDbContextFactory<AppDbContext>(options => options.UseNpgsql(connectionString));
 
 // Deliberately no EnableRetryOnFailure() yet.
 //
-// It is the standard advice for SQL Server, and turning it on today would
-// break nine call sites at *runtime* rather than at compile time: EF Core
-// refuses to let user code open its own transaction under a retrying
-// execution strategy, because it cannot safely replay a transaction it did
-// not begin. PharmacyService, DiagnosticsService, PathologyLabService,
-// ProcedureBillsService and DataHealthService all do exactly that.
+// It is the standard advice for a networked database, and turning it on
+// today would break nine call sites at *runtime* rather than at compile
+// time: EF Core refuses to let user code open its own transaction under a
+// retrying execution strategy, because it cannot safely replay a
+// transaction it did not begin. PharmacyService, DiagnosticsService,
+// PathologyLabService, ProcedureBillsService and DataHealthService all do
+// exactly that.
 //
 // Enabling it is a deliberate piece of work — wrap each of those bodies in
 // CreateExecutionStrategy().ExecuteAsync(...) and re-examine anything inside
-// them that is not safe to run twice. See docs/SQL_SERVER_MIGRATION.md §1.2.
-// Until then a transient network fault surfaces as an error rather than a
-// retry, which against a local instance is the right trade.
+// them that is not safe to run twice. Until then a transient network fault
+// surfaces as an error rather than a retry, which against a local instance
+// is the right trade.
 
 // ── Tenancy and identity ────────────────────────────────────────────────
 // HttpCurrentTenantContext/HttpCurrentUserContext read the validated JWT
@@ -188,11 +209,13 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
-// Dev convenience: apply pending migrations at startup rather than
-// requiring a separate `dotnet ef database update` step. Revisit before
-// this runs as more than one instance — a real deployment applies
-// migrations as its own release step, not a race between app instances.
-if (app.Environment.IsDevelopment())
+// Apply pending migrations at startup — on by default in Development so a
+// fresh checkout just works, off everywhere else because a real deployment
+// applies migrations as its own release step (deploy/Migrate-Database.ps1),
+// not as a race between app instances. Database:MigrateOnStartup overrides
+// either way; MigrateAsync also creates the database itself when the role
+// is allowed to, which is what the UAT harness relies on.
+if (database.MigrateOnStartup ?? app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var factory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();

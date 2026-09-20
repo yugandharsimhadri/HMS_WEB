@@ -661,7 +661,7 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
         // the batch row while a sale reads it, the way NumberService locks a
         // counter, so callers queue instead of colliding. That is a change
         // to the sale path and deserves its own pass; see
-        // docs/SQL_SERVER_MIGRATION.md.
+        // docs/SQL_SERVER_MIGRATION.md §1.1 (the reasoning outlived the provider).
         const int maxAttempts = 10;
 
         for (var attempt = 1; ; attempt++)

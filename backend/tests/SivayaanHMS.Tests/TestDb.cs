@@ -1,5 +1,5 @@
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using SivayaanHMS.Data;
 
 namespace SivayaanHMS.Tests;
@@ -11,7 +11,7 @@ public sealed class FixedTenantContext(Guid tenantId) : ICurrentTenantContext
 }
 
 /// <summary>
-/// One throwaway SQL Server database per test, dropped afterwards.
+/// One throwaway PostgreSQL database per test, dropped afterwards.
 ///
 /// Deliberately the real provider rather than SQLite or the in-memory
 /// provider. Two of the suites here — <see cref="NumberServiceConcurrencyTests"/>
@@ -21,42 +21,41 @@ public sealed class FixedTenantContext(Guid tenantId) : ICurrentTenantContext
 /// test of them against a different database proves something true of a
 /// database nobody runs.
 ///
-/// The server comes from SIVAYAANHMS_TEST_SQL when set, so CI can point at
-/// its own instance; otherwise the local SQL Express.
+/// The server comes from SIVAYAANHMS_TEST_PG when set — an Npgsql connection
+/// string naming a host and a role allowed to CREATE DATABASE, with no
+/// Database key — so CI can point at its own instance; otherwise the local
+/// server and the same development role docs/POSTGRESQL_SETUP.md creates.
 /// </summary>
 public sealed class TestDb : IDisposable
 {
-    public const string ServerOverrideVariable = "SIVAYAANHMS_TEST_SQL";
+    public const string ServerOverrideVariable = "SIVAYAANHMS_TEST_PG";
 
     private const string DefaultServer =
-        @"Server=.\SQLEXPRESS;Trusted_Connection=True;TrustServerCertificate=True";
+        "Host=localhost;Port=5432;Username=sivayaanhms;Password=sivayaanhms-dev";
 
-    private readonly string _database = $"SivayaanHMSTest_{Guid.NewGuid():N}";
+    // Lower-case, like every PostgreSQL identifier that should never need
+    // quoting. Prefixed so the sweep command in the automation README can
+    // find any that a crashed run left behind.
+    private readonly string _database = $"sivayaanhms_test_{Guid.NewGuid():N}";
     private readonly string _server;
 
-    private readonly string? _collation;
-
-    /// <param name="collation">
-    /// Forced on the test database instead of taking the server's default.
-    /// Only the search tests pass one, and they pass a case-sensitive
-    /// collation on purpose: on a CI_AS server every search looks
-    /// case-insensitive whether the query folds case or not, so a test run
-    /// there proves nothing about a clinic whose server was installed
-    /// differently.
-    /// </param>
-    public TestDb(string? collation = null)
+    public TestDb()
     {
         _server = Environment.GetEnvironmentVariable(ServerOverrideVariable) ?? DefaultServer;
-        _collation = collation;
     }
 
     private string ConnectionString =>
-        new SqlConnectionStringBuilder(_server) { InitialCatalog = _database }.ConnectionString;
+        new NpgsqlConnectionStringBuilder(_server) { Database = _database, ApplicationName = "SivayaanHMS-Tests" }.ConnectionString;
+
+    /// <summary>The maintenance database every PostgreSQL server has, from
+    /// which the throwaway one is created and dropped.</summary>
+    private string MaintenanceConnectionString =>
+        new NpgsqlConnectionStringBuilder(_server) { Database = "postgres", Pooling = false }.ConnectionString;
 
     public AppDbContext CreateContext(Guid tenantId)
     {
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlServer(ConnectionString)
+            .UseNpgsql(ConnectionString)
             .Options;
 
         return new AppDbContext(options, currentTenant: new FixedTenantContext(tenantId));
@@ -73,23 +72,8 @@ public sealed class TestDb : IDisposable
     /// </summary>
     public async Task MigrateAsync()
     {
-        // A forced collation has to be set when the database is created, so
-        // it is created here first and EnsureCreated only adds the tables.
-        if (_collation is not null) await CreateDatabaseWithCollationAsync();
-
         await using var db = CreateContext(Guid.Empty);
         await db.Database.EnsureCreatedAsync();
-    }
-
-    private async Task CreateDatabaseWithCollationAsync()
-    {
-        await using var master = new SqlConnection(
-            new SqlConnectionStringBuilder(_server) { InitialCatalog = "master" }.ConnectionString);
-        await master.OpenAsync();
-
-        await using var create = master.CreateCommand();
-        create.CommandText = $"CREATE DATABASE [{_database}] COLLATE {_collation};";
-        await create.ExecuteNonQueryAsync();
     }
 
     public IDbContextFactory<AppDbContext> CreateFactory(Guid tenantId) => new FixedTenantDbContextFactory(this, tenantId);
@@ -104,29 +88,20 @@ public sealed class TestDb : IDisposable
 
     public void Dispose()
     {
-        // Pooled connections keep the database in use, so SQL Server refuses
-        // to drop it. Clearing the pool first is the equivalent of the
-        // ClearAllPools this class needed under SQLite for the same reason.
-        SqlConnection.ClearAllPools();
+        // Pooled connections keep the database in use and PostgreSQL refuses
+        // to drop one with a session still attached. Clearing the pool first
+        // is the equivalent of the ClearAllPools this class needed under
+        // SQLite for the same reason; WITH (FORCE) below then evicts anything
+        // a leaked context is still holding.
+        NpgsqlConnection.ClearAllPools();
 
         try
         {
-            using var master = new SqlConnection(
-                new SqlConnectionStringBuilder(_server) { InitialCatalog = "master" }.ConnectionString);
-            master.Open();
+            using var maintenance = new NpgsqlConnection(MaintenanceConnectionString);
+            maintenance.Open();
 
-            using var drop = master.CreateCommand();
-
-            // SINGLE_USER WITH ROLLBACK IMMEDIATE evicts anything still
-            // holding the database — without it one leaked connection leaves
-            // a test database behind on the server forever.
-            drop.CommandText = $"""
-                IF DB_ID('{_database}') IS NOT NULL
-                BEGIN
-                    ALTER DATABASE [{_database}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
-                    DROP DATABASE [{_database}];
-                END
-                """;
+            using var drop = maintenance.CreateCommand();
+            drop.CommandText = $"DROP DATABASE IF EXISTS \"{_database}\" WITH (FORCE);";
             drop.ExecuteNonQuery();
         }
         catch

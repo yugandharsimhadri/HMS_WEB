@@ -10,9 +10,31 @@
     }
   },
 
-  "ConnectionStrings": {
-    "//": "SQL Express on the same machine. Server, database, no file paths - moving the .mdf to another drive does not change this line. Use the SQL login OR delete this whole block to fall back to appsettings.json's Windows authentication, which has no password to store.",
-    "Default": "Server=.\\SQLEXPRESS;Database=HMSLite;User ID=SivayaanHMS;Password=REPLACE-ME;TrustServerCertificate=True;MultipleActiveResultSets=False;Application Name=SivayaanHMS"
+  "Database": {
+    "//": [
+      "PostgreSQL. The only place the application learns where its database is, so a move to a",
+      "cloud-hosted server is these few lines and a restart. Full reference: docs/POSTGRESQL_SETUP.md.",
+      "Host     - localhost for PostgreSQL on this machine; for a managed server, its hostname,",
+      "           e.g. mydb.abc123.ap-south-1.rds.amazonaws.com",
+      "Port     - 5432 unless the server says otherwise.",
+      "Name     - the database, lower-case, as created by docs/POSTGRESQL_SETUP.md.",
+      "Username - the application role that OWNS the database (same document). Never postgres.",
+      "Password - that role's password. Change it here and restart the service.",
+      "SslMode  - Prefer on this machine. Require for any server that is not on this machine:",
+      "           cloud providers insist on it, and traffic across a network without it is readable.",
+      "MigrateOnStartup is deliberately absent: outside Development the default is off, and the",
+      "release step deploy\\Migrate-Database.ps1 applies migrations with a backup taken first."
+    ],
+    "Host": "localhost",
+    "Port": 5432,
+    "Name": "sivayaanhms",
+    "Username": "sivayaanhms",
+    "Password": "REPLACE-ME",
+    "SslMode": "Prefer",
+    "MaxPoolSize": 50,
+    "CommandTimeoutSeconds": 60,
+    "ConnectionTimeoutSeconds": 60,
+    "ApplicationName": "SivayaanHMS"
   },
 
   "Jwt": {

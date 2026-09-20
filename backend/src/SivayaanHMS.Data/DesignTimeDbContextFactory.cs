@@ -11,8 +11,13 @@ namespace SivayaanHMS.Data;
 /// Override it when a command really does need to reach the database, such as
 /// `database update` or `migrations script --from`:
 ///
-///     $env:SIVAYAANHMS_CONNECTION = "Server=.\SQLEXPRESS;Database=HMSLite;Trusted_Connection=True;TrustServerCertificate=True"
+///     $env:SIVAYAANHMS_CONNECTION = "Host=localhost;Port=5432;Database=sivayaanhms;Username=sivayaanhms;Password=..."
 ///     dotnet ef migrations list --project src\SivayaanHMS.Data --startup-project src\SivayaanHMS.Data
+///
+/// The same Npgsql keys the Database section of appsettings is built from —
+/// see <see cref="DatabaseOptions"/>; deploy/Migrate-Database.ps1 assembles
+/// this variable from that section so the release step and the API cannot
+/// disagree about which database they mean.
 /// </summary>
 public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<AppDbContext>
 {
@@ -22,7 +27,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
     /// migration never opens it; anything that does is told to set the
     /// variable above.</summary>
     private const string DesignTimeFallback =
-        "Server=(local);Database=SivayaanHMS_DesignTime;Trusted_Connection=True;TrustServerCertificate=True";
+        "Host=localhost;Port=5432;Database=sivayaanhms_designtime;Username=sivayaanhms;Password=design-time-only";
 
     public AppDbContext CreateDbContext(string[] args)
     {
@@ -30,7 +35,7 @@ public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<AppDbConte
         if (string.IsNullOrWhiteSpace(connection)) connection = DesignTimeFallback;
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlServer(connection)
+            .UseNpgsql(connection)
             .Options;
 
         return new AppDbContext(options);

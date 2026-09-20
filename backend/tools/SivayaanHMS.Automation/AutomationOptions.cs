@@ -34,14 +34,14 @@ public sealed record AutomationOptions
     public string ApiBaseUrl { get; init; } = "http://localhost:5411";
 
     /// <summary>
-    /// The SQL Server instance a throwaway database is created on for the run, in the form
-    /// <c>sqlcmd -S</c> takes: <c>.\INSTANCE</c> or <c>(localdb)\MSSQLLocalDB</c>. LocalDB by
-    /// default — it needs no service to be pre-started and starts itself on first connection,
-    /// which is the lowest-friction thing that works on a checkout with nothing configured yet.
-    /// Point this at SQLEXPRESS, or wherever the product actually runs, to test against the same
-    /// engine production uses.
+    /// The PostgreSQL server a throwaway database is created on for the run, as an Npgsql
+    /// connection string naming the host and a role allowed to CREATE DATABASE — and no Database
+    /// key, since the run names its own. The default is the local server and the development role
+    /// docs/POSTGRESQL_SETUP.md creates, the same one the unit tests use, so a checkout that can
+    /// run <c>dotnet test</c> at all can run this too. Point it at another server to test against
+    /// the engine production actually runs, or at a role of your own on CI.
     /// </summary>
-    public string SqlServerInstance { get; init; } = @"(localdb)\MSSQLLocalDB";
+    public string PostgresServer { get; init; } = "Host=localhost;Port=5432;Username=sivayaanhms;Password=sivayaanhms-dev";
 
     /// <summary>Absolute path to the frontend project, used to start the Vite dev server on demand.</summary>
     public string WebProjectPath { get; init; } = "";
@@ -65,7 +65,7 @@ public sealed record AutomationOptions
 
     /// <summary>
     /// Builds the options from environment variables, falling back to the defaults above:
-    /// SIVAYAANHMS_UAT_BASE_URL, SIVAYAANHMS_UAT_API_BASE_URL, SIVAYAANHMS_UAT_SQL_INSTANCE,
+    /// SIVAYAANHMS_UAT_BASE_URL, SIVAYAANHMS_UAT_API_BASE_URL, SIVAYAANHMS_UAT_PG,
     /// SIVAYAANHMS_UAT_WEB_PATH, SIVAYAANHMS_UAT_MANAGE_SERVERS (true|false),
     /// SIVAYAANHMS_UAT_SKIP_API_PUBLISH (true|false).
     /// </summary>
@@ -73,7 +73,7 @@ public sealed record AutomationOptions
     {
         BaseUrl = Env("SIVAYAANHMS_UAT_BASE_URL") ?? "http://localhost:5410",
         ApiBaseUrl = Env("SIVAYAANHMS_UAT_API_BASE_URL") ?? "http://localhost:5411",
-        SqlServerInstance = Env("SIVAYAANHMS_UAT_SQL_INSTANCE") ?? @"(localdb)\MSSQLLocalDB",
+        PostgresServer = Env("SIVAYAANHMS_UAT_PG") ?? "Host=localhost;Port=5432;Username=sivayaanhms;Password=sivayaanhms-dev",
         WebProjectPath = Env("SIVAYAANHMS_UAT_WEB_PATH") ?? RepoPaths.WebProject,
         ManageServers = !string.Equals(Env("SIVAYAANHMS_UAT_MANAGE_SERVERS"), "false", StringComparison.OrdinalIgnoreCase),
         SkipApiPublish = string.Equals(Env("SIVAYAANHMS_UAT_SKIP_API_PUBLISH"), "true", StringComparison.OrdinalIgnoreCase),

@@ -19,13 +19,13 @@
 
   <ItemGroup>
     <!--
-      appsettings.Local.json is a developer's own file: the SQL password and
+      appsettings.Local.json is a developer's own file: the database password and
       the platform-support password live in it, and .gitignore keeps it out of
       the repository.
 
       The Web SDK's default glob is appsettings*.json, so without this it was
       copied into `dotnet publish` output and shipped with the build - both
-      passwords, and a connection string pointing at a developer's LocalDB.
+      passwords, and database settings pointing at a developer's own server.
       Because Program.cs loads it *last*, it would then have overridden
       appsettings.Production.json on the server: production would have quietly
       tried to reach a database that does not exist there, with the correct

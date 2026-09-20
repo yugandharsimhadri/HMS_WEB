@@ -1,5 +1,13 @@
 # Moving from SQLite to SQL Server Express
 
+> **Historical.** The application has since moved again, from SQL Server to
+> PostgreSQL — see `POSTGRESQL_SETUP.md` for the current database, and its
+> §6 for what changed in that second move. This document is kept because the
+> reasoning in it outlived the provider: what a numbering allocator has to
+> guarantee (§1.1), why `EnableRetryOnFailure` is still off (§1.2), and why
+> the migration history had to start over — which it did again.
+
+
 A plan, and the reasoning behind each decision. Grounded in what this
 codebase actually does — every file named below was read, not assumed.
 

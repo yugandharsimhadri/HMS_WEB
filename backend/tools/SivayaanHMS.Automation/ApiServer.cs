@@ -1,28 +1,28 @@
 namespace SivayaanHMS.Automation;
 
 /// <summary>
-/// Runs the real SivayaanHMS.Api against a throwaway SQL Server database for the duration of a
+/// Runs the real SivayaanHMS.Api against a throwaway PostgreSQL database for the duration of a
 /// run — the same "one process over real data, not a mock" choice TransTrack.Automation makes,
-/// adapted for a backend that speaks SQL Server rather than a file.
+/// adapted for a backend that speaks to a database server rather than a file.
 ///
-/// The database is created by the API itself: <c>Program.cs</c> already migrates on startup under
+/// The database is created by the API itself: <c>Program.cs</c> migrates on startup under
 /// <c>IsDevelopment()</c>, and <c>Database.MigrateAsync()</c> creates the target database from
-/// nothing when it does not exist. Pointing the connection string at a name nobody has used before
-/// gets the same "a fresh, correctly-shaped database costs one process start" result
-/// TransTrack.Automation gets from SQLite — just with an extra step, because unlike a SQLite file
-/// this only works if something is allowed to <c>CREATE DATABASE</c>, which Windows-authenticated
-/// LocalDB grants by default and a production login deliberately would not.
+/// nothing when it does not exist — Npgsql connects to the server's maintenance database and
+/// issues the CREATE DATABASE. Pointing the configuration at a name nobody has used before gets
+/// the same "a fresh, correctly-shaped database costs one process start" result
+/// TransTrack.Automation gets from SQLite — provided the role the run signs in as is allowed to
+/// CREATE DATABASE, which the development role in docs/POSTGRESQL_SETUP.md is and a production
+/// role deliberately is not.
 ///
 /// <b>Why this runs from a publish, not a build.</b> <c>appsettings.Local.json</c> holds a
-/// developer's own SQL password, and <c>Program.cs</c> loads it last — deliberately, so it
-/// overrides everything, including a <c>ConnectionStrings__Default</c> environment variable set
-/// here. A plain <c>dotnet build</c> still copies that file into <c>bin/</c>; a
-/// <c>dotnet publish</c> does not, because a prior commit
-/// ("Stop the developer's secrets file from shipping to production") marked it
-/// <c>CopyToPublishDirectory="Never"</c> for exactly this reason, on the production deployment
+/// developer's own database password, and <c>Program.cs</c> loads it last — deliberately, so it
+/// overrides everything, including the <c>Database__*</c> environment variables set here. A plain
+/// <c>dotnet build</c> still copies that file into <c>bin/</c>; a <c>dotnet publish</c> does not,
+/// because a prior commit ("Stop the developer's secrets file from shipping to production") marked
+/// it <c>CopyToPublishDirectory="Never"</c> for exactly this reason, on the production deployment
 /// path. Running the UAT suite from the publish output means it inherits that same guarantee for
 /// free: there is no file in the folder this process starts from that could override the
-/// throwaway connection string with a developer's real one. Skipping this and running from
+/// throwaway database with a developer's real one. Skipping this and running from
 /// <c>bin/Debug</c> instead would silently point a UAT run at whatever database that developer's
 /// machine is actually configured for.
 /// </summary>
@@ -30,14 +30,14 @@ public sealed class ApiServer : IAsyncDisposable
 {
     private readonly System.Diagnostics.Process? _ownedProcess;
     private readonly string? _databaseName;
-    private readonly string _sqlInstance;
+    private readonly string _postgresServer;
 
-    private ApiServer(string baseUrl, System.Diagnostics.Process? ownedProcess, string? databaseName, string sqlInstance)
+    private ApiServer(string baseUrl, System.Diagnostics.Process? ownedProcess, string? databaseName, string postgresServer)
     {
         BaseUrl = baseUrl;
         _ownedProcess = ownedProcess;
         _databaseName = databaseName;
-        _sqlInstance = sqlInstance;
+        _postgresServer = postgresServer;
     }
 
     public string BaseUrl { get; }
@@ -58,7 +58,7 @@ public sealed class ApiServer : IAsyncDisposable
         if (await ManagedProcess.IsRespondingAsync($"{baseUrl}/", cancellationToken))
         {
             log?.Invoke($"Reusing whatever is already serving {baseUrl}");
-            return new ApiServer(baseUrl, ownedProcess: null, databaseName: null, options.SqlServerInstance);
+            return new ApiServer(baseUrl, ownedProcess: null, databaseName: null, options.PostgresServer);
         }
 
         if (!options.ManageServers)
@@ -66,7 +66,9 @@ public sealed class ApiServer : IAsyncDisposable
                 $"Nothing is serving {baseUrl} and SIVAYAANHMS_UAT_MANAGE_SERVERS=false, so the automation " +
                 "will not start one. Start the API yourself or unset that variable.");
 
-        var databaseName = $"SivayaanHMSUat_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}";
+        // Lower-case: PostgreSQL folds unquoted identifiers, and a name that needs quoting in every
+        // psql command is a name somebody will eventually mistype while cleaning up.
+        var databaseName = $"sivayaanhms_uat_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}";
         var publishDir = Path.Combine(RepoPaths.ArtifactsDir, "api-publish");
 
         if (!options.SkipApiPublish || !File.Exists(Path.Combine(publishDir, "SivayaanHMS.Api.dll")))
@@ -79,25 +81,25 @@ public sealed class ApiServer : IAsyncDisposable
             log?.Invoke($"Reusing the existing publish at {publishDir} (SIVAYAANHMS_UAT_SKIP_API_PUBLISH=true)");
         }
 
-        // Trusted_Connection: the same reason SQL_SERVER_SETUP.md gives it as the deployment
-        // default — no password to store, leak or find in a log line for a process that only ever
-        // exists for the lifetime of one test run.
+        // Database:ConnectionString replaces every individual Database:* key in appsettings.json,
+        // which is exactly what a run wants: the server and role from the options, the run's own
+        // database name, and nothing inherited from the file.
         var connectionString =
-            $@"Server={options.SqlServerInstance};Database={databaseName};Trusted_Connection=True;" +
-            "TrustServerCertificate=True;MultipleActiveResultSets=False;Application Name=SivayaanHMS-UAT";
+            $"{options.PostgresServer.TrimEnd(';')};Database={databaseName};Application Name=SivayaanHMS-UAT";
 
         var environment = new Dictionary<string, string>
         {
             ["ASPNETCORE_ENVIRONMENT"] = "Development", // gates the startup auto-migrate in Program.cs
             ["ASPNETCORE_URLS"] = baseUrl,
-            ["ConnectionStrings__Default"] = connectionString,
+            ["Database__ConnectionString"] = connectionString,
+            ["Database__MigrateOnStartup"] = "true",
 
             // appsettings.json's default only allows http://localhost:5173 — the developer's own
             // Vite port, not the UAT's dedicated one.
             ["Cors__AllowedOrigins__0"] = options.BaseUrl.TrimEnd('/'),
         };
 
-        log?.Invoke($"Starting SivayaanHMS.Api on {baseUrl} against throwaway database '{databaseName}' on {options.SqlServerInstance}");
+        log?.Invoke($"Starting SivayaanHMS.Api on {baseUrl} against throwaway database '{databaseName}' on {Describe(options.PostgresServer)}");
 
         var dllPath = Path.Combine(publishDir, "SivayaanHMS.Api.dll");
         if (!File.Exists(dllPath))
@@ -105,7 +107,7 @@ public sealed class ApiServer : IAsyncDisposable
 
         var process = ManagedProcess.Start("dotnet", publishDir, new[] { dllPath }, environment);
 
-        var server = new ApiServer(baseUrl, process, databaseName, options.SqlServerInstance);
+        var server = new ApiServer(baseUrl, process, databaseName, options.PostgresServer);
 
         try
         {
@@ -124,13 +126,21 @@ public sealed class ApiServer : IAsyncDisposable
         return server;
     }
 
+    /// <summary>The server half of a connection string, for a log line — never the password.</summary>
+    private static string Describe(string connectionString)
+    {
+        var kept = connectionString.Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Where(part => !part.TrimStart().StartsWith("Password", StringComparison.OrdinalIgnoreCase));
+        return string.Join(";", kept);
+    }
+
     private static async Task PublishAsync(string outputDir, Action<string>? log)
     {
         Directory.CreateDirectory(outputDir);
 
         // Generous on purpose: the first publish of a run is a cold Release build and restore of
-        // four projects, and this machine routinely has other builds, servers and SQL Server
-        // itself competing for the same CPU and disk. Every publish after the first is
+        // four projects, and this machine routinely has other builds, servers and a database
+        // server itself competing for the same CPU and disk. Every publish after the first is
         // incremental and finishes in a few seconds — see SIVAYAANHMS_UAT_SKIP_API_PUBLISH to
         // skip it entirely while iterating on a workflow.
         var (exitCode, output) = await ManagedProcess.RunToCompletionAsync(
@@ -161,7 +171,7 @@ public sealed class ApiServer : IAsyncDisposable
         if (File.Exists(Path.Combine(outputDir, "appsettings.Local.json")))
             throw new InvalidOperationException(
                 $"'{outputDir}' contains appsettings.Local.json. That file is loaded last by " +
-                "Program.cs and would override every connection string this automation sets, " +
+                "Program.cs and would override every database setting this automation sets, " +
                 "including the throwaway database — a UAT run must never be able to reach a real " +
                 "one. It should be excluded from the publish output by " +
                 "SivayaanHMS.Api.csproj's CopyToPublishDirectory=\"Never\" rule; that rule has " +
@@ -179,12 +189,12 @@ public sealed class ApiServer : IAsyncDisposable
 
         // The database is left in place, exactly as TransTrack.Automation leaves its throwaway
         // SQLite file: a failed scenario is far easier to diagnose against the data it actually
-        // ran on than against nothing. Unlike a stray file, a LocalDB/Express database does not
-        // just disappear when a folder is cleaned up, so it is named clearly and logged so it can
-        // be found and dropped — see docs in this project's README for the sweep command.
+        // ran on than against nothing. Unlike a stray file, a database does not just disappear
+        // when a folder is cleaned up, so it is named clearly and logged so it can be found and
+        // dropped — see this project's README for the sweep command.
         if (_databaseName is not null)
             Console.WriteLine(
-                $"Left '{_databaseName}' on {_sqlInstance} for inspection. Drop it with:{Environment.NewLine}" +
-                $"  sqlcmd -S \"{_sqlInstance}\" -E -C -Q \"ALTER DATABASE [{_databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{_databaseName}];\"");
+                $"Left '{_databaseName}' on {Describe(_postgresServer)} for inspection. Drop it with:{Environment.NewLine}" +
+                $"  psql -h localhost -U sivayaanhms -d postgres -c \"DROP DATABASE \\\"{_databaseName}\\\" WITH (FORCE);\"");
     }
 }

@@ -1,7 +1,8 @@
 using System.Data;
-using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
+using Npgsql;
+using NpgsqlTypes;
 
 namespace SivayaanHMS.Data;
 
@@ -13,14 +14,19 @@ namespace SivayaanHMS.Data;
 /// duplicate invoice numbers the instant two requests land at once, because
 /// nothing stopped both from reading the same starting value.
 ///
-/// This version does the read-increment-write inside one short transaction
-/// that takes an update lock on the counter row, so two concurrent callers
-/// serialize on the row instead of racing in memory.
+/// This version is one statement: <c>INSERT ... ON CONFLICT DO UPDATE ...
+/// RETURNING</c>. PostgreSQL takes the row lock for the update inside the
+/// statement, so two concurrent callers for the same tenant and counter
+/// serialize on the row instead of racing in memory, and the incremented
+/// value comes back from the same statement that made it — nothing re-reads
+/// the row, so no second caller can slip between the write and the read.
 ///
 /// <para>
-/// UPDATE-then-INSERT rather than MERGE. MERGE reads more neatly and has a
-/// long history of correctness and deadlock bugs under exactly this
-/// insert-or-increment pattern; this shape is duller and better understood.
+/// The SQL Server version of this class was a batch: an UPDATE with lock
+/// hints, an INSERT if that matched nothing, both OUTPUTing into a table
+/// variable. An upsert is the same idea in the dialect that has a word for
+/// it, and the unique index on (TenantId, Name) — see AppDbContext — is what
+/// ON CONFLICT resolves against.
 /// </para>
 /// </summary>
 public static class NumberService
@@ -50,94 +56,54 @@ public static class NumberService
     /// Called *inside* a caller's transaction — which is the usual case, since
     /// most numbered documents are written in one — it enrols in that
     /// transaction instead. The number and the document then commit or roll
-    /// back together, so a rolled-back sale leaves no gap at all.
+    /// back together, so a rolled-back sale leaves no gap at all; and the
+    /// row lock the upsert takes is then held until the caller commits,
+    /// which is stricter than this method needs and exactly what the caller
+    /// wants.
     /// </summary>
     public static async Task<string> NextAsync(AppDbContext db, string name, CancellationToken ct = default)
     {
-        var connection = (SqlConnection)db.Database.GetDbConnection();
+        var connection = (NpgsqlConnection)db.Database.GetDbConnection();
         if (connection.State != ConnectionState.Open)
             await connection.OpenAsync(ct);
 
         await using var cmd = connection.CreateCommand();
 
-        // Most callers allocate a number *inside* a transaction they already
-        // opened — a sale, a diagnostic bill, a stock entry. SQL Server
-        // refuses to run a command on a connection with a pending local
-        // transaction unless the command is enrolled in it, so without this
-        // every numbered document created inside those nine transaction
-        // sites would fail. SQLite never enforced it, which is why this only
-        // appeared on the provider move.
-        //
-        // When enrolled, the outer transaction governs: the UPDLOCK is then
-        // held until *it* commits, which is stricter than this method needs
-        // and exactly what the caller wants — the number and the document it
-        // belongs to commit together.
-        var ambient = db.Database.CurrentTransaction?.GetDbTransaction() as SqlTransaction;
-        cmd.Transaction = ambient;
+        // Most callers allocate a number inside a transaction they already
+        // opened — a sale, a diagnostic bill, a stock entry. Npgsql runs a
+        // command on whatever transaction the connection is in regardless,
+        // but naming it here keeps the intent readable and lets ADO.NET
+        // validate that the command and the transaction share a connection.
+        cmd.Transaction = db.Database.CurrentTransaction?.GetDbTransaction() as NpgsqlTransaction;
 
-        // Only manage a transaction when nobody else is. Opening one inside
-        // an ambient transaction would just nest, and committing the nested
-        // level says nothing about the outer one.
-        var ownTransaction = ambient is null;
-
-        // UPDLOCK takes the lock that a later UPDATE would need, at read
-        // time, so a second caller waits here rather than reading the same
-        // LastNumber. HOLDLOCK keeps it to the end of the transaction, which
-        // also stops a second caller inserting the same counter in the gap
-        // between the UPDATE finding nothing and the INSERT running.
-        //
-        // OUTPUT returns the incremented value from the statement that made
-        // it, so nothing re-reads the row and no second caller can slip
-        // between the write and the read.
-        //
-        // XACT_ABORT ON: on any error the transaction is rolled back rather
-        // than left open, which on a pooled connection would otherwise leak
-        // locks to whoever gets it next.
-        //
-        // Both OUTPUT clauses collect into one table variable, and the batch
-        // returns a single SELECT at the end.
-        //
-        // Emitting the two OUTPUTs directly would send back *two* result
-        // sets, and when the UPDATE matches nothing the first of them is
-        // empty — so a reader positioned on it finds no row and the insert's
-        // result is never looked at. The single trailing SELECT means the
-        // caller reads one result set whichever branch ran.
-        cmd.CommandText = $"""
-            SET NOCOUNT ON;
-            SET XACT_ABORT ON;
-
-            DECLARE @allocated TABLE (Prefix nvarchar(10), LastNumber int);
-
-            {(ownTransaction ? "BEGIN TRANSACTION;" : "")}
-
-            UPDATE Counters WITH (UPDLOCK, HOLDLOCK)
-            SET LastNumber = LastNumber + 1
-            OUTPUT inserted.Prefix, inserted.LastNumber INTO @allocated
-            WHERE TenantId = @tenantId AND Name = @name AND IsDeleted = 0;
-
-            IF NOT EXISTS (SELECT 1 FROM @allocated)
-                INSERT INTO Counters (Id, TenantId, Name, Prefix, LastNumber, CreatedAt, IsDeleted, RowVersion)
-                OUTPUT inserted.Prefix, inserted.LastNumber INTO @allocated
-                VALUES (@id, @tenantId, @name, @prefix, 1, SYSDATETIME(), 0, @rowVersion);
-
-            {(ownTransaction ? "COMMIT TRANSACTION;" : "")}
-
-            SELECT Prefix, LastNumber FROM @allocated;
+        // Identifiers are double-quoted because EF Core creates them in the
+        // model's PascalCase, and PostgreSQL folds anything unquoted to lower
+        // case. The soft-delete flag is not consulted: nothing in this
+        // application ever soft-deletes a counter, and an "undeleted" row is
+        // still the right one to keep numbering from — a register never
+        // starts again at 1.
+        cmd.CommandText = """
+            INSERT INTO "Counters" ("Id", "TenantId", "Name", "Prefix", "LastNumber", "CreatedAt", "IsDeleted", "RowVersion")
+            VALUES (@id, @tenantId, @name, @prefix, 1, @createdAt, false, @rowVersion)
+            ON CONFLICT ("TenantId", "Name") DO UPDATE
+                SET "LastNumber" = "Counters"."LastNumber" + 1
+            RETURNING "Prefix", "LastNumber";
             """;
 
-        cmd.Parameters.Add(new SqlParameter("@id", SqlDbType.UniqueIdentifier) { Value = Guid.NewGuid() });
-        cmd.Parameters.Add(new SqlParameter("@tenantId", SqlDbType.UniqueIdentifier) { Value = db.TenantId });
-        cmd.Parameters.Add(new SqlParameter("@name", SqlDbType.NVarChar, 100) { Value = name });
-        cmd.Parameters.Add(new SqlParameter("@prefix", SqlDbType.NVarChar, 10) { Value = DefaultPrefix(name) });
-        cmd.Parameters.Add(new SqlParameter("@rowVersion", SqlDbType.VarBinary, 16) { Value = Guid.NewGuid().ToByteArray() });
+        cmd.Parameters.Add(new NpgsqlParameter("id", NpgsqlDbType.Uuid) { Value = Guid.NewGuid() });
+        cmd.Parameters.Add(new NpgsqlParameter("tenantId", NpgsqlDbType.Uuid) { Value = db.TenantId });
+        cmd.Parameters.Add(new NpgsqlParameter("name", NpgsqlDbType.Text) { Value = name });
+        cmd.Parameters.Add(new NpgsqlParameter("prefix", NpgsqlDbType.Text) { Value = DefaultPrefix(name) });
+        // Timestamp, not TimestampTz: every DateTime column in this schema is
+        // clinic-local wall-clock time — see AppDbContext.ConfigureConventions.
+        cmd.Parameters.Add(new NpgsqlParameter("createdAt", NpgsqlDbType.Timestamp) { Value = DateTime.Now });
+        cmd.Parameters.Add(new NpgsqlParameter("rowVersion", NpgsqlDbType.Bytea) { Value = Guid.NewGuid().ToByteArray() });
 
         await using var reader = await cmd.ExecuteReaderAsync(ct);
-        await reader.ReadAsync(ct);
-        var prefix = reader.GetString(0);
+        if (!await reader.ReadAsync(ct))
+            throw new InvalidOperationException($"Allocating a '{name}' number returned no row.");
 
-        // Counter.LastNumber is an int, and SQL Server returns it as Int32.
-        // SQLite returned every INTEGER as 64-bit, so the old GetInt64 worked
-        // there and throws here — one of the quiet ones in a provider move.
+        var prefix = reader.GetString(0);
         var lastNumber = reader.GetInt32(1);
 
         return $"{prefix}{lastNumber:D5}";

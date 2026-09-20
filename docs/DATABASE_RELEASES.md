@@ -10,9 +10,15 @@ The rule that everything below follows from:
 > release step of its own, run before the new build serves traffic, with a
 > verified backup taken first.
 
-`Program.cs` still migrates at startup, but only under `IsDevelopment()`, and
-it must stay that way. Two instances starting together would race each other
-to alter the same tables.
+`Program.cs` still migrates at startup, but only in Development — or when
+`Database:MigrateOnStartup` says so explicitly, which a server's settings never
+do — and it must stay that way. Two instances starting together would race
+each other to alter the same tables.
+
+Where the database is comes from one place: the `Database` section of
+`appsettings.Production.json`, described in `POSTGRESQL_SETUP.md`. The
+scripts below read it from there rather than taking a server as a parameter,
+so a backup, a migration and the API can never mean different databases.
 
 ---
 
@@ -20,16 +26,16 @@ to alter the same tables.
 
 ```powershell
 # 1. see what a release would do, without doing it
-.\deploy\Migrate-Database.ps1 -SqlInstance SIVASQLEXPRESS -DryRun
+.\deploy\Migrate-Database.ps1 -DryRun
 
 # 2. stop serving, so nothing writes through a half-applied schema
 Stop-Service SivayaanHMSApi
 
 # 3. back up and migrate
-.\deploy\Migrate-Database.ps1 -SqlInstance SIVASQLEXPRESS
+.\deploy\Migrate-Database.ps1
 
 # 4. publish the new build and start again
-.\deploy\Deploy-Production.ps1 -SqlInstance SIVASQLEXPRESS
+.\deploy\Deploy-Production.ps1
 ```
 
 Then the frontend, which is independent: pushing to the branch Cloudflare
@@ -41,10 +47,11 @@ easier direction, which is why the order is this way round and not the other.
 
 ### What `Migrate-Database.ps1` does
 
-1. Checks the server is reachable and the login works, with a clearer message
-   than the API gives.
+1. Reads the `Database` section of `appsettings.Production.json`, and checks
+   the server is reachable and the role signs in, with a clearer message than
+   the API gives.
 2. **Backs up. Always** — even when nothing is pending — and runs
-   `RESTORE VERIFYONLY` over the result. A backup nobody has read back is a
+   `pg_restore --list` over the result. A backup nobody has read back is a
    hope, not a rollback.
 3. Lists what is pending. Stops here on `-DryRun`.
 4. Applies through `dotnet ef database update`.
@@ -69,8 +76,13 @@ It looks like this:
 ```powershell
 Stop-Service SivayaanHMSApi
 
-sqlcmd -S ".\SIVASQLEXPRESS" -C -I -b -E -d master -Q "ALTER DATABASE [HMSLite] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; RESTORE DATABASE [HMSLite] FROM DISK = N'C:\SivayaanHMS\DBBackup\HMSLite-pre-migration-<stamp>.bak' WITH REPLACE; ALTER DATABASE [HMSLite] SET MULTI_USER;"
+$env:PGPASSWORD = '<the password from appsettings.Production.json>'
+pg_restore -h localhost -p 5432 -U sivayaanhms -d sivayaanhms --clean --if-exists --no-owner --no-privileges "C:\SivayaanHMS\DBBackup\sivayaanhms-pre-migration-<stamp>.dump"
 ```
+
+PostgreSQL runs each migration in its own transaction, so a failed one rolls
+itself back and the schema is at whichever migration last succeeded — but
+check that before trusting it, and restore if in doubt.
 
 Then redeploy the **previous** build, because the running one now expects a
 schema that no longer exists.
@@ -121,17 +133,20 @@ Add a new migration instead. Always.
 A `NOT NULL` column added to a table with rows fails unless it has a default.
 Add it nullable, backfill in the same migration, then tighten in a later one.
 
-### Filtered indexes need `QUOTED_IDENTIFIER ON`
+### The one piece of raw SQL in the model
 
 The unique index on `Products` that stops the same medicine being stocked
-twice is a filtered index. SQL Server refuses **any write** to that table —
-not just index creation — when the option is off, and `sqlcmd` defaults it
-off.
+twice is a *partial* index, and its predicate — `"IsDeleted" = false` — is a
+string of PostgreSQL in `AppDbContext`, not something EF Core generates. On
+SQL Server that string's quoting depended on a session option that two tools
+set differently, and one deployment lost the index without a word.
+PostgreSQL has one quoting rule everywhere, so that trap is gone;
+`Migrate-Database.ps1` still checks the index exists afterwards, because its
+absence would be just as silent.
 
-`dotnet ef database update` sets its own options, so the scripted path is
-immune. Anything you run by hand needs `-I`. `Migrate-Database.ps1` passes it
-everywhere, and checks the index still exists afterwards, because its absence
-is otherwise completely silent.
+Every identifier in that predicate, and in any SQL written by hand, is
+double-quoted: EF Core keeps the model's PascalCase names, and PostgreSQL
+folds anything unquoted to lower case.
 
 ---
 
@@ -144,8 +159,8 @@ dotnet ef migrations add AddWhateverItIs --project backend/src/SivayaanHMS.Data
 # 2. rebuild - see the warning
 dotnet build backend
 
-# 3. apply locally
-$env:SIVAYAANHMS_CONNECTION = 'Server=.\SQLEXPRESS;Database=HMSLite;Trusted_Connection=True;TrustServerCertificate=True'
+# 3. apply locally — or just start the API, which migrates on startup in Development
+$env:SIVAYAANHMS_CONNECTION = 'Host=localhost;Port=5432;Database=sivayaanhms;Username=sivayaanhms;Password=sivayaanhms-dev'
 dotnet ef database update --project backend/src/SivayaanHMS.Data
 ```
 
@@ -186,15 +201,17 @@ open risk in the deployment. The smallest honest answer:
 ```powershell
 # a nightly full backup, retained for a fortnight, on a different disk
 $stamp = Get-Date -Format 'yyyyMMdd'
-sqlcmd -S ".\SIVASQLEXPRESS" -E -C -I -b -Q "BACKUP DATABASE [HMSLite] TO DISK = N'E:\HMSBackup\HMSLite-$stamp.bak' WITH INIT, CHECKSUM;"
+$env:PGPASSWORD = '<the password from appsettings.Production.json>'
+& "C:\Program Files\PostgreSQL\18\bin\pg_dump.exe" -h localhost -U sivayaanhms -d sivayaanhms -Fc --no-owner --no-privileges -f "E:\HMSBackup\sivayaanhms-$stamp.dump"
 ```
 
 as a Scheduled Task running as a service account, plus something that copies
-it off the machine. Express has no SQL Agent, so Task Scheduler is the tool.
+it off the machine. PostgreSQL has no scheduler of its own, so Task Scheduler
+is the tool.
 
-Two things worth insisting on: `CHECKSUM`, and a restore actually rehearsed on
-another machine. An untested backup has an uncomfortable habit of being
-unreadable exactly once.
+Two things worth insisting on: `pg_restore --list` over every file it writes,
+and a restore actually rehearsed on another machine. An untested backup has an
+uncomfortable habit of being unreadable exactly once.
 
 ---
 
@@ -220,8 +237,8 @@ dotnet ef migrations bundle --self-contained -r win-x64 --project backend/src/Si
 ```
 
 ```powershell
-.\migrate.exe --connection "Server=.\SIVASQLEXPRESS;Database=HMSLite;Trusted_Connection=True;TrustServerCertificate=True"
+.\migrate.exe --connection "Host=localhost;Port=5432;Database=sivayaanhms;Username=sivayaanhms;Password=<the password>"
 ```
 
-One executable, no SDK, no source, and it sets its own SET options — so the
-`-I` trap cannot bite. Take the backup by hand first; the bundle will not.
+One executable, no SDK, no source. Take the backup by hand first; the bundle
+will not.

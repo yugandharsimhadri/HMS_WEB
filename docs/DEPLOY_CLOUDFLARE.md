@@ -13,7 +13,7 @@ browser ──https──> healthone.sivayaantechnologies.com   (Cloudflare Page
                         │
                  http://localhost:6051                   (Kestrel)
                         │
-                 .\SQLEXPRESS  →  HMSLite
+                 PostgreSQL localhost:5432  →  sivayaanhms
 ```
 
 `FIRST_DEPLOYMENT.md` covers the database and the reasoning common to any
@@ -50,7 +50,7 @@ and gain nothing — cloudflared is on the same machine.
 ## 1 · The machine that runs the API
 
 Everything in `FIRST_DEPLOYMENT.md` §"What has to exist" applies first:
-SQL Server Express installed, `HMSLite` created, the login granted, and the
+PostgreSQL installed, the `sivayaanhms` role and database created, and the
 migration run. The API will not start without it.
 
 The published build is **framework-dependent**, so the machine needs the
@@ -82,9 +82,9 @@ ls C:\SivayaanHMS\api\appsettings*.json
 ```
 
 You should see `appsettings.json` and `appsettings.Development.json` only.
-If `appsettings.Local.json` is there, stop — it carries the SQL password and
+If `appsettings.Local.json` is there, stop — it carries the database password and
 the platform-support credential, and it would also override the production
-connection string at runtime.
+database settings at runtime.
 
 Then, on the server only:
 
@@ -92,7 +92,7 @@ Then, on the server only:
 cp backend/src/SivayaanHMS.Api/appsettings.Production.json.template C:\SivayaanHMS\api\appsettings.Production.json
 ```
 
-Fill in the connection password, the JWT key and the platform-admin password.
+Fill in the database password, the JWT key and the platform-admin password.
 The template already carries port **6051** and both frontend origins.
 
 Generate a signing key that is actually random — not a passphrase somebody
@@ -109,7 +109,7 @@ sc.exe create SivayaanHMSApi binPath= "C:\SivayaanHMS\api\SivayaanHMS.Api.exe" s
 ```
 
 ```bash
-sc.exe config SivayaanHMSApi depend= "MSSQL$SQLEXPRESS"
+sc.exe config SivayaanHMSApi depend= "postgresql-x64-18"
 ```
 
 The dependency matters: without it the API starts first after a reboot,
@@ -138,12 +138,11 @@ call. `000` means it is not listening; check the Windows event log.
 Each check isolates one layer, so run them in order and stop at the first
 failure - the next check cannot pass anyway.
 
-> **`-C` is not optional with ODBC Driver 18.** sqlcmd 18 encrypts by
-> default *and* validates the certificate, and SQL Server Express presents a
-> self-signed one — so without `-C` it fails with "The certificate chain was
-> issued by an authority that is not trusted" before it ever reaches the
-> database. The application is unaffected: its connection string already
-> carries `TrustServerCertificate=True`, which is the same decision.
+> **`psql` is not on `PATH`.** The installer leaves it in
+> `C:\Program Files\PostgreSQL\<version>\bin`; spell it out or add that
+> folder to `PATH` for the session. The password goes in the `PGPASSWORD`
+> environment variable, which the tools read — never on the command line,
+> where the process list would show it.
 
 > **`curl` is not curl in PowerShell 5.1.** It is an alias for
 > `Invoke-WebRequest`, so `curl -s -o` fails with a confusing parameter
@@ -151,19 +150,21 @@ failure - the next check cannot pass anyway.
 
 ### 1 - the database, before the app
 
-```bash
-sqlcmd -S ".\SIVASQLEXPRESS" -U Sivayaanhms -P "SivAyAAnHMS@123" -d HMSLite -C -Q "select db_name() as db, suser_name() as login;"
+```powershell
+$env:PGPASSWORD = '<the password from appsettings.Production.json>'
+psql -h localhost -U sivayaanhms -d sivayaanhms -c "select current_database() as db, current_user as role;"
 ```
 
 If this fails the API cannot possibly work, and the message here is far
-clearer than the one the API will give. `Cannot open database` means the
-database is missing; `Login failed` means the login exists but has no rights
-on `HMSLite`.
+clearer than the one the API will give. `database "sivayaanhms" does not
+exist` means `deploy\sql\01-create-database.sql` was never run; `password
+authentication failed` means the role exists and the password in
+`appsettings.Production.json` is not the one it was given.
 
 Then confirm the migration actually ran:
 
-```bash
-sqlcmd -S ".\SIVASQLEXPRESS" -U Sivayaanhms -P "SivAyAAnHMS@123" -d HMSLite -C -Q "select count(*) as migrations from __EFMigrationsHistory;"
+```powershell
+psql -h localhost -U sivayaanhms -d sivayaanhms -c 'select count(*) as migrations from "__EFMigrationsHistory";'
 ```
 
 Zero rows, or a missing table, means the schema step was skipped.
@@ -184,8 +185,9 @@ Expect `Now listening on: http://localhost:6051`. Common first failures:
 
 | It says | It means |
 |---|---|
-| `A network-related or instance-specific error` | wrong instance name in the connection string |
-| `Login failed for user` | the SQL login has no rights on `HMSLite` |
+| `Connection refused` / `No such host is known` | wrong `Database:Host` or `Port`, or PostgreSQL is not running |
+| `password authentication failed for user` | `Database:Password` is not the one the role was created with |
+| `Database:Password is not configured` | `appsettings.Production.json` was not picked up, or the key is still empty |
 | `The JWT signing key ... REPLACE` | `appsettings.Production.json` was not picked up, or was not edited |
 | `Failed to load ... Microsoft.AspNetCore.App` | the ASP.NET Core 10 runtime is not installed |
 
@@ -369,7 +371,7 @@ In order, because each one rules out the layer below:
 | Symptom | Almost always |
 |---|---|
 | `530` / `1033` from the API host | cloudflared not running, or running from the wrong config file |
-| `502` from the API host | tunnel up, API down — check `MSSQL$SQLEXPRESS` started first |
+| `502` from the API host | tunnel up, API down — check the `postgresql-x64-18` service started first |
 | CORS error in the browser | origin string mismatch, or the API 307-redirecting the preflight |
 | Deep links 404, clicks fine | `_redirects` missing from the build output |
 | Works signed out, 401 signed in | JWT key differs from the one the token was minted with |
@@ -384,10 +386,10 @@ tunnel — see the note above `UseForwardedHeaders` in `Program.cs`.
 
 ## Not covered here
 
-- **Backups.** Nothing in this setup backs up `HMSLite`, and Cloudflare backs
+- **Backups.** Nothing in this setup backs up the database nightly, and Cloudflare backs
   up nothing — the data lives on one machine in the clinic.
   `docs/GAP_ANALYSIS.md` §4 raises this as an open commitment and it is still
-  open. A scheduled SQL Server backup to a second disk is the smallest
+  open. A scheduled `pg_dump` to a second disk (`POSTGRESQL_SETUP.md` §7) is the smallest
   honest answer.
 - **Certificate on the origin.** Not needed while cloudflared is on the same
   machine and the hop is loopback. It becomes needed the moment the API moves

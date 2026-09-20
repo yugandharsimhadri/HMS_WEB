@@ -19,17 +19,17 @@
 .PARAMETER SkipPublish
     Reconfigure and restart the service without rebuilding.
 
-.PARAMETER SqlInstance
-    The SQL Server instance name, without the machine prefix. Default
-    SQLEXPRESS. Pass SIVASQLEXPRESS, or whatever the installer was told,
-    if the instance is not the default one - the Windows service is named
-    after it, and the service dependency below has to match or the API
-    loses the startup race after every reboot.
+.PARAMETER PostgresService
+    The Windows service name of the PostgreSQL server on this machine, e.g.
+    postgresql-x64-18. Found automatically when omitted. The API service is
+    made dependent on it so it never loses the startup race after a reboot.
+    Pass an empty string when the database is on another machine and there
+    is no local service to wait for.
 
 .EXAMPLE
     .\Deploy-Production.ps1
 .EXAMPLE
-    .\Deploy-Production.ps1 -SqlInstance SIVASQLEXPRESS
+    .\Deploy-Production.ps1 -PostgresService postgresql-x64-18
 .EXAMPLE
     .\Deploy-Production.ps1 -Root D:\Apps\HMS -SkipPublish
 #>
@@ -37,18 +37,25 @@
 [CmdletBinding()]
 param(
     [string] $Root = 'C:\SivayaanHMS\api',
-    [string] $SqlInstance = 'SQLEXPRESS',
+    [string] $PostgresService = '(auto)',
     [switch] $SkipPublish
 )
 
 $ErrorActionPreference = 'Stop'
 
+. (Join-Path $PSScriptRoot 'PostgresSettings.ps1')
+
 $ServiceName = 'SivayaanHMSApi'
-$SqlService  = "MSSQL`$$SqlInstance"
 $Port        = 6051
 $Project     = Join-Path $PSScriptRoot '..\backend\src\SivayaanHMS.Api'
 $Settings    = Join-Path $Root 'appsettings.Production.json'
-$Template    = Join-Path $Project 'appsettings.Production.json.template'
+
+# The template lives in the source tree; a copied release folder (see
+# docs/RELEASE_POSTGRESQL.md) carries it beside this deploy folder instead.
+$Template    = @(
+    (Join-Path $Project 'appsettings.Production.json.template'),
+    (Join-Path $PSScriptRoot '..\appsettings.Production.json.template')
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 function Say([string] $m) { Write-Host "==> $m" -ForegroundColor Cyan }
 function Warn([string] $m) { Write-Host "  ! $m" -ForegroundColor Yellow }
@@ -62,24 +69,35 @@ $admin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
          ).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $admin) { Die 'Run this from an elevated PowerShell - creating a service needs it.' }
 
-$sql = Get-Service -Name $SqlService -ErrorAction SilentlyContinue
-if (-not $sql) {
-    # Name every instance that does exist rather than only saying no. A
-    # non-default instance name is the usual cause, and guessing it from a
-    # bare "not installed" wastes an afternoon.
-    $found = Get-Service -Name 'MSSQL$*' -ErrorAction SilentlyContinue
-    if ($found) {
-        Warn 'SQL Server instances present on this machine:'
-        $found | ForEach-Object { Write-Host "      $($_.Name)  ($($_.Status))" }
-        Die "'$SqlService' is not one of them. Re-run with -SqlInstance <name> using the part after the dollar sign."
+# The PostgreSQL service, when the database is on this machine. Named
+# explicitly, found automatically, or deliberately none at all (a database on
+# another host) - three different answers, each checked rather than assumed.
+$PgService = $null
+if ($PostgresService -eq '(auto)') {
+    $PgService = Find-PostgresService
+    if (-not $PgService) {
+        Die 'No PostgreSQL service found on this machine. Install PostgreSQL (docs/POSTGRESQL_SETUP.md), or pass -PostgresService '''' if the database is on another host.'
     }
-    Die "No SQL Server instance found ('$SqlService'). The API cannot start without it - see docs/FIRST_DEPLOYMENT.md."
+} elseif ($PostgresService) {
+    $PgService = Get-Service -Name $PostgresService -ErrorAction SilentlyContinue
+    if (-not $PgService) {
+        $found = Get-Service -Name 'postgresql*' -ErrorAction SilentlyContinue
+        if ($found) {
+            Warn 'PostgreSQL services present on this machine:'
+            $found | ForEach-Object { Write-Host "      $($_.Name)  ($($_.Status))" }
+        }
+        Die "'$PostgresService' is not a service on this machine."
+    }
 }
-if ($sql.Status -ne 'Running') {
-    Warn "$SqlService is $($sql.Status). Starting it."
-    Start-Service $SqlService
+if ($PgService) {
+    if ($PgService.Status -ne 'Running') {
+        Warn "$($PgService.Name) is $($PgService.Status). Starting it."
+        Start-Service $PgService.Name
+    }
+    Write-Host "    PostgreSQL: $($PgService.Name) $((Get-Service $PgService.Name).Status)"
+} else {
+    Write-Host '    PostgreSQL: on another host (no local service dependency)'
 }
-Write-Host "    SQL Server: $((Get-Service $SqlService).Status)"
 
 if (-not $SkipPublish) {
     $dotnet = Get-Command dotnet -ErrorAction SilentlyContinue
@@ -153,16 +171,17 @@ if (-not $SkipPublish) {
 
 Say 'Checking what landed in the published folder'
 
-# appsettings.Local.json is the developer's file and holds the SQL password and
+# appsettings.Local.json is the developer's file and holds the database password and
 # the platform-support credential. It is excluded from publish in the csproj,
 # but a stale copy from an older deployment would still be read - and because
-# Program.cs loads it last, it would override production's connection string.
+# Program.cs loads it last, it would override production's database settings.
 $leaked = Join-Path $Root 'appsettings.Local.json'
 if (Test-Path $leaked) {
-    Die "appsettings.Local.json is in $Root. It carries development secrets AND would override the production connection string. Delete it and redeploy."
+    Die "appsettings.Local.json is in $Root. It carries development secrets AND would override the production database settings. Delete it and redeploy."
 }
 
 if (-not (Test-Path $Settings)) {
+    if (-not $Template) { Die "No appsettings.Production.json in $Root and no template found to copy. Create it from appsettings.Production.json.template (see docs/RELEASE_POSTGRESQL.md)." }
     Copy-Item $Template $Settings
     Warn "No appsettings.Production.json existed; copied the template to $Settings"
     Die  'Fill in the REPLACE-ME values in that file, then run this again.'
@@ -170,18 +189,19 @@ if (-not (Test-Path $Settings)) {
 
 $conf = Get-Content $Settings -Raw | ConvertFrom-Json
 
-# The connection string names the instance too. If it and -SqlInstance
-# disagree, the service dependency guards an instance the app never talks to
-# and the reboot race comes back silently.
-if ($conf.ConnectionStrings -and $conf.ConnectionStrings.Default) {
-    if ($conf.ConnectionStrings.Default -notmatch [regex]::Escape($SqlInstance)) {
-        Warn "The connection string does not mention '$SqlInstance'. Check it matches the instance this script is guarding, or the service dependency protects the wrong one."
-    }
-}
+# Read-PostgresSettings refuses a missing section, a missing key or a
+# REPLACE-ME password, which is the whole check. The host is compared with the
+# service decision above: a local service dependency guarding a database that
+# is actually elsewhere protects nothing, and a remote host with a local
+# dependency waits on a service the app never talks to.
+$db = Read-PostgresSettings -AppRoot $Root
+$dbIsLocal = $db.Host -in @('localhost', '127.0.0.1', '::1', $env:COMPUTERNAME)
+if ($dbIsLocal -and -not $PgService) { Warn "Database:Host is '$($db.Host)' but no local PostgreSQL service is being depended on. The API may lose the startup race after a reboot." }
+if (-not $dbIsLocal -and $PgService) { Warn "Database:Host is '$($db.Host)' - not this machine - yet the service will depend on local $($PgService.Name). Pass -PostgresService '' if that is not wanted." }
+Write-Host "    Database: $($db.Name) on $($db.Host):$($db.Port) as $($db.Username)"
 
 if ($conf.Jwt.Key -like '*REPLACE*') { Die 'The JWT key in appsettings.Production.json is still a placeholder. The API refuses to start outside Development with it.' }
 if ($conf.Jwt.Key.Length -lt 32)     { Die 'The JWT key is shorter than 32 characters.' }
-if ($conf.ConnectionStrings.Default -like '*REPLACE-ME*') { Die 'The connection string still contains REPLACE-ME.' }
 if ($conf.PlatformAdmin -and $conf.PlatformAdmin.Password -like '*REPLACE*') {
     Warn 'PlatformAdmin password is still a placeholder - EnterpriseAdmin will not be able to sign in. Delete the block if that is intended.'
 }
@@ -208,9 +228,15 @@ if (-not $existing) {
 
 # Without this the API starts first after a reboot, cannot reach a database
 # that is still coming up, and stays down until somebody notices.
-Say 'Setting the SQL Server dependency'
-& sc.exe config $ServiceName depend= $SqlService | Out-Null
-if ($LASTEXITCODE -ne 0) { Warn 'Could not set the service dependency; set it by hand or the API may lose the startup race after a reboot.' }
+if ($PgService) {
+    Say "Setting the dependency on $($PgService.Name)"
+    & sc.exe config $ServiceName depend= $PgService.Name | Out-Null
+    if ($LASTEXITCODE -ne 0) { Warn 'Could not set the service dependency; set it by hand or the API may lose the startup race after a reboot.' }
+} else {
+    # A remote database has no local service to wait for; clear any
+    # dependency a previous deployment on this machine may have set.
+    & sc.exe config $ServiceName depend= / | Out-Null
+}
 
 # Environment for the service. This is what gates the placeholder-key check
 # and keeps the startup migration off - it must not say Development.
@@ -256,4 +282,4 @@ Say 'API is up'
 Write-Host "    http://localhost:$Port  (401 unauthenticated, as expected)"
 Write-Host ''
 Write-Host 'Next: the tunnel. See docs/DEPLOY_CLOUDFLARE.md section 2.' -ForegroundColor Green
-Write-Host 'Nothing here backs up HMSLite. That is still nobody''s job.' -ForegroundColor Yellow
+Write-Host 'Nothing here schedules a database backup. Migrate-Database.ps1 takes one before each release; a nightly one is still nobody''s job - see docs/POSTGRESQL_SETUP.md.' -ForegroundColor Yellow

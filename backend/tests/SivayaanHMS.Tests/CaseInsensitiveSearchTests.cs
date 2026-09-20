@@ -9,17 +9,19 @@ namespace SivayaanHMS.Tests;
 /// so rather than because the server happens to be installed with a
 /// case-insensitive collation.
 ///
-/// Every database here is created CS_AS on purpose. On the ordinary CI_AS
-/// default these tests pass whether or not the query folds case, which makes
-/// them worthless as a guard: the failure they are meant to catch only
-/// appears on a clinic's server, months later, when a receptionist types a
-/// name in lower case and is told nobody by that name is registered.
+/// On SQL Server every database here had to be created with a case-sensitive
+/// collation on purpose: on the ordinary CI_AS default these tests passed
+/// whether or not the query folded case, which made them worthless as a
+/// guard. PostgreSQL's default collation compares and matches case-sensitively
+/// — "bhavya" does not LIKE "Bhavya" unless the query lowers both sides — so
+/// an ordinary database is already the strict one, and there is nothing to
+/// force. The failure these tests exist to catch is the same: a receptionist
+/// typing a name in lower case and being told nobody by that name is
+/// registered.
 /// </summary>
 public class CaseInsensitiveSearchTests
 {
-    private const string CaseSensitive = "SQL_Latin1_General_CP1_CS_AS";
-
-    private static TestDb CaseSensitiveDb() => new(CaseSensitive);
+    private static TestDb CaseSensitiveDb() => new();
 
     [Theory]
     [InlineData("bhavya")]

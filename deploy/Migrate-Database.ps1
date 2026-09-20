@@ -1,7 +1,8 @@
 <#
 .SYNOPSIS
-    Backs up HMSLite, applies any pending EF Core migrations, and verifies the
-    result. The release step Deploy-Production.ps1 says to run before it.
+    Backs up the PostgreSQL database, applies any pending EF Core migrations,
+    and verifies the result. The release step Deploy-Production.ps1 says to
+    run before it.
 
 .DESCRIPTION
     Deploy-Production.ps1 deliberately does not touch the schema:
@@ -14,7 +15,8 @@
 
     The order is the whole point.
 
-        1. check the server is reachable and the login works
+        1. read the Database section of appsettings.Production.json, and check
+           the server is reachable and the role signs in
         2. BACK UP - always, even when nothing is pending
         3. list what is pending, and stop here if -DryRun
         4. apply
@@ -29,110 +31,104 @@
     thing it does to the schema is apply migrations that the repository
     contains and the database has not yet recorded.
 
-.PARAMETER SqlInstance
-    Instance name without the machine prefix. Must match the one the API
-    connects to.
+    Where the database is comes from the application's own settings file,
+    never from a parameter: a backup, a migration and the API itself must all
+    mean the same database, and one place to change it is how that stays true.
 
-.PARAMETER Database
-    Default HMSLite.
+.PARAMETER Root
+    Where the published application lives - the folder holding
+    appsettings.Production.json. Default C:\SivayaanHMS\api
 
 .PARAMETER BackupRoot
     Where the pre-migration backup is written. Default C:\SivayaanHMS\DBBackup.
-    Put this on a different physical disk from the data files if you have one:
-    a backup beside the database protects against a bad migration, not against
-    a failed disk.
+    Put this on a different physical disk from the data directory if you have
+    one: a backup beside the database protects against a bad migration, not
+    against a failed disk.
 
 .PARAMETER DryRun
     Back up and report what would be applied, then stop. Use this first on any
     release you have not run before.
 
-.PARAMETER SqlUser
-    Omit to use Windows authentication, which is the default and needs no
-    password anywhere. Supply it only if the server refuses that.
+.PARAMETER PgBin
+    The PostgreSQL bin folder holding psql.exe and pg_dump.exe. Found under
+    C:\Program Files\PostgreSQL\<version>\bin when omitted; the installer does
+    not put it on PATH.
 
 .EXAMPLE
-    .\Migrate-Database.ps1 -SqlInstance SIVASQLEXPRESS -DryRun
+    .\Migrate-Database.ps1 -DryRun
 .EXAMPLE
-    .\Migrate-Database.ps1 -SqlInstance SIVASQLEXPRESS
+    .\Migrate-Database.ps1
 #>
 
 [CmdletBinding()]
 param(
-    [string] $SqlInstance = 'SQLEXPRESS',
-    [string] $Database    = 'HMSLite',
-    [string] $BackupRoot  = 'C:\SivayaanHMS\DBBackup',
+    [string] $Root       = 'C:\SivayaanHMS\api',
+    [string] $BackupRoot = 'C:\SivayaanHMS\DBBackup',
     [switch] $DryRun,
-    [string] $SqlUser,
-    [string] $SqlPassword
+    [string] $PgBin
 )
 
 $ErrorActionPreference = 'Stop'
+
+. (Join-Path $PSScriptRoot 'PostgresSettings.ps1')
 
 function Say  ([string] $m) { Write-Host "==> $m" -ForegroundColor Cyan }
 function Warn ([string] $m) { Write-Host "  ! $m"  -ForegroundColor Yellow }
 function Die  ([string] $m) { Write-Host "  x $m"  -ForegroundColor Red; exit 1 }
 function Note ([string] $m) { Write-Host "    $m" }
 
-$Server     = ".\$SqlInstance"
-$DataProj   = Join-Path $PSScriptRoot '..\backend\src\SivayaanHMS.Data'
-$Stamp      = Get-Date -Format 'yyyyMMdd-HHmmss'
-$BackupFile = Join-Path $BackupRoot "$Database-pre-migration-$Stamp.bak"
+$DataProj = Join-Path $PSScriptRoot '..\backend\src\SivayaanHMS.Data'
+$Stamp    = Get-Date -Format 'yyyyMMdd-HHmmss'
 
-# sqlcmd arguments shared by every call below.
-#
-# -C trusts the server certificate. A default Express instance presents a
-# self-signed one, and recent sqlcmd versions reject it by default with an
-# error that names neither certificates nor trust. Without -C nothing here
-# ever reaches the database.
-#
-# -I sets QUOTED_IDENTIFIER ON. The Products table carries a filtered unique
-# index, and SQL Server refuses *any* write to a table with one unless that
-# option is on - not just index creation. sqlcmd defaults it off.
-#
-# -b makes sqlcmd exit non-zero on error instead of printing the error and
-# reporting success, which would let this script march past a failed backup.
-$SqlArgs = @('-S', $Server, '-C', '-I', '-b')
-if ($SqlUser) { $SqlArgs += @('-U', $SqlUser, '-P', $SqlPassword) } else { $SqlArgs += '-E' }
+# ------------------------------------------------------------------ 1. reachable
 
-# SET NOCOUNT ON, because "(1 rows affected)" arrives on stdout alongside the
-# answer and a caller comparing the whole output to a value never matches.
-function Invoke-Sql([string] $query, [string] $db = $Database) {
-    $out = & sqlcmd @SqlArgs '-d' $db '-h' '-1' '-W' '-Q' "SET NOCOUNT ON; $query" 2>&1
+Say "Reading the Database section of $Root\appsettings.Production.json"
+
+$db = Read-PostgresSettings -AppRoot $Root
+Note "Host $($db.Host):$($db.Port)  database $($db.Name)  role $($db.Username)"
+
+$psql   = Find-PgTool -Name 'psql'    -PgBin $PgBin
+$pgdump = Find-PgTool -Name 'pg_dump' -PgBin $PgBin
+Note "Using $psql"
+
+# The password goes to the PostgreSQL tools through the environment, which is
+# what they read it from - never on a command line, where it would show up in
+# the process list and in any log of this script's output.
+$env:PGPASSWORD = $db.Password
+
+# -X skips psqlrc, -q -t -A make the output a bare value, -v ON_ERROR_STOP=1
+# makes a failed statement a failed command instead of a printed error and a
+# zero exit code the script would march past.
+$PsqlArgs = @('-X', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1',
+              '-h', $db.Host, '-p', $db.Port, '-U', $db.Username, '-d', $db.Name)
+
+function Invoke-Sql([string] $query) {
+    $out = & $psql @PsqlArgs -c $query 2>&1
     if ($LASTEXITCODE -ne 0) { Die "SQL failed: $out" }
-    return @($out | Where-Object { $_ -and "$_".Trim() -and "$_" -notmatch 'rows affected' })
+    return @($out | Where-Object { $_ -and "$_".Trim() })
 }
 
-# One scalar, trimmed - for the checks that compare against a single value.
-function Invoke-SqlScalar([string] $query, [string] $db = $Database) {
+function Invoke-SqlScalar([string] $query) {
     # @() at the call site, because PowerShell unrolls a single-element array
     # on return: without it a one-row answer arrives as a plain string and
     # $rows[0] indexes its first *character*.
-    $rows = @(Invoke-Sql $query $db)
+    $rows = @(Invoke-Sql $query)
     if ($rows.Count -eq 0) { return '' }
     return "$($rows[0])".Trim()
 }
 
-# ------------------------------------------------------------------ 1. reachable
-
-Say "Checking $Server / $Database"
-
-if (-not (Get-Command sqlcmd -ErrorAction SilentlyContinue)) {
-    Die 'sqlcmd not found on PATH. Install the SQL Server command line tools.'
-}
-
-$who = Invoke-SqlScalar "SELECT DB_NAME() + ' as ' + SUSER_NAME();"
+$who = Invoke-SqlScalar "SELECT current_database() || ' as ' || current_user || ' on PostgreSQL ' || current_setting('server_version');"
 Note "Connected: $who"
 
-# Refuse to touch a database that has never been created. Migrating one into
+# Refuse to touch a database that has never been migrated. Migrating one into
 # existence here would hide a much more interesting problem - that the API is
 # pointed at the wrong server.
-$has = Invoke-SqlScalar "SELECT CASE WHEN OBJECT_ID('__EFMigrationsHistory') IS NULL THEN 'no' ELSE 'yes' END;"
+$has = Invoke-SqlScalar "SELECT CASE WHEN to_regclass('""__EFMigrationsHistory""') IS NULL THEN 'no' ELSE 'yes' END;"
 if ($has -ne 'yes') {
-    Die "$Database has no __EFMigrationsHistory table. This is a first install, not an upgrade - see docs/FIRST_DEPLOYMENT.md."
+    Die "$($db.Name) has no __EFMigrationsHistory table. This is a first install, not an upgrade - see docs/FIRST_DEPLOYMENT.md."
 }
 
-$applied = (Invoke-Sql 'SELECT MigrationId FROM __EFMigrationsHistory ORDER BY MigrationId;') |
-           Where-Object { $_ -and $_.Trim() }
+$applied = @(Invoke-Sql 'SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";')
 Note "Applied migrations: $($applied.Count)"
 
 # ------------------------------------------------------------------- 2. back up
@@ -143,15 +139,24 @@ Say 'Backing up'
 
 if (-not (Test-Path $BackupRoot)) { New-Item -ItemType Directory -Force $BackupRoot | Out-Null }
 
-# COPY_ONLY so this does not disturb whatever backup chain a clinic may set up
-# later. A pre-migration snapshot is not part of a schedule.
-Invoke-Sql "BACKUP DATABASE [$Database] TO DISK = N'$BackupFile' WITH INIT, COPY_ONLY, CHECKSUM, STATS = 25;" 'master' | Out-Null
+# Custom format (-Fc): compressed, and restorable table-by-table with
+# pg_restore, which a plain SQL dump is not. Not --clean here; the restore
+# command printed at the end adds --clean --if-exists, so the choice to
+# overwrite is made by the person restoring, at the time they restore.
+$BackupFile = Join-Path $BackupRoot "$($db.Name)-pre-migration-$Stamp.dump"
 
-if (-not (Test-Path $BackupFile)) { Die "Backup reported success but $BackupFile does not exist." }
+& $pgdump -h $db.Host -p $db.Port -U $db.Username -d $db.Name -Fc --no-owner --no-privileges -f $BackupFile 2>&1 |
+    ForEach-Object { if ($_ -match 'error|fatal') { Die "pg_dump: $_" } }
+if ($LASTEXITCODE -ne 0) { Die 'pg_dump failed.' }
 
-# RESTORE VERIFYONLY reads the file back and checks the checksums. A backup
-# nobody has verified is a hope, not a rollback.
-Invoke-Sql "RESTORE VERIFYONLY FROM DISK = N'$BackupFile' WITH CHECKSUM;" 'master' | Out-Null
+if (-not (Test-Path $BackupFile)) { Die "pg_dump reported success but $BackupFile does not exist." }
+
+# pg_restore --list reads the archive's table of contents back, which fails
+# on a truncated or corrupt file. A backup nobody has verified is a hope, not
+# a rollback.
+$pgrestore = Find-PgTool -Name 'pg_restore' -PgBin $PgBin
+$toc = & $pgrestore --list $BackupFile 2>&1
+if ($LASTEXITCODE -ne 0) { Die "The backup does not read back: $toc" }
 
 $sizeMb = [math]::Round((Get-Item $BackupFile).Length / 1MB, 1)
 Note "$BackupFile  ($sizeMb MB, verified)"
@@ -172,11 +177,8 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 # The design-time factory reads this rather than appsettings, so the migration
-# runs against exactly the database named here and not whatever the API
-# happens to be configured with.
-$conn = "Server=$Server;Database=$Database;TrustServerCertificate=True;"
-$conn += if ($SqlUser) { "User ID=$SqlUser;Password=$SqlPassword;" } else { 'Trusted_Connection=True;' }
-$env:SIVAYAANHMS_CONNECTION = $conn
+# runs against exactly the database read above and nothing else.
+$env:SIVAYAANHMS_CONNECTION = $db.ConnectionString
 
 # Always rebuild before reading the migration list. `dotnet ef` loads the
 # compiled assembly, not the source, so a stale binary reports "No migrations
@@ -209,20 +211,22 @@ if ($DryRun) {
 
 Say 'Applying'
 
-# `database update` rather than piping a script through sqlcmd: it sets its own
-# SET options, so the QUOTED_IDENTIFIER trap above cannot bite, and it writes
+# `database update` rather than piping a script through psql: each migration
+# runs in its own transaction, so a failure rolls that migration back rather
+# than leaving the schema half-way through it, and it writes
 # __EFMigrationsHistory itself rather than trusting a generated file to.
 & dotnet ef database update --project $DataProj --startup-project $DataProj --no-build
 if ($LASTEXITCODE -ne 0) {
     Write-Host ''
     Die @"
-Migration FAILED. The database may be part-way through.
+Migration FAILED. PostgreSQL rolls a failed migration back on its own, so the
+schema is at whichever migration last succeeded - but check before trusting
+that, and restore the backup taken at the start of this run if in doubt:
 
-  Restore the backup taken at the start of this run:
-
-    sqlcmd -S "$Server" -C -I -b -E -d master -Q "ALTER DATABASE [$Database] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; RESTORE DATABASE [$Database] FROM DISK = N'$BackupFile' WITH REPLACE; ALTER DATABASE [$Database] SET MULTI_USER;"
-
-  Stop the API first if it is running: Stop-Service SivayaanHMSApi
+    Stop-Service SivayaanHMSApi
+    `$env:PGPASSWORD = '<the password from appsettings.Production.json>'
+    & "$pgrestore" -h $($db.Host) -p $($db.Port) -U $($db.Username) -d $($db.Name) --clean --if-exists --no-owner --no-privileges "$BackupFile"
+    Start-Service SivayaanHMSApi
 "@
 }
 
@@ -230,17 +234,16 @@ Migration FAILED. The database may be part-way through.
 
 Say 'Verifying'
 
-$after = (Invoke-Sql 'SELECT MigrationId FROM __EFMigrationsHistory ORDER BY MigrationId;') |
-         Where-Object { $_ -and $_.Trim() }
+$after = @(Invoke-Sql 'SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY "MigrationId";')
 Note "Applied migrations: $($applied.Count) -> $($after.Count)"
 
 $still = & dotnet ef migrations list --project $DataProj --startup-project $DataProj --no-build 2>&1 |
          Where-Object { $_ -match '\(Pending\)' }
 if ($still) { Die 'Migrations still pending after the run. Investigate before starting the API.' }
 
-# The one that goes missing quietly if a migration is ever applied through
-# sqlcmd without -I. Cheap to check, and its absence is silent otherwise.
-$ix = Invoke-SqlScalar "SELECT CASE WHEN EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_Products_TenantId_SearchKey') THEN 'present' ELSE 'MISSING' END;"
+# The duplicate-medicine guard is a partial unique index. Cheap to check, and
+# its absence is silent otherwise.
+$ix = Invoke-SqlScalar "SELECT CASE WHEN EXISTS(SELECT 1 FROM pg_indexes WHERE indexname='IX_Products_TenantId_SearchKey') THEN 'present' ELSE 'MISSING' END;"
 if ($ix -ne 'present') {
     Warn 'IX_Products_TenantId_SearchKey is missing - the duplicate-medicine guard is not in place. See docs/DATABASE_RELEASES.md.'
 }

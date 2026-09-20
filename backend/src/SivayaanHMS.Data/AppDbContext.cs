@@ -94,9 +94,32 @@ public class AppDbContext : DbContext
     /// what tenant-scoping is scoped against. See Tenant's own class doc.</summary>
     public DbSet<Tenant> Tenants => Set<Tenant>();
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        // Every DateTime in this schema is clinic-local wall-clock time with
+        // no offset, ported as-is from the desktop (which wrote DateTime.Now
+        // to SQLite, and later to SQL Server's datetime2). The client sends
+        // "2026-09-19T08:58:00" and expects the same string back.
+        //
+        // Npgsql's default maps DateTime to `timestamp with time zone` and
+        // refuses to write a value whose Kind is not Utc — which is every
+        // value this application produces. `timestamp without time zone` is
+        // the column type that means what the data means: a wall-clock time,
+        // stored and returned unchanged, Kind=Unspecified on the way back out
+        // exactly as datetime2 was. Set once here for every DateTime and
+        // DateTime? property, rather than per column where one could be
+        // missed. The real fix — a per-tenant timezone and UTC storage — is
+        // SAAS_MIGRATION.md finding 4, and the provider move does not change it.
+        configurationBuilder.Properties<DateTime>().HaveColumnType("timestamp without time zone");
+        configurationBuilder.Properties<DateTime?>().HaveColumnType("timestamp without time zone");
+
+        base.ConfigureConventions(configurationBuilder);
+    }
+
     protected override void OnModelCreating(ModelBuilder b)
     {
-        // Money: 12,2 is plenty for a clinic and keeps SQLite storage predictable.
+        // Money: numeric(12,2) — plenty for a clinic, and a real decimal that
+        // adds up exactly, which is the whole reason nothing here is a float.
         foreach (var property in b.Model.GetEntityTypes()
                      .SelectMany(t => t.GetProperties())
                      .Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?)))
@@ -155,22 +178,22 @@ public class AppDbContext : DbContext
             e.HasIndex(x => x.Name);
 
             // The same medicine twice splits its stock and shows up twice at the
-            // counter. A filtered unique index so a removed record does not block
+            // counter. A partial unique index so a removed record does not block
             // the name being used again. Scoped to tenant like every other
             // uniqueness constraint below — two clinics can each have their own
             // "Paracetamol 500mg".
             //
-            // Bracket-quoted, not "IsDeleted" in double quotes. That form is
-            // left over from SQLite and only works on SQL Server while
-            // QUOTED_IDENTIFIER is ON, which SqlClient sets and sqlcmd does
-            // not. So `dotnet ef database update` built the index and a
-            // deployment that ran the generated script through sqlcmd did
-            // not — it failed the one statement, carried on, and wrote the
-            // migration down as applied. The result was a database that
-            // looked migrated but had lost this uniqueness guarantee.
+            // The predicate is raw SQL, so it is written in PostgreSQL's own
+            // dialect: double-quoted identifier, boolean literal. On SQL
+            // Server this exact line was the one that bit — a differently
+            // quoted filter succeeded under `dotnet ef` and silently failed
+            // under sqlcmd, leaving a database that looked migrated without
+            // this guarantee. PostgreSQL has one quoting rule everywhere, so
+            // that class of failure is gone; the lesson stands that this is
+            // the only provider-specific SQL in the model, and it lives here.
             e.HasIndex(x => new { x.TenantId, x.SearchKey })
              .IsUnique()
-             .HasFilter("[IsDeleted] = 0");
+             .HasFilter("\"IsDeleted\" = false");
 
             e.Ignore(x => x.StockOnHand);
             e.Ignore(x => x.PackDescription);
@@ -278,16 +301,14 @@ public class AppDbContext : DbContext
             // through. No navigation property; RescheduledFromId is only
             // ever read back, never joined against.
             //
-            // NoAction, not SetNull: SQL Server refuses ON DELETE SET NULL
+            // NoAction, not SetNull. SQL Server refused ON DELETE SET NULL
             // (and CASCADE) on a self-referencing foreign key outright — it
-            // cannot prove the chain terminates, so it rejects the whole
-            // constraint as a possible cycle. SQLite never checked, which is
-            // why this only surfaced on the provider move.
-            //
-            // It costs nothing here. Rows are soft-deleted (IsDeleted), so
-            // the hard delete this behaviour would govern does not happen,
-            // and a dangling RescheduledFromId is read back as "no earlier
-            // appointment" either way.
+            // could not prove the chain terminates, so it rejected the whole
+            // constraint as a possible cycle. PostgreSQL would accept SET
+            // NULL here, but there is no reason to change it: rows are
+            // soft-deleted (IsDeleted), so the hard delete this behaviour
+            // would govern does not happen, and a dangling RescheduledFromId
+            // is read back as "no earlier appointment" either way.
             e.HasOne<Appointment>().WithMany()
                 .HasForeignKey(x => x.RescheduledFromId).OnDelete(DeleteBehavior.NoAction);
 
@@ -511,11 +532,12 @@ public class AppDbContext : DbContext
                 .MakeGenericMethod(entityType.ClrType)
                 .Invoke(this, [b]);
 
-            // SQLite has no computed rowversion column type (that's a SQL
-            // Server thing), so RowVersion is a plain BLOB we regenerate
-            // ourselves in Stamp() below on every insert/update. Marking it
-            // a concurrency token is what makes EF Core include the old
-            // value in the WHERE clause and throw
+            // RowVersion is a plain bytea this context regenerates itself in
+            // Stamp() below on every insert/update, not a server-maintained
+            // column (PostgreSQL's xmin could stand in, but it is a system
+            // column EF Core cannot round-trip through this same property).
+            // Marking it a concurrency token is what makes EF Core include
+            // the old value in the WHERE clause and throw
             // DbUpdateConcurrencyException when a save touches a row someone
             // else already changed.
             b.Entity(entityType.ClrType).Property(nameof(BaseEntity.RowVersion)).IsConcurrencyToken();

@@ -17,7 +17,7 @@ public class TenancyIsolationTests
         // Never opened — this test reads the model EF builds, not a
         // database, so the connection string only has to name a provider.
         var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlServer("Server=(local);Database=ModelOnly;Trusted_Connection=True")
+            .UseNpgsql("Host=localhost;Database=model_only;Username=nobody;Password=none")
             .Options;
 
         using var db = new AppDbContext(options);

@@ -30,12 +30,12 @@ And the things you might expect to be on disk are not:
 | Generated PDFs | built in memory, returned as a `FileContentResult`; never written down |
 | Excel exports | `ReportExcelBuilder` writes to a `MemoryStream` |
 | CSV imports | read from the upload's `OpenReadStream()`, never staged to disk |
-| Everything else | SQL Server |
+| Everything else | PostgreSQL |
 
 That is the whole answer to "list the path configurations": there are none,
 because the design put every persistent thing in the database. The only
-path-shaped configuration the app has is the **connection string**, which is
-already in `appsettings.Local.json`.
+path-shaped configuration the app has is the **`Database` section** of appsettings, whose
+password is in `appsettings.Local.json` — and even that names a host, not a file.
 
 > Two methods do take a path — `CsvFile.Load(string)` and
 > `VendorBillParser.Parse(string)` — but nothing calls them. They are entry
@@ -53,55 +53,46 @@ one replaces. None of them apply here.
 
 ## 2 · What actually has to move
 
-### a. The database files — the only one that matters
+### a. The database — the only one that matters
 
-They are currently at:
+PostgreSQL keeps every database in its **data directory**, one folder per
+cluster, chosen at install time:
 
 ```
-C:\Users\yugan\HMSLite.mdf        72 MB
-C:\Users\yugan\HMSLite_log.ldf     8 MB
+C:\Program Files\PostgreSQL\18\data
 ```
 
-Inside a **user profile**, which is LocalDB's default and a poor place for a
-clinic's records: it is tied to one Windows account, and it is the folder most
-likely to be swept up by a profile reset or a backup tool that thinks it knows
-what a profile contains.
+There are no per-database files to move the way SQL Server's `.mdf`/`.ldf`
+pair could be. Two honest ways to put the data on another drive:
 
-Four steps, in this order. The order is the whole trick — the catalog is told
-where the files *will* be before they are moved, and the database must not be
-brought back online until they have actually arrived.
+**Move the whole cluster.** Stop the service, copy the data directory to the
+new drive, point the service at it, start it again:
+
+```powershell
+Stop-Service postgresql-x64-18
+robocopy "C:\Program Files\PostgreSQL\18\data" E:\HMS\PgData /E /COPYALL
+& "C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe" register -N postgresql-x64-18 -D E:\HMS\PgData -S auto   # re-registers the service with the new -D
+Start-Service postgresql-x64-18
+```
+
+Confirm with `SHOW data_directory;` in psql, then delete the old folder.
+
+**Or a tablespace for this one database**, leaving the rest of the cluster
+where it is:
 
 ```sql
--- 1. tell SQL Server where the files are going
-ALTER DATABASE HMSLite MODIFY FILE (NAME = 'HMSLite',     FILENAME = 'E:\HMS\DB\HMSLite.mdf');
-ALTER DATABASE HMSLite MODIFY FILE (NAME = 'HMSLite_log', FILENAME = 'E:\HMS\DB\HMSLite_log.ldf');
-
--- 2. take it offline
-ALTER DATABASE HMSLite SET OFFLINE WITH ROLLBACK IMMEDIATE;
+-- as postgres, with E:\HMS\PgData existing and writable by the service account
+CREATE TABLESPACE hms LOCATION 'E:/HMS/PgData';
+ALTER DATABASE sivayaanhms SET TABLESPACE hms;
 ```
 
-Then move the two files with the application stopped, **confirm both arrived**,
-and only then:
+`ALTER DATABASE … SET TABLESPACE` needs no other session on the database, so
+stop the API first; it moves every table and index in one operation and the
+database is back within a minute for a clinic's worth of records.
 
-```sql
--- 4. back online
-ALTER DATABASE HMSLite SET ONLINE;
-```
-
-If you bring it online before the files are in place, SQL Server fails with
-*"Unable to open the physical file… operating system error 2"* and leaves the
-database in RECOVERY_PENDING. It is recoverable — put the files where the
-catalog now says they are and run `SET ONLINE` again — but it is avoidable by
-checking first.
-
-Verify:
-
-```sql
-SELECT physical_name FROM sys.master_files WHERE database_id = DB_ID('HMSLite');
-```
-
-The connection string does **not** change: it names a server and a database,
-never a file. That is why this move needs no code change and no redeploy.
+Either way, **the application's settings do not change**: the `Database`
+section names a host, a port and a database, never a file. That is why this
+move needs no code change and no redeploy.
 
 ### b. The published application folder
 
@@ -124,49 +115,39 @@ Redirect it with an environment variable on the service:
 ASPNETCORE_TEMP = E:\HMS\Temp
 ```
 
+
 ### d. Backups — do not exist yet
 
 There is no backup schedule. `docs/GAP_ANALYSIS.md` §4 has carried this as an
-open question since the app used SQLite, and moving to SQL Server is what
-makes it answerable. Decide the destination at the same time as the data
-directory; `E:\HMS\Backup` alongside `E:\HMS\DB` is the obvious shape, on the
+open question since the app used SQLite, and `Migrate-Database.ps1` taking a
+verified `pg_dump` before every release is the first answer to it, not the
+last. Decide the destination at the same time as the data directory;
+`E:\HMS\Backup` alongside `E:\HMS\PgData` is the obvious shape, on the
 understanding that a backup on the same physical disk as the database
-protects against deleting a row and not against losing the disk.
+protects against deleting a row and not against losing the disk. The nightly
+command is in `POSTGRESQL_SETUP.md` §7.
 
 ### e. New databases, so this does not recur
 
-The instance's defaults still point into the user profile:
+A database created without a tablespace lands in the cluster's data
+directory, wherever that is. If the cluster was moved (option one above)
+that is already the right place; if a tablespace was used instead, make it the
+default for the role so nothing has to remember:
 
+```sql
+ALTER ROLE sivayaanhms SET default_tablespace = hms;
 ```
-InstanceDefaultDataPath = C:\Users\yugan\
-InstanceDefaultLogPath  = C:\Users\yugan\
-```
-
-Any database created without an explicit `FILENAME` lands there. Change the
-defaults on the instance once the target drive exists, and the next one is in
-the right place without anybody remembering.
 
 ---
 
-## 3 · Before any of this: the drive, and the instance
-
-Two things are worth settling first, because they matter more than the drive
-letter.
+## 3 · Before any of this: the drive
 
 **There is no `E:` on this machine, and `D:` is a removable slot with no
 media in it** — 0 bytes, drive type "Removable". A database on removable
 media goes offline the moment it is unplugged. The target needs to be a fixed
 disk before the move is worth doing.
 
-**The application is running on LocalDB, not SQL Express.**
-`appsettings.Local.json` points at `(localdb)\MSSQLLocalDB`, while
-`appsettings.json` and `SQL_SERVER_SETUP.md` both describe `.\SQLEXPRESS`.
-LocalDB is a per-user, on-demand instance: it starts when that user connects
-and shuts down when they log out. For a backend that is about to be exposed
-through a tunnel and serve a clinic, that is the wrong host — it will stop
-when nobody is logged in.
-
-Moving the files to another drive does not fix that. Moving the database onto
-a real SQL Server service does, and the two are best done as one operation:
-back up from LocalDB, restore onto SQL Express with the files where you want
-them, change one line of `appsettings.Local.json`.
+PostgreSQL runs as a Windows service that starts with the machine, so the
+other concern the SQL Server era had — a per-user LocalDB instance that
+stopped when nobody was logged in — does not arise. The remaining question is
+only where the data directory lives, and that is section 2a.

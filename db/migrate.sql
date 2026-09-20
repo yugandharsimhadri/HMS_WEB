@@ -1,2142 +1,1976 @@
-﻿IF OBJECT_ID(N'[__EFMigrationsHistory]') IS NULL
+﻿CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+    "MigrationId" character varying(150) NOT NULL,
+    "ProductVersion" character varying(32) NOT NULL,
+    CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+);
+
+START TRANSACTION;
+
+DO $EF$
 BEGIN
-    CREATE TABLE [__EFMigrationsHistory] (
-        [MigrationId] nvarchar(150) NOT NULL,
-        [ProductVersion] nvarchar(32) NOT NULL,
-        CONSTRAINT [PK___EFMigrationsHistory] PRIMARY KEY ([MigrationId])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "AnesthesiaTypeMasters" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "DefaultCost" numeric(12,2) NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_AnesthesiaTypeMasters" PRIMARY KEY ("Id")
     );
-END;
-GO
+    END IF;
+END $EF$;
 
-BEGIN TRANSACTION;
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [AnesthesiaTypeMasters] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [DefaultCost] decimal(12,2) NOT NULL,
-        [Active] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_AnesthesiaTypeMasters] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Counters" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "Prefix" text NOT NULL,
+        "LastNumber" integer NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Counters" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Counters] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [Prefix] nvarchar(max) NOT NULL,
-        [LastNumber] int NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Counters] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "DentalPackageMasters" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "Description" text,
+        "PackagePrice" numeric(12,2) NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DentalPackageMasters" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [DentalPackageMasters] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [Description] nvarchar(max) NULL,
-        [PackagePrice] decimal(12,2) NOT NULL,
-        [Active] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_DentalPackageMasters] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "DentalReplacementMasters" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "Category" text NOT NULL,
+        "UnitCost" numeric(12,2) NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DentalReplacementMasters" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [DentalReplacementMasters] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [Category] nvarchar(max) NOT NULL,
-        [UnitCost] decimal(12,2) NOT NULL,
-        [Active] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_DentalReplacementMasters] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "DiagnosticTests" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "Category" text NOT NULL,
+        "Price" numeric(12,2) NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DiagnosticTests" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [DiagnosticTests] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [Category] nvarchar(max) NOT NULL,
-        [Price] decimal(12,2) NOT NULL,
-        [Active] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_DiagnosticTests] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Doctors" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "RegistrationNo" text,
+        "Speciality" text,
+        "Phone" text,
+        "ConsultationFee" numeric(12,2) NOT NULL,
+        "IsActive" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Doctors" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Doctors] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(max) NOT NULL,
-        [RegistrationNo] nvarchar(max) NULL,
-        [Speciality] nvarchar(max) NULL,
-        [Phone] nvarchar(max) NULL,
-        [ConsultationFee] decimal(12,2) NOT NULL,
-        [IsActive] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Doctors] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "H1Register" (
+        "Id" uuid NOT NULL,
+        "SoldOn" timestamp without time zone NOT NULL,
+        "BillNo" text NOT NULL,
+        "ProductName" text NOT NULL,
+        "BatchNo" text NOT NULL,
+        "Quantity" integer NOT NULL,
+        "PatientName" text NOT NULL,
+        "DoctorName" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_H1Register" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [H1Register] (
-        [Id] uniqueidentifier NOT NULL,
-        [SoldOn] datetime2 NOT NULL,
-        [BillNo] nvarchar(max) NOT NULL,
-        [ProductName] nvarchar(max) NOT NULL,
-        [BatchNo] nvarchar(max) NOT NULL,
-        [Quantity] int NOT NULL,
-        [PatientName] nvarchar(max) NOT NULL,
-        [DoctorName] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_H1Register] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "ImportProfiles" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "Description" text,
+        "ColumnMap" text NOT NULL,
+        "DateFormats" text NOT NULL,
+        "ExpiryFormats" text NOT NULL,
+        "DefaultGstRate" numeric(12,2) NOT NULL,
+        "IsActive" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_ImportProfiles" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [ImportProfiles] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [Description] nvarchar(max) NULL,
-        [ColumnMap] nvarchar(max) NOT NULL,
-        [DateFormats] nvarchar(max) NOT NULL,
-        [ExpiryFormats] nvarchar(max) NOT NULL,
-        [DefaultGstRate] decimal(12,2) NOT NULL,
-        [IsActive] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_ImportProfiles] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "LabAnalytes" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "Category" text NOT NULL,
+        "Units" text NOT NULL,
+        "ResultType" integer NOT NULL,
+        "DecimalPlaces" integer NOT NULL,
+        "SequenceOrder" integer NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_LabAnalytes" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [LabAnalytes] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [Category] nvarchar(max) NOT NULL,
-        [Units] nvarchar(max) NOT NULL,
-        [ResultType] int NOT NULL,
-        [DecimalPlaces] int NOT NULL,
-        [SequenceOrder] int NOT NULL,
-        [Active] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_LabAnalytes] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "LabPackageMasters" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "PackagePrice" numeric(12,2) NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_LabPackageMasters" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [LabPackageMasters] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [PackagePrice] decimal(12,2) NOT NULL,
-        [Active] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_LabPackageMasters] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "LabReports" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "Category" text NOT NULL,
+        "Price" numeric(12,2) NOT NULL,
+        "SequenceOrder" integer NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_LabReports" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [LabReports] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [Category] nvarchar(max) NOT NULL,
-        [Price] decimal(12,2) NOT NULL,
-        [SequenceOrder] int NOT NULL,
-        [Active] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_LabReports] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Patients" (
+        "Id" uuid NOT NULL,
+        "PatientNo" text NOT NULL,
+        "Name" text NOT NULL,
+        "Phone" text NOT NULL,
+        "Gender" integer NOT NULL,
+        "Age" integer NOT NULL,
+        "DateOfBirth" timestamp without time zone,
+        "BloodGroup" text,
+        "GuardianName" text,
+        "Address" text,
+        "Allergies" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Patients" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Patients] (
-        [Id] uniqueidentifier NOT NULL,
-        [PatientNo] nvarchar(450) NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [Phone] nvarchar(450) NOT NULL,
-        [Gender] int NOT NULL,
-        [Age] int NOT NULL,
-        [DateOfBirth] datetime2 NULL,
-        [BloodGroup] nvarchar(max) NULL,
-        [GuardianName] nvarchar(max) NULL,
-        [Address] nvarchar(max) NULL,
-        [Allergies] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Patients] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Procedures" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "Category" text NOT NULL,
+        "Department" integer NOT NULL,
+        "Price" numeric(12,2) NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Procedures" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Procedures] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [Category] nvarchar(max) NOT NULL,
-        [Department] int NOT NULL,
-        [Price] decimal(12,2) NOT NULL,
-        [Active] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Procedures] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Products" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "GenericName" text,
+        "Manufacturer" text,
+        "Composition" text,
+        "Storage" text,
+        "Strength" text,
+        "StrengthValue" numeric(12,2),
+        "PackSize" text,
+        "DispensingUnit" integer NOT NULL,
+        "UnitsPerPack" integer NOT NULL,
+        "AllowLooseSale" boolean NOT NULL,
+        "HsnCode" text NOT NULL,
+        "GstRate" numeric(12,2) NOT NULL,
+        "Schedule" integer NOT NULL,
+        "RackLocation" text,
+        "ReorderLevel" integer NOT NULL,
+        "IsActive" boolean NOT NULL,
+        "SearchKey" text NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Products" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Products] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [GenericName] nvarchar(max) NULL,
-        [Manufacturer] nvarchar(max) NULL,
-        [Composition] nvarchar(max) NULL,
-        [Storage] nvarchar(max) NULL,
-        [Strength] nvarchar(max) NULL,
-        [StrengthValue] decimal(12,2) NULL,
-        [PackSize] nvarchar(max) NULL,
-        [DispensingUnit] int NOT NULL,
-        [UnitsPerPack] int NOT NULL,
-        [AllowLooseSale] bit NOT NULL,
-        [HsnCode] nvarchar(max) NOT NULL,
-        [GstRate] decimal(12,2) NOT NULL,
-        [Schedule] int NOT NULL,
-        [RackLocation] nvarchar(max) NULL,
-        [ReorderLevel] int NOT NULL,
-        [IsActive] bit NOT NULL,
-        [SearchKey] nvarchar(450) NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Products] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Settings" (
+        "Id" uuid NOT NULL,
+        "Key" text NOT NULL,
+        "Value" text NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Settings" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Settings] (
-        [Id] uniqueidentifier NOT NULL,
-        [Key] nvarchar(450) NOT NULL,
-        [Value] nvarchar(max) NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Settings] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "StockEntries" (
+        "Id" uuid NOT NULL,
+        "EntryNo" text NOT NULL,
+        "EntryDate" timestamp without time zone NOT NULL,
+        "SupplierName" text,
+        "SupplierInvoiceNo" text,
+        "TotalAmount" numeric(12,2) NOT NULL,
+        "Notes" text,
+        "ImportedFile" text,
+        "ImportProfile" text,
+        "NetAmount" numeric(12,2) NOT NULL,
+        "DiscountPercent" numeric(12,2) NOT NULL,
+        "IsProvisional" boolean NOT NULL,
+        "EnteredBy" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_StockEntries" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [StockEntries] (
-        [Id] uniqueidentifier NOT NULL,
-        [EntryNo] nvarchar(450) NOT NULL,
-        [EntryDate] datetime2 NOT NULL,
-        [SupplierName] nvarchar(max) NULL,
-        [SupplierInvoiceNo] nvarchar(450) NULL,
-        [TotalAmount] decimal(12,2) NOT NULL,
-        [Notes] nvarchar(max) NULL,
-        [ImportedFile] nvarchar(max) NULL,
-        [ImportProfile] nvarchar(max) NULL,
-        [NetAmount] decimal(12,2) NOT NULL,
-        [DiscountPercent] decimal(12,2) NOT NULL,
-        [IsProvisional] bit NOT NULL,
-        [EnteredBy] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_StockEntries] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Tenants" (
+        "Id" uuid NOT NULL,
+        "Slug" text NOT NULL,
+        "ClinicName" text NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "IsActive" boolean NOT NULL,
+        "LicenseExpiresOn" timestamp without time zone,
+        CONSTRAINT "PK_Tenants" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Tenants] (
-        [Id] uniqueidentifier NOT NULL,
-        [Slug] nvarchar(450) NOT NULL,
-        [ClinicName] nvarchar(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [IsActive] bit NOT NULL,
-        [LicenseExpiresOn] datetime2 NULL,
-        CONSTRAINT [PK_Tenants] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Users" (
+        "Id" uuid NOT NULL,
+        "Username" text NOT NULL,
+        "DisplayName" text NOT NULL,
+        "PasswordHash" text NOT NULL,
+        "PasswordSalt" text NOT NULL,
+        "Role" integer NOT NULL,
+        "IsActive" boolean NOT NULL,
+        "MustChangePassword" boolean NOT NULL,
+        "LastLoginOn" timestamp without time zone,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Users" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Users] (
-        [Id] uniqueidentifier NOT NULL,
-        [Username] nvarchar(450) NOT NULL,
-        [DisplayName] nvarchar(max) NOT NULL,
-        [PasswordHash] nvarchar(max) NOT NULL,
-        [PasswordSalt] nvarchar(max) NOT NULL,
-        [Role] int NOT NULL,
-        [IsActive] bit NOT NULL,
-        [MustChangePassword] bit NOT NULL,
-        [LastLoginOn] datetime2 NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Users] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "VaccineMasters" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "DoseNumber" integer NOT NULL,
+        "RecommendedAgeDays" integer NOT NULL,
+        "Category" text NOT NULL,
+        "SequenceOrder" integer NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_VaccineMasters" PRIMARY KEY ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [VaccineMasters] (
-        [Id] uniqueidentifier NOT NULL,
-        [Name] nvarchar(450) NOT NULL,
-        [DoseNumber] int NOT NULL,
-        [RecommendedAgeDays] int NOT NULL,
-        [Category] nvarchar(max) NOT NULL,
-        [SequenceOrder] int NOT NULL,
-        [Active] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_VaccineMasters] PRIMARY KEY ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "LabAnalyteReferenceRanges" (
+        "Id" uuid NOT NULL,
+        "AnalyteId" uuid NOT NULL,
+        "Gender" integer,
+        "MinAgeYears" numeric(12,2),
+        "MaxAgeYears" numeric(12,2),
+        "LowValue" numeric(12,2),
+        "HighValue" numeric(12,2),
+        "TextRange" text,
+        "Label" text NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_LabAnalyteReferenceRanges" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_LabAnalyteReferenceRanges_LabAnalytes_AnalyteId" FOREIGN KEY ("AnalyteId") REFERENCES "LabAnalytes" ("Id") ON DELETE CASCADE
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [LabAnalyteReferenceRanges] (
-        [Id] uniqueidentifier NOT NULL,
-        [AnalyteId] uniqueidentifier NOT NULL,
-        [Gender] int NULL,
-        [MinAgeYears] decimal(12,2) NULL,
-        [MaxAgeYears] decimal(12,2) NULL,
-        [LowValue] decimal(12,2) NULL,
-        [HighValue] decimal(12,2) NULL,
-        [TextRange] nvarchar(max) NULL,
-        [Label] nvarchar(max) NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_LabAnalyteReferenceRanges] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_LabAnalyteReferenceRanges_LabAnalytes_AnalyteId] FOREIGN KEY ([AnalyteId]) REFERENCES [LabAnalytes] ([Id]) ON DELETE CASCADE
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "LabPackageReports" (
+        "Id" uuid NOT NULL,
+        "PackageId" uuid NOT NULL,
+        "ReportId" uuid NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_LabPackageReports" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_LabPackageReports_LabPackageMasters_PackageId" FOREIGN KEY ("PackageId") REFERENCES "LabPackageMasters" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_LabPackageReports_LabReports_ReportId" FOREIGN KEY ("ReportId") REFERENCES "LabReports" ("Id") ON DELETE RESTRICT
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [LabPackageReports] (
-        [Id] uniqueidentifier NOT NULL,
-        [PackageId] uniqueidentifier NOT NULL,
-        [ReportId] uniqueidentifier NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_LabPackageReports] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_LabPackageReports_LabPackageMasters_PackageId] FOREIGN KEY ([PackageId]) REFERENCES [LabPackageMasters] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_LabPackageReports_LabReports_ReportId] FOREIGN KEY ([ReportId]) REFERENCES [LabReports] ([Id]) ON DELETE NO ACTION
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "LabReportAnalytes" (
+        "Id" uuid NOT NULL,
+        "ReportId" uuid NOT NULL,
+        "AnalyteId" uuid NOT NULL,
+        "SequenceOrder" integer NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_LabReportAnalytes" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_LabReportAnalytes_LabAnalytes_AnalyteId" FOREIGN KEY ("AnalyteId") REFERENCES "LabAnalytes" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_LabReportAnalytes_LabReports_ReportId" FOREIGN KEY ("ReportId") REFERENCES "LabReports" ("Id") ON DELETE CASCADE
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [LabReportAnalytes] (
-        [Id] uniqueidentifier NOT NULL,
-        [ReportId] uniqueidentifier NOT NULL,
-        [AnalyteId] uniqueidentifier NOT NULL,
-        [SequenceOrder] int NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_LabReportAnalytes] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_LabReportAnalytes_LabAnalytes_AnalyteId] FOREIGN KEY ([AnalyteId]) REFERENCES [LabAnalytes] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_LabReportAnalytes_LabReports_ReportId] FOREIGN KEY ([ReportId]) REFERENCES [LabReports] ([Id]) ON DELETE CASCADE
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Appointments" (
+        "Id" uuid NOT NULL,
+        "AppointmentNo" text NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "PatientName" text NOT NULL,
+        "PatientPhone" text NOT NULL,
+        "DoctorId" uuid NOT NULL,
+        "DoctorName" text NOT NULL,
+        "ScheduledOn" timestamp without time zone NOT NULL,
+        "DurationMinutes" integer NOT NULL,
+        "ModuleContext" integer NOT NULL,
+        "Status" integer NOT NULL,
+        "Reason" text,
+        "Notes" text,
+        "RescheduledFromId" uuid,
+        "LinkedRecordId" uuid,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Appointments" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_Appointments_Appointments_RescheduledFromId" FOREIGN KEY ("RescheduledFromId") REFERENCES "Appointments" ("Id"),
+        CONSTRAINT "FK_Appointments_Doctors_DoctorId" FOREIGN KEY ("DoctorId") REFERENCES "Doctors" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_Appointments_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE RESTRICT
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Appointments] (
-        [Id] uniqueidentifier NOT NULL,
-        [AppointmentNo] nvarchar(450) NOT NULL,
-        [PatientId] uniqueidentifier NOT NULL,
-        [PatientName] nvarchar(max) NOT NULL,
-        [PatientPhone] nvarchar(max) NOT NULL,
-        [DoctorId] uniqueidentifier NOT NULL,
-        [DoctorName] nvarchar(max) NOT NULL,
-        [ScheduledOn] datetime2 NOT NULL,
-        [DurationMinutes] int NOT NULL,
-        [ModuleContext] int NOT NULL,
-        [Status] int NOT NULL,
-        [Reason] nvarchar(max) NULL,
-        [Notes] nvarchar(max) NULL,
-        [RescheduledFromId] uniqueidentifier NULL,
-        [LinkedRecordId] uniqueidentifier NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Appointments] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_Appointments_Appointments_RescheduledFromId] FOREIGN KEY ([RescheduledFromId]) REFERENCES [Appointments] ([Id]),
-        CONSTRAINT [FK_Appointments_Doctors_DoctorId] FOREIGN KEY ([DoctorId]) REFERENCES [Doctors] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_Appointments_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE NO ACTION
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "PediatricProfiles" (
+        "Id" uuid NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "FatherName" text,
+        "MotherName" text,
+        "ParentPhone" text,
+        "ParentOccupation" text,
+        "BirthWeightKg" numeric(12,2),
+        "Notes" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_PediatricProfiles" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_PediatricProfiles_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE CASCADE
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [PediatricProfiles] (
-        [Id] uniqueidentifier NOT NULL,
-        [PatientId] uniqueidentifier NOT NULL,
-        [FatherName] nvarchar(max) NULL,
-        [MotherName] nvarchar(max) NULL,
-        [ParentPhone] nvarchar(max) NULL,
-        [ParentOccupation] nvarchar(max) NULL,
-        [BirthWeightKg] decimal(12,2) NULL,
-        [Notes] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_PediatricProfiles] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_PediatricProfiles_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE CASCADE
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "ReminderLogs" (
+        "Id" uuid NOT NULL,
+        "SourceKind" integer NOT NULL,
+        "SourceId" uuid NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "DueOn" timestamp without time zone NOT NULL,
+        "Channel" integer NOT NULL,
+        "ActionedOn" timestamp without time zone,
+        "ActionedBy" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_ReminderLogs" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_ReminderLogs_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE RESTRICT
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [ReminderLogs] (
-        [Id] uniqueidentifier NOT NULL,
-        [SourceKind] int NOT NULL,
-        [SourceId] uniqueidentifier NOT NULL,
-        [PatientId] uniqueidentifier NOT NULL,
-        [DueOn] datetime2 NOT NULL,
-        [Channel] int NOT NULL,
-        [ActionedOn] datetime2 NULL,
-        [ActionedBy] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_ReminderLogs] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_ReminderLogs_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE NO ACTION
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "DentalCases" (
+        "Id" uuid NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "PatientName" text NOT NULL,
+        "ProcedureId" uuid,
+        "ProcedureName" text,
+        "PackageId" uuid,
+        "PackageName" text,
+        "ToothNumber" text,
+        "DoctorId" uuid NOT NULL,
+        "Status" integer NOT NULL,
+        "StartedOn" timestamp without time zone NOT NULL,
+        "CompletedOn" timestamp without time zone,
+        "Notes" text,
+        "BaseCost" numeric(12,2) NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DentalCases" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_DentalCases_DentalPackageMasters_PackageId" FOREIGN KEY ("PackageId") REFERENCES "DentalPackageMasters" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_DentalCases_Doctors_DoctorId" FOREIGN KEY ("DoctorId") REFERENCES "Doctors" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_DentalCases_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_DentalCases_Procedures_ProcedureId" FOREIGN KEY ("ProcedureId") REFERENCES "Procedures" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [DentalCases] (
-        [Id] uniqueidentifier NOT NULL,
-        [PatientId] uniqueidentifier NOT NULL,
-        [PatientName] nvarchar(max) NOT NULL,
-        [ProcedureId] uniqueidentifier NULL,
-        [ProcedureName] nvarchar(max) NULL,
-        [PackageId] uniqueidentifier NULL,
-        [PackageName] nvarchar(max) NULL,
-        [ToothNumber] nvarchar(max) NULL,
-        [DoctorId] uniqueidentifier NOT NULL,
-        [Status] int NOT NULL,
-        [StartedOn] datetime2 NOT NULL,
-        [CompletedOn] datetime2 NULL,
-        [Notes] nvarchar(max) NULL,
-        [BaseCost] decimal(12,2) NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_DentalCases] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_DentalCases_DentalPackageMasters_PackageId] FOREIGN KEY ([PackageId]) REFERENCES [DentalPackageMasters] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [FK_DentalCases_Doctors_DoctorId] FOREIGN KEY ([DoctorId]) REFERENCES [Doctors] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_DentalCases_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_DentalCases_Procedures_ProcedureId] FOREIGN KEY ([ProcedureId]) REFERENCES [Procedures] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "DentalPackageItems" (
+        "Id" uuid NOT NULL,
+        "PackageId" uuid NOT NULL,
+        "ProcedureId" uuid,
+        "ProcedureName" text NOT NULL,
+        "Quantity" integer NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DentalPackageItems" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_DentalPackageItems_DentalPackageMasters_PackageId" FOREIGN KEY ("PackageId") REFERENCES "DentalPackageMasters" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_DentalPackageItems_Procedures_ProcedureId" FOREIGN KEY ("ProcedureId") REFERENCES "Procedures" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [DentalPackageItems] (
-        [Id] uniqueidentifier NOT NULL,
-        [PackageId] uniqueidentifier NOT NULL,
-        [ProcedureId] uniqueidentifier NULL,
-        [ProcedureName] nvarchar(max) NOT NULL,
-        [Quantity] int NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_DentalPackageItems] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_DentalPackageItems_DentalPackageMasters_PackageId] FOREIGN KEY ([PackageId]) REFERENCES [DentalPackageMasters] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_DentalPackageItems_Procedures_ProcedureId] FOREIGN KEY ([ProcedureId]) REFERENCES [Procedures] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Batches" (
+        "Id" uuid NOT NULL,
+        "ProductId" uuid NOT NULL,
+        "BatchNo" text NOT NULL,
+        "ExpiryDate" timestamp without time zone NOT NULL,
+        "Mrp" numeric(12,2) NOT NULL,
+        "PurchaseRate" numeric(12,2) NOT NULL,
+        "QtyOnHand" integer NOT NULL,
+        "UnitsPerPack" integer NOT NULL,
+        "SupplierName" text,
+        "SupplierInvoiceNo" text,
+        "FreePacks" integer NOT NULL,
+        "PacksReceived" integer NOT NULL,
+        "ReceivedOn" timestamp without time zone NOT NULL,
+        "IsProvisional" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Batches" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_Batches_Products_ProductId" FOREIGN KEY ("ProductId") REFERENCES "Products" ("Id") ON DELETE RESTRICT
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Batches] (
-        [Id] uniqueidentifier NOT NULL,
-        [ProductId] uniqueidentifier NOT NULL,
-        [BatchNo] nvarchar(450) NOT NULL,
-        [ExpiryDate] datetime2 NOT NULL,
-        [Mrp] decimal(12,2) NOT NULL,
-        [PurchaseRate] decimal(12,2) NOT NULL,
-        [QtyOnHand] int NOT NULL,
-        [UnitsPerPack] int NOT NULL,
-        [SupplierName] nvarchar(max) NULL,
-        [SupplierInvoiceNo] nvarchar(max) NULL,
-        [FreePacks] int NOT NULL,
-        [PacksReceived] int NOT NULL,
-        [ReceivedOn] datetime2 NOT NULL,
-        [IsProvisional] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Batches] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_Batches_Products_ProductId] FOREIGN KEY ([ProductId]) REFERENCES [Products] ([Id]) ON DELETE NO ACTION
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "VendorProductCodes" (
+        "Id" uuid NOT NULL,
+        "VendorProfile" text NOT NULL,
+        "Code" text NOT NULL,
+        "ProductId" uuid NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_VendorProductCodes" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_VendorProductCodes_Products_ProductId" FOREIGN KEY ("ProductId") REFERENCES "Products" ("Id") ON DELETE CASCADE
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [VendorProductCodes] (
-        [Id] uniqueidentifier NOT NULL,
-        [VendorProfile] nvarchar(450) NOT NULL,
-        [Code] nvarchar(450) NOT NULL,
-        [ProductId] uniqueidentifier NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_VendorProductCodes] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_VendorProductCodes_Products_ProductId] FOREIGN KEY ([ProductId]) REFERENCES [Products] ([Id]) ON DELETE CASCADE
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "StockEntryItems" (
+        "Id" uuid NOT NULL,
+        "StockEntryId" uuid NOT NULL,
+        "ProductId" uuid NOT NULL,
+        "BatchNo" text NOT NULL,
+        "ExpiryDate" timestamp without time zone NOT NULL,
+        "Quantity" integer NOT NULL,
+        "FreeQuantity" integer NOT NULL,
+        "UnitsPerPack" integer NOT NULL,
+        "PurchaseRate" numeric(12,2) NOT NULL,
+        "Mrp" numeric(12,2) NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_StockEntryItems" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_StockEntryItems_Products_ProductId" FOREIGN KEY ("ProductId") REFERENCES "Products" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_StockEntryItems_StockEntries_StockEntryId" FOREIGN KEY ("StockEntryId") REFERENCES "StockEntries" ("Id") ON DELETE CASCADE
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [StockEntryItems] (
-        [Id] uniqueidentifier NOT NULL,
-        [StockEntryId] uniqueidentifier NOT NULL,
-        [ProductId] uniqueidentifier NOT NULL,
-        [BatchNo] nvarchar(max) NOT NULL,
-        [ExpiryDate] datetime2 NOT NULL,
-        [Quantity] int NOT NULL,
-        [FreeQuantity] int NOT NULL,
-        [UnitsPerPack] int NOT NULL,
-        [PurchaseRate] decimal(12,2) NOT NULL,
-        [Mrp] decimal(12,2) NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_StockEntryItems] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_StockEntryItems_Products_ProductId] FOREIGN KEY ([ProductId]) REFERENCES [Products] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_StockEntryItems_StockEntries_StockEntryId] FOREIGN KEY ([StockEntryId]) REFERENCES [StockEntries] ([Id]) ON DELETE CASCADE
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Visits" (
+        "Id" uuid NOT NULL,
+        "VisitNo" text NOT NULL,
+        "TokenNo" integer NOT NULL,
+        "ScheduledOn" timestamp without time zone NOT NULL,
+        "Status" integer NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "DoctorId" uuid NOT NULL,
+        "Complaint" text,
+        "Diagnosis" text,
+        "Notes" text,
+        "WeightKg" numeric(12,2),
+        "BloodPressure" text,
+        "TemperatureF" numeric(12,2),
+        "HeightCm" numeric(12,2),
+        "HeartRateBpm" integer,
+        "Spo2Percent" integer,
+        "Fee" numeric(12,2) NOT NULL,
+        "FeePaid" boolean NOT NULL,
+        "FeeReceiptNo" text,
+        "FeePaidOn" timestamp without time zone,
+        "FeePaymentMode" integer,
+        "FeeTransactionNo" text,
+        "FollowUpOn" timestamp without time zone,
+        "AppointmentId" uuid,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Visits" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_Visits_Appointments_AppointmentId" FOREIGN KEY ("AppointmentId") REFERENCES "Appointments" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_Visits_Doctors_DoctorId" FOREIGN KEY ("DoctorId") REFERENCES "Doctors" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_Visits_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE RESTRICT
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Visits] (
-        [Id] uniqueidentifier NOT NULL,
-        [VisitNo] nvarchar(450) NOT NULL,
-        [TokenNo] int NOT NULL,
-        [ScheduledOn] datetime2 NOT NULL,
-        [Status] int NOT NULL,
-        [PatientId] uniqueidentifier NOT NULL,
-        [DoctorId] uniqueidentifier NOT NULL,
-        [Complaint] nvarchar(max) NULL,
-        [Diagnosis] nvarchar(max) NULL,
-        [Notes] nvarchar(max) NULL,
-        [WeightKg] decimal(12,2) NULL,
-        [BloodPressure] nvarchar(max) NULL,
-        [TemperatureF] decimal(12,2) NULL,
-        [HeightCm] decimal(12,2) NULL,
-        [HeartRateBpm] int NULL,
-        [Spo2Percent] int NULL,
-        [Fee] decimal(12,2) NOT NULL,
-        [FeePaid] bit NOT NULL,
-        [FeeReceiptNo] nvarchar(max) NULL,
-        [FeePaidOn] datetime2 NULL,
-        [FeePaymentMode] int NULL,
-        [FeeTransactionNo] nvarchar(max) NULL,
-        [FollowUpOn] datetime2 NULL,
-        [AppointmentId] uniqueidentifier NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Visits] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_Visits_Appointments_AppointmentId] FOREIGN KEY ([AppointmentId]) REFERENCES [Appointments] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [FK_Visits_Doctors_DoctorId] FOREIGN KEY ([DoctorId]) REFERENCES [Doctors] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_Visits_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE NO ACTION
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "DentalCaseReplacements" (
+        "Id" uuid NOT NULL,
+        "DentalCaseId" uuid NOT NULL,
+        "ReplacementId" uuid,
+        "Name" text NOT NULL,
+        "UnitCost" numeric(12,2) NOT NULL,
+        "Quantity" integer NOT NULL,
+        "Amount" numeric(12,2) NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DentalCaseReplacements" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_DentalCaseReplacements_DentalCases_DentalCaseId" FOREIGN KEY ("DentalCaseId") REFERENCES "DentalCases" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_DentalCaseReplacements_DentalReplacementMasters_Replacement~" FOREIGN KEY ("ReplacementId") REFERENCES "DentalReplacementMasters" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [DentalCaseReplacements] (
-        [Id] uniqueidentifier NOT NULL,
-        [DentalCaseId] uniqueidentifier NOT NULL,
-        [ReplacementId] uniqueidentifier NULL,
-        [Name] nvarchar(max) NOT NULL,
-        [UnitCost] decimal(12,2) NOT NULL,
-        [Quantity] int NOT NULL,
-        [Amount] decimal(12,2) NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_DentalCaseReplacements] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_DentalCaseReplacements_DentalCases_DentalCaseId] FOREIGN KEY ([DentalCaseId]) REFERENCES [DentalCases] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_DentalCaseReplacements_DentalReplacementMasters_ReplacementId] FOREIGN KEY ([ReplacementId]) REFERENCES [DentalReplacementMasters] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "DentalPayments" (
+        "Id" uuid NOT NULL,
+        "DentalCaseId" uuid NOT NULL,
+        "ReceiptNo" text NOT NULL,
+        "PaidOn" timestamp without time zone NOT NULL,
+        "Amount" numeric(12,2) NOT NULL,
+        "PaymentMode" integer NOT NULL,
+        "TransactionNo" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DentalPayments" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_DentalPayments_DentalCases_DentalCaseId" FOREIGN KEY ("DentalCaseId") REFERENCES "DentalCases" ("Id") ON DELETE CASCADE
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [DentalPayments] (
-        [Id] uniqueidentifier NOT NULL,
-        [DentalCaseId] uniqueidentifier NOT NULL,
-        [ReceiptNo] nvarchar(450) NOT NULL,
-        [PaidOn] datetime2 NOT NULL,
-        [Amount] decimal(12,2) NOT NULL,
-        [PaymentMode] int NOT NULL,
-        [TransactionNo] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_DentalPayments] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_DentalPayments_DentalCases_DentalCaseId] FOREIGN KEY ([DentalCaseId]) REFERENCES [DentalCases] ([Id]) ON DELETE CASCADE
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "DentalSittings" (
+        "Id" uuid NOT NULL,
+        "DentalCaseId" uuid NOT NULL,
+        "SittingNumber" integer NOT NULL,
+        "SittingDate" timestamp without time zone NOT NULL,
+        "DoctorId" uuid NOT NULL,
+        "WorkDone" text,
+        "AnesthesiaTypeId" uuid,
+        "AnesthesiaTypeName" text,
+        "AnesthesiaCost" numeric(12,2),
+        "NextSittingOn" timestamp without time zone,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DentalSittings" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_DentalSittings_AnesthesiaTypeMasters_AnesthesiaTypeId" FOREIGN KEY ("AnesthesiaTypeId") REFERENCES "AnesthesiaTypeMasters" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_DentalSittings_DentalCases_DentalCaseId" FOREIGN KEY ("DentalCaseId") REFERENCES "DentalCases" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_DentalSittings_Doctors_DoctorId" FOREIGN KEY ("DoctorId") REFERENCES "Doctors" ("Id") ON DELETE RESTRICT
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [DentalSittings] (
-        [Id] uniqueidentifier NOT NULL,
-        [DentalCaseId] uniqueidentifier NOT NULL,
-        [SittingNumber] int NOT NULL,
-        [SittingDate] datetime2 NOT NULL,
-        [DoctorId] uniqueidentifier NOT NULL,
-        [WorkDone] nvarchar(max) NULL,
-        [AnesthesiaTypeId] uniqueidentifier NULL,
-        [AnesthesiaTypeName] nvarchar(max) NULL,
-        [AnesthesiaCost] decimal(12,2) NULL,
-        [NextSittingOn] datetime2 NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_DentalSittings] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_DentalSittings_AnesthesiaTypeMasters_AnesthesiaTypeId] FOREIGN KEY ([AnesthesiaTypeId]) REFERENCES [AnesthesiaTypeMasters] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [FK_DentalSittings_DentalCases_DentalCaseId] FOREIGN KEY ([DentalCaseId]) REFERENCES [DentalCases] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_DentalSittings_Doctors_DoctorId] FOREIGN KEY ([DoctorId]) REFERENCES [Doctors] ([Id]) ON DELETE NO ACTION
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "StockAdjustments" (
+        "Id" uuid NOT NULL,
+        "AdjustedOn" timestamp without time zone NOT NULL,
+        "BatchId" uuid NOT NULL,
+        "ProductId" uuid NOT NULL,
+        "ProductName" text NOT NULL,
+        "BatchNo" text NOT NULL,
+        "QuantityBefore" integer NOT NULL,
+        "QuantityAfter" integer NOT NULL,
+        "Reason" integer NOT NULL,
+        "Notes" text,
+        "AdjustedBy" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_StockAdjustments" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_StockAdjustments_Batches_BatchId" FOREIGN KEY ("BatchId") REFERENCES "Batches" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_StockAdjustments_Products_ProductId" FOREIGN KEY ("ProductId") REFERENCES "Products" ("Id") ON DELETE RESTRICT
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [StockAdjustments] (
-        [Id] uniqueidentifier NOT NULL,
-        [AdjustedOn] datetime2 NOT NULL,
-        [BatchId] uniqueidentifier NOT NULL,
-        [ProductId] uniqueidentifier NOT NULL,
-        [ProductName] nvarchar(max) NOT NULL,
-        [BatchNo] nvarchar(max) NOT NULL,
-        [QuantityBefore] int NOT NULL,
-        [QuantityAfter] int NOT NULL,
-        [Reason] int NOT NULL,
-        [Notes] nvarchar(max) NULL,
-        [AdjustedBy] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_StockAdjustments] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_StockAdjustments_Batches_BatchId] FOREIGN KEY ([BatchId]) REFERENCES [Batches] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_StockAdjustments_Products_ProductId] FOREIGN KEY ([ProductId]) REFERENCES [Products] ([Id]) ON DELETE NO ACTION
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "VaccinationRecords" (
+        "Id" uuid NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "PatientName" text NOT NULL,
+        "VaccineId" uuid,
+        "VaccineName" text NOT NULL,
+        "DoseNumber" integer NOT NULL,
+        "GivenOn" timestamp without time zone NOT NULL,
+        "BatchNo" text,
+        "SiteOfInjection" text,
+        "AdministeredBy" text,
+        "ProductId" uuid,
+        "ProductName" text,
+        "Manufacturer" text,
+        "BatchId" uuid,
+        "NextDueOn" timestamp without time zone,
+        "ProcedureBillItemId" uuid,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_VaccinationRecords" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_VaccinationRecords_Batches_BatchId" FOREIGN KEY ("BatchId") REFERENCES "Batches" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_VaccinationRecords_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_VaccinationRecords_Products_ProductId" FOREIGN KEY ("ProductId") REFERENCES "Products" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_VaccinationRecords_VaccineMasters_VaccineId" FOREIGN KEY ("VaccineId") REFERENCES "VaccineMasters" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [VaccinationRecords] (
-        [Id] uniqueidentifier NOT NULL,
-        [PatientId] uniqueidentifier NOT NULL,
-        [PatientName] nvarchar(max) NOT NULL,
-        [VaccineId] uniqueidentifier NULL,
-        [VaccineName] nvarchar(max) NOT NULL,
-        [DoseNumber] int NOT NULL,
-        [GivenOn] datetime2 NOT NULL,
-        [BatchNo] nvarchar(max) NULL,
-        [SiteOfInjection] nvarchar(max) NULL,
-        [AdministeredBy] nvarchar(max) NULL,
-        [ProductId] uniqueidentifier NULL,
-        [ProductName] nvarchar(max) NULL,
-        [Manufacturer] nvarchar(max) NULL,
-        [BatchId] uniqueidentifier NULL,
-        [NextDueOn] datetime2 NULL,
-        [ProcedureBillItemId] uniqueidentifier NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_VaccinationRecords] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_VaccinationRecords_Batches_BatchId] FOREIGN KEY ([BatchId]) REFERENCES [Batches] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [FK_VaccinationRecords_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_VaccinationRecords_Products_ProductId] FOREIGN KEY ([ProductId]) REFERENCES [Products] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [FK_VaccinationRecords_VaccineMasters_VaccineId] FOREIGN KEY ([VaccineId]) REFERENCES [VaccineMasters] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "DiagnosticBills" (
+        "Id" uuid NOT NULL,
+        "BillNo" text NOT NULL,
+        "BillDate" timestamp without time zone NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "PatientName" text NOT NULL,
+        "PatientNo" text NOT NULL,
+        "TotalAmount" numeric(12,2) NOT NULL,
+        "Discount" numeric(12,2) NOT NULL,
+        "FinalAmount" numeric(12,2) NOT NULL,
+        "PaymentMode" integer NOT NULL,
+        "TransactionNo" text,
+        "Status" integer NOT NULL,
+        "Remarks" text,
+        "VisitId" uuid,
+        "ReferredBy" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DiagnosticBills" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_DiagnosticBills_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_DiagnosticBills_Visits_VisitId" FOREIGN KEY ("VisitId") REFERENCES "Visits" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [DiagnosticBills] (
-        [Id] uniqueidentifier NOT NULL,
-        [BillNo] nvarchar(450) NOT NULL,
-        [BillDate] datetime2 NOT NULL,
-        [PatientId] uniqueidentifier NOT NULL,
-        [PatientName] nvarchar(max) NOT NULL,
-        [PatientNo] nvarchar(max) NOT NULL,
-        [TotalAmount] decimal(12,2) NOT NULL,
-        [Discount] decimal(12,2) NOT NULL,
-        [FinalAmount] decimal(12,2) NOT NULL,
-        [PaymentMode] int NOT NULL,
-        [TransactionNo] nvarchar(max) NULL,
-        [Status] int NOT NULL,
-        [Remarks] nvarchar(max) NULL,
-        [VisitId] uniqueidentifier NULL,
-        [ReferredBy] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_DiagnosticBills] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_DiagnosticBills_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_DiagnosticBills_Visits_VisitId] FOREIGN KEY ([VisitId]) REFERENCES [Visits] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "GrowthMeasurements" (
+        "Id" uuid NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "VisitId" uuid,
+        "MeasuredOn" timestamp without time zone NOT NULL,
+        "AgeDays" integer NOT NULL,
+        "WeightKg" numeric(12,2),
+        "HeightCm" numeric(12,2),
+        "HeadCircumferenceCm" numeric(12,2),
+        "BmiValue" numeric(12,2),
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_GrowthMeasurements" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_GrowthMeasurements_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_GrowthMeasurements_Visits_VisitId" FOREIGN KEY ("VisitId") REFERENCES "Visits" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [GrowthMeasurements] (
-        [Id] uniqueidentifier NOT NULL,
-        [PatientId] uniqueidentifier NOT NULL,
-        [VisitId] uniqueidentifier NULL,
-        [MeasuredOn] datetime2 NOT NULL,
-        [AgeDays] int NOT NULL,
-        [WeightKg] decimal(12,2) NULL,
-        [HeightCm] decimal(12,2) NULL,
-        [HeadCircumferenceCm] decimal(12,2) NULL,
-        [BmiValue] decimal(12,2) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_GrowthMeasurements] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_GrowthMeasurements_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_GrowthMeasurements_Visits_VisitId] FOREIGN KEY ([VisitId]) REFERENCES [Visits] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "LabOrders" (
+        "Id" uuid NOT NULL,
+        "OrderNo" text NOT NULL,
+        "OrderDate" timestamp without time zone NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "PatientName" text NOT NULL,
+        "PatientNo" text NOT NULL,
+        "PackageId" uuid,
+        "VisitId" uuid,
+        "ReferredBy" text,
+        "SpecimenId" text,
+        "CollectedOn" timestamp without time zone,
+        "ReceivedOn" timestamp without time zone,
+        "TotalAmount" numeric(12,2) NOT NULL,
+        "Discount" numeric(12,2) NOT NULL,
+        "FinalAmount" numeric(12,2) NOT NULL,
+        "PaymentMode" integer NOT NULL,
+        "TransactionNo" text,
+        "Status" integer NOT NULL,
+        "Remarks" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_LabOrders" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_LabOrders_LabPackageMasters_PackageId" FOREIGN KEY ("PackageId") REFERENCES "LabPackageMasters" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_LabOrders_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_LabOrders_Visits_VisitId" FOREIGN KEY ("VisitId") REFERENCES "Visits" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [LabOrders] (
-        [Id] uniqueidentifier NOT NULL,
-        [OrderNo] nvarchar(450) NOT NULL,
-        [OrderDate] datetime2 NOT NULL,
-        [PatientId] uniqueidentifier NOT NULL,
-        [PatientName] nvarchar(max) NOT NULL,
-        [PatientNo] nvarchar(max) NOT NULL,
-        [PackageId] uniqueidentifier NULL,
-        [VisitId] uniqueidentifier NULL,
-        [ReferredBy] nvarchar(max) NULL,
-        [SpecimenId] nvarchar(max) NULL,
-        [CollectedOn] datetime2 NULL,
-        [ReceivedOn] datetime2 NULL,
-        [TotalAmount] decimal(12,2) NOT NULL,
-        [Discount] decimal(12,2) NOT NULL,
-        [FinalAmount] decimal(12,2) NOT NULL,
-        [PaymentMode] int NOT NULL,
-        [TransactionNo] nvarchar(max) NULL,
-        [Status] int NOT NULL,
-        [Remarks] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_LabOrders] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_LabOrders_LabPackageMasters_PackageId] FOREIGN KEY ([PackageId]) REFERENCES [LabPackageMasters] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [FK_LabOrders_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_LabOrders_Visits_VisitId] FOREIGN KEY ([VisitId]) REFERENCES [Visits] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "PrescriptionItems" (
+        "Id" uuid NOT NULL,
+        "VisitId" uuid NOT NULL,
+        "ProductId" uuid,
+        "MedicineName" text NOT NULL,
+        "Dosage" text,
+        "Frequency" text,
+        "Days" integer NOT NULL,
+        "Quantity" integer NOT NULL,
+        "Instructions" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_PrescriptionItems" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_PrescriptionItems_Products_ProductId" FOREIGN KEY ("ProductId") REFERENCES "Products" ("Id"),
+        CONSTRAINT "FK_PrescriptionItems_Visits_VisitId" FOREIGN KEY ("VisitId") REFERENCES "Visits" ("Id") ON DELETE CASCADE
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [PrescriptionItems] (
-        [Id] uniqueidentifier NOT NULL,
-        [VisitId] uniqueidentifier NOT NULL,
-        [ProductId] uniqueidentifier NULL,
-        [MedicineName] nvarchar(max) NOT NULL,
-        [Dosage] nvarchar(max) NULL,
-        [Frequency] nvarchar(max) NULL,
-        [Days] int NOT NULL,
-        [Quantity] int NOT NULL,
-        [Instructions] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_PrescriptionItems] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_PrescriptionItems_Products_ProductId] FOREIGN KEY ([ProductId]) REFERENCES [Products] ([Id]),
-        CONSTRAINT [FK_PrescriptionItems_Visits_VisitId] FOREIGN KEY ([VisitId]) REFERENCES [Visits] ([Id]) ON DELETE CASCADE
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "ProcedureBills" (
+        "Id" uuid NOT NULL,
+        "BillNo" text NOT NULL,
+        "BillDate" timestamp without time zone NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "PatientName" text NOT NULL,
+        "PatientNo" text NOT NULL,
+        "TotalAmount" numeric(12,2) NOT NULL,
+        "Discount" numeric(12,2) NOT NULL,
+        "FinalAmount" numeric(12,2) NOT NULL,
+        "PaymentMode" integer NOT NULL,
+        "TransactionNo" text,
+        "Status" integer NOT NULL,
+        "VisitId" uuid,
+        "ReferredBy" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_ProcedureBills" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_ProcedureBills_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_ProcedureBills_Visits_VisitId" FOREIGN KEY ("VisitId") REFERENCES "Visits" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [ProcedureBills] (
-        [Id] uniqueidentifier NOT NULL,
-        [BillNo] nvarchar(450) NOT NULL,
-        [BillDate] datetime2 NOT NULL,
-        [PatientId] uniqueidentifier NOT NULL,
-        [PatientName] nvarchar(max) NOT NULL,
-        [PatientNo] nvarchar(max) NOT NULL,
-        [TotalAmount] decimal(12,2) NOT NULL,
-        [Discount] decimal(12,2) NOT NULL,
-        [FinalAmount] decimal(12,2) NOT NULL,
-        [PaymentMode] int NOT NULL,
-        [TransactionNo] nvarchar(max) NULL,
-        [Status] int NOT NULL,
-        [VisitId] uniqueidentifier NULL,
-        [ReferredBy] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_ProcedureBills] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_ProcedureBills_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE NO ACTION,
-        CONSTRAINT [FK_ProcedureBills_Visits_VisitId] FOREIGN KEY ([VisitId]) REFERENCES [Visits] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "Sales" (
+        "Id" uuid NOT NULL,
+        "BillNo" text NOT NULL,
+        "BillDate" timestamp without time zone NOT NULL,
+        "PatientId" uuid,
+        "VisitId" uuid,
+        "CustomerName" text NOT NULL,
+        "DoctorName" text,
+        "GrossAmount" numeric(12,2) NOT NULL,
+        "DiscountAmount" numeric(12,2) NOT NULL,
+        "TaxableAmount" numeric(12,2) NOT NULL,
+        "CgstAmount" numeric(12,2) NOT NULL,
+        "SgstAmount" numeric(12,2) NOT NULL,
+        "RoundOff" numeric(12,2) NOT NULL,
+        "NetAmount" numeric(12,2) NOT NULL,
+        "PaymentMode" integer NOT NULL,
+        "Status" integer NOT NULL,
+        "TransactionNo" text,
+        "IsTaxInvoice" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Sales" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_Sales_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_Sales_Visits_VisitId" FOREIGN KEY ("VisitId") REFERENCES "Visits" ("Id")
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [Sales] (
-        [Id] uniqueidentifier NOT NULL,
-        [BillNo] nvarchar(450) NOT NULL,
-        [BillDate] datetime2 NOT NULL,
-        [PatientId] uniqueidentifier NULL,
-        [VisitId] uniqueidentifier NULL,
-        [CustomerName] nvarchar(max) NOT NULL,
-        [DoctorName] nvarchar(max) NULL,
-        [GrossAmount] decimal(12,2) NOT NULL,
-        [DiscountAmount] decimal(12,2) NOT NULL,
-        [TaxableAmount] decimal(12,2) NOT NULL,
-        [CgstAmount] decimal(12,2) NOT NULL,
-        [SgstAmount] decimal(12,2) NOT NULL,
-        [RoundOff] decimal(12,2) NOT NULL,
-        [NetAmount] decimal(12,2) NOT NULL,
-        [PaymentMode] int NOT NULL,
-        [Status] int NOT NULL,
-        [TransactionNo] nvarchar(max) NULL,
-        [IsTaxInvoice] bit NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_Sales] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_Sales_Patients_PatientId] FOREIGN KEY ([PatientId]) REFERENCES [Patients] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [FK_Sales_Visits_VisitId] FOREIGN KEY ([VisitId]) REFERENCES [Visits] ([Id])
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "VisitDiagnosticRequests" (
+        "Id" uuid NOT NULL,
+        "VisitId" uuid NOT NULL,
+        "TestId" uuid,
+        "TestName" text NOT NULL,
+        "Notes" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_VisitDiagnosticRequests" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_VisitDiagnosticRequests_DiagnosticTests_TestId" FOREIGN KEY ("TestId") REFERENCES "DiagnosticTests" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_VisitDiagnosticRequests_Visits_VisitId" FOREIGN KEY ("VisitId") REFERENCES "Visits" ("Id") ON DELETE CASCADE
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [VisitDiagnosticRequests] (
-        [Id] uniqueidentifier NOT NULL,
-        [VisitId] uniqueidentifier NOT NULL,
-        [TestId] uniqueidentifier NULL,
-        [TestName] nvarchar(max) NOT NULL,
-        [Notes] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_VisitDiagnosticRequests] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_VisitDiagnosticRequests_DiagnosticTests_TestId] FOREIGN KEY ([TestId]) REFERENCES [DiagnosticTests] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [FK_VisitDiagnosticRequests_Visits_VisitId] FOREIGN KEY ([VisitId]) REFERENCES [Visits] ([Id]) ON DELETE CASCADE
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "DiagnosticBillItems" (
+        "Id" uuid NOT NULL,
+        "BillId" uuid NOT NULL,
+        "TestId" uuid,
+        "TestName" text NOT NULL,
+        "Price" numeric(12,2) NOT NULL,
+        "Quantity" integer NOT NULL,
+        "Amount" numeric(12,2) NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DiagnosticBillItems" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_DiagnosticBillItems_DiagnosticBills_BillId" FOREIGN KEY ("BillId") REFERENCES "DiagnosticBills" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_DiagnosticBillItems_DiagnosticTests_TestId" FOREIGN KEY ("TestId") REFERENCES "DiagnosticTests" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [DiagnosticBillItems] (
-        [Id] uniqueidentifier NOT NULL,
-        [BillId] uniqueidentifier NOT NULL,
-        [TestId] uniqueidentifier NULL,
-        [TestName] nvarchar(max) NOT NULL,
-        [Price] decimal(12,2) NOT NULL,
-        [Quantity] int NOT NULL,
-        [Amount] decimal(12,2) NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_DiagnosticBillItems] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_DiagnosticBillItems_DiagnosticBills_BillId] FOREIGN KEY ([BillId]) REFERENCES [DiagnosticBills] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_DiagnosticBillItems_DiagnosticTests_TestId] FOREIGN KEY ([TestId]) REFERENCES [DiagnosticTests] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "LabOrderReports" (
+        "Id" uuid NOT NULL,
+        "OrderId" uuid NOT NULL,
+        "ReportId" uuid,
+        "ReportName" text NOT NULL,
+        "Price" numeric(12,2) NOT NULL,
+        "Amount" numeric(12,2) NOT NULL,
+        "Notes" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_LabOrderReports" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_LabOrderReports_LabOrders_OrderId" FOREIGN KEY ("OrderId") REFERENCES "LabOrders" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_LabOrderReports_LabReports_ReportId" FOREIGN KEY ("ReportId") REFERENCES "LabReports" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [LabOrderReports] (
-        [Id] uniqueidentifier NOT NULL,
-        [OrderId] uniqueidentifier NOT NULL,
-        [ReportId] uniqueidentifier NULL,
-        [ReportName] nvarchar(max) NOT NULL,
-        [Price] decimal(12,2) NOT NULL,
-        [Amount] decimal(12,2) NOT NULL,
-        [Notes] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_LabOrderReports] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_LabOrderReports_LabOrders_OrderId] FOREIGN KEY ([OrderId]) REFERENCES [LabOrders] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_LabOrderReports_LabReports_ReportId] FOREIGN KEY ([ReportId]) REFERENCES [LabReports] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "ProcedureBillItems" (
+        "Id" uuid NOT NULL,
+        "BillId" uuid NOT NULL,
+        "ProcedureId" uuid,
+        "ProcedureName" text NOT NULL,
+        "Price" numeric(12,2) NOT NULL,
+        "Quantity" integer NOT NULL,
+        "Amount" numeric(12,2) NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_ProcedureBillItems" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_ProcedureBillItems_ProcedureBills_BillId" FOREIGN KEY ("BillId") REFERENCES "ProcedureBills" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_ProcedureBillItems_Procedures_ProcedureId" FOREIGN KEY ("ProcedureId") REFERENCES "Procedures" ("Id") ON DELETE SET NULL
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [ProcedureBillItems] (
-        [Id] uniqueidentifier NOT NULL,
-        [BillId] uniqueidentifier NOT NULL,
-        [ProcedureId] uniqueidentifier NULL,
-        [ProcedureName] nvarchar(max) NOT NULL,
-        [Price] decimal(12,2) NOT NULL,
-        [Quantity] int NOT NULL,
-        [Amount] decimal(12,2) NOT NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_ProcedureBillItems] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_ProcedureBillItems_ProcedureBills_BillId] FOREIGN KEY ([BillId]) REFERENCES [ProcedureBills] ([Id]) ON DELETE CASCADE,
-        CONSTRAINT [FK_ProcedureBillItems_Procedures_ProcedureId] FOREIGN KEY ([ProcedureId]) REFERENCES [Procedures] ([Id]) ON DELETE SET NULL
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "SaleItems" (
+        "Id" uuid NOT NULL,
+        "SaleId" uuid NOT NULL,
+        "ProductId" uuid NOT NULL,
+        "BatchId" uuid NOT NULL,
+        "ProductName" text NOT NULL,
+        "BatchNo" text NOT NULL,
+        "ExpiryDate" timestamp without time zone NOT NULL,
+        "HsnCode" text NOT NULL,
+        "Quantity" integer NOT NULL,
+        "UnitsPerPack" integer NOT NULL,
+        "Mrp" numeric(12,2) NOT NULL,
+        "DiscountPercent" numeric(12,2) NOT NULL,
+        "GstRate" numeric(12,2) NOT NULL,
+        "TaxableAmount" numeric(12,2) NOT NULL,
+        "GstAmount" numeric(12,2) NOT NULL,
+        "LineTotal" numeric(12,2) NOT NULL,
+        "PackLabel" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_SaleItems" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_SaleItems_Sales_SaleId" FOREIGN KEY ("SaleId") REFERENCES "Sales" ("Id") ON DELETE CASCADE
     );
-END;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE TABLE [SaleItems] (
-        [Id] uniqueidentifier NOT NULL,
-        [SaleId] uniqueidentifier NOT NULL,
-        [ProductId] uniqueidentifier NOT NULL,
-        [BatchId] uniqueidentifier NOT NULL,
-        [ProductName] nvarchar(max) NOT NULL,
-        [BatchNo] nvarchar(max) NOT NULL,
-        [ExpiryDate] datetime2 NOT NULL,
-        [HsnCode] nvarchar(max) NOT NULL,
-        [Quantity] int NOT NULL,
-        [UnitsPerPack] int NOT NULL,
-        [Mrp] decimal(12,2) NOT NULL,
-        [DiscountPercent] decimal(12,2) NOT NULL,
-        [GstRate] decimal(12,2) NOT NULL,
-        [TaxableAmount] decimal(12,2) NOT NULL,
-        [GstAmount] decimal(12,2) NOT NULL,
-        [LineTotal] decimal(12,2) NOT NULL,
-        [PackLabel] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_SaleItems] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_SaleItems_Sales_SaleId] FOREIGN KEY ([SaleId]) REFERENCES [Sales] ([Id]) ON DELETE CASCADE
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE TABLE "LabResults" (
+        "Id" uuid NOT NULL,
+        "OrderReportId" uuid NOT NULL,
+        "AnalyteId" uuid,
+        "AnalyteName" text NOT NULL,
+        "Units" text NOT NULL,
+        "ResultValue" text NOT NULL,
+        "ReferenceRangeDisplay" text NOT NULL,
+        "Flag" integer NOT NULL,
+        "EnteredOn" timestamp without time zone NOT NULL,
+        "EnteredBy" text,
+        "VerifiedOn" timestamp without time zone,
+        "VerifiedBy" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_LabResults" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_LabResults_LabAnalytes_AnalyteId" FOREIGN KEY ("AnalyteId") REFERENCES "LabAnalytes" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_LabResults_LabOrderReports_OrderReportId" FOREIGN KEY ("OrderReportId") REFERENCES "LabOrderReports" ("Id") ON DELETE CASCADE
     );
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
-BEGIN
-    CREATE TABLE [LabResults] (
-        [Id] uniqueidentifier NOT NULL,
-        [OrderReportId] uniqueidentifier NOT NULL,
-        [AnalyteId] uniqueidentifier NULL,
-        [AnalyteName] nvarchar(max) NOT NULL,
-        [Units] nvarchar(max) NOT NULL,
-        [ResultValue] nvarchar(max) NOT NULL,
-        [ReferenceRangeDisplay] nvarchar(max) NOT NULL,
-        [Flag] int NOT NULL,
-        [EnteredOn] datetime2 NOT NULL,
-        [EnteredBy] nvarchar(max) NULL,
-        [VerifiedOn] datetime2 NULL,
-        [VerifiedBy] nvarchar(max) NULL,
-        [TenantId] uniqueidentifier NOT NULL,
-        [RowVersion] varbinary(max) NOT NULL,
-        [CreatedAt] datetime2 NOT NULL,
-        [UpdatedAt] datetime2 NULL,
-        [IsDeleted] bit NOT NULL,
-        [CreatedByUserId] uniqueidentifier NULL,
-        [UpdatedByUserId] uniqueidentifier NULL,
-        CONSTRAINT [PK_LabResults] PRIMARY KEY ([Id]),
-        CONSTRAINT [FK_LabResults_LabAnalytes_AnalyteId] FOREIGN KEY ([AnalyteId]) REFERENCES [LabAnalytes] ([Id]) ON DELETE SET NULL,
-        CONSTRAINT [FK_LabResults_LabOrderReports_OrderReportId] FOREIGN KEY ([OrderReportId]) REFERENCES [LabOrderReports] ([Id]) ON DELETE CASCADE
-    );
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
-BEGIN
-    CREATE INDEX [IX_AnesthesiaTypeMasters_Name] ON [AnesthesiaTypeMasters] ([Name]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
-BEGIN
-    CREATE INDEX [IX_Appointments_DoctorId] ON [Appointments] ([DoctorId]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
-BEGIN
-    CREATE INDEX [IX_Appointments_PatientId] ON [Appointments] ([PatientId]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
-BEGIN
-    CREATE INDEX [IX_Appointments_RescheduledFromId] ON [Appointments] ([RescheduledFromId]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
-BEGIN
-    CREATE INDEX [IX_Appointments_ScheduledOn] ON [Appointments] ([ScheduledOn]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
-BEGIN
-    CREATE UNIQUE INDEX [IX_Appointments_TenantId_AppointmentNo] ON [Appointments] ([TenantId], [AppointmentNo]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
-BEGIN
-    CREATE INDEX [IX_Batches_ProductId_BatchNo] ON [Batches] ([ProductId], [BatchNo]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
-BEGIN
-    CREATE UNIQUE INDEX [IX_Counters_TenantId_Name] ON [Counters] ([TenantId], [Name]);
-END;
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_AnesthesiaTypeMasters_Name" ON "AnesthesiaTypeMasters" ("Name");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Appointments_DoctorId" ON "Appointments" ("DoctorId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Appointments_PatientId" ON "Appointments" ("PatientId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Appointments_RescheduledFromId" ON "Appointments" ("RescheduledFromId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Appointments_ScheduledOn" ON "Appointments" ("ScheduledOn");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_Appointments_TenantId_AppointmentNo" ON "Appointments" ("TenantId", "AppointmentNo");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Batches_ProductId_BatchNo" ON "Batches" ("ProductId", "BatchNo");
+    END IF;
+END $EF$;
+
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalCaseReplacements_DentalCaseId] ON [DentalCaseReplacements] ([DentalCaseId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_Counters_TenantId_Name" ON "Counters" ("TenantId", "Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalCaseReplacements_ReplacementId] ON [DentalCaseReplacements] ([ReplacementId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalCaseReplacements_DentalCaseId" ON "DentalCaseReplacements" ("DentalCaseId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalCases_DoctorId] ON [DentalCases] ([DoctorId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalCaseReplacements_ReplacementId" ON "DentalCaseReplacements" ("ReplacementId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalCases_PackageId] ON [DentalCases] ([PackageId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalCases_DoctorId" ON "DentalCases" ("DoctorId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalCases_PatientId] ON [DentalCases] ([PatientId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalCases_PackageId" ON "DentalCases" ("PackageId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalCases_ProcedureId] ON [DentalCases] ([ProcedureId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalCases_PatientId" ON "DentalCases" ("PatientId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalPackageItems_PackageId] ON [DentalPackageItems] ([PackageId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalCases_ProcedureId" ON "DentalCases" ("ProcedureId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalPackageItems_ProcedureId] ON [DentalPackageItems] ([ProcedureId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalPackageItems_PackageId" ON "DentalPackageItems" ("PackageId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalPackageMasters_Name] ON [DentalPackageMasters] ([Name]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalPackageItems_ProcedureId" ON "DentalPackageItems" ("ProcedureId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalPayments_DentalCaseId] ON [DentalPayments] ([DentalCaseId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalPackageMasters_Name" ON "DentalPackageMasters" ("Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalPayments_PaidOn] ON [DentalPayments] ([PaidOn]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalPayments_DentalCaseId" ON "DentalPayments" ("DentalCaseId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_DentalPayments_TenantId_ReceiptNo] ON [DentalPayments] ([TenantId], [ReceiptNo]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalPayments_PaidOn" ON "DentalPayments" ("PaidOn");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalReplacementMasters_Name] ON [DentalReplacementMasters] ([Name]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_DentalPayments_TenantId_ReceiptNo" ON "DentalPayments" ("TenantId", "ReceiptNo");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalSittings_AnesthesiaTypeId] ON [DentalSittings] ([AnesthesiaTypeId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalReplacementMasters_Name" ON "DentalReplacementMasters" ("Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalSittings_DentalCaseId] ON [DentalSittings] ([DentalCaseId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalSittings_AnesthesiaTypeId" ON "DentalSittings" ("AnesthesiaTypeId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DentalSittings_DoctorId] ON [DentalSittings] ([DoctorId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalSittings_DentalCaseId" ON "DentalSittings" ("DentalCaseId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DiagnosticBillItems_BillId] ON [DiagnosticBillItems] ([BillId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DentalSittings_DoctorId" ON "DentalSittings" ("DoctorId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DiagnosticBillItems_TestId] ON [DiagnosticBillItems] ([TestId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DiagnosticBillItems_BillId" ON "DiagnosticBillItems" ("BillId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DiagnosticBills_BillDate] ON [DiagnosticBills] ([BillDate]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DiagnosticBillItems_TestId" ON "DiagnosticBillItems" ("TestId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DiagnosticBills_PatientId] ON [DiagnosticBills] ([PatientId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DiagnosticBills_BillDate" ON "DiagnosticBills" ("BillDate");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_DiagnosticBills_TenantId_BillNo] ON [DiagnosticBills] ([TenantId], [BillNo]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DiagnosticBills_PatientId" ON "DiagnosticBills" ("PatientId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DiagnosticBills_VisitId] ON [DiagnosticBills] ([VisitId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_DiagnosticBills_TenantId_BillNo" ON "DiagnosticBills" ("TenantId", "BillNo");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_DiagnosticTests_Name] ON [DiagnosticTests] ([Name]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DiagnosticBills_VisitId" ON "DiagnosticBills" ("VisitId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_GrowthMeasurements_PatientId] ON [GrowthMeasurements] ([PatientId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_DiagnosticTests_Name" ON "DiagnosticTests" ("Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_GrowthMeasurements_VisitId] ON [GrowthMeasurements] ([VisitId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_GrowthMeasurements_PatientId" ON "GrowthMeasurements" ("PatientId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_ImportProfiles_TenantId_Name] ON [ImportProfiles] ([TenantId], [Name]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_GrowthMeasurements_VisitId" ON "GrowthMeasurements" ("VisitId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabAnalyteReferenceRanges_AnalyteId] ON [LabAnalyteReferenceRanges] ([AnalyteId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_ImportProfiles_TenantId_Name" ON "ImportProfiles" ("TenantId", "Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabAnalytes_Name] ON [LabAnalytes] ([Name]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabAnalyteReferenceRanges_AnalyteId" ON "LabAnalyteReferenceRanges" ("AnalyteId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabOrderReports_OrderId] ON [LabOrderReports] ([OrderId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabAnalytes_Name" ON "LabAnalytes" ("Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabOrderReports_ReportId] ON [LabOrderReports] ([ReportId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabOrderReports_OrderId" ON "LabOrderReports" ("OrderId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabOrders_OrderDate] ON [LabOrders] ([OrderDate]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabOrderReports_ReportId" ON "LabOrderReports" ("ReportId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabOrders_PackageId] ON [LabOrders] ([PackageId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabOrders_OrderDate" ON "LabOrders" ("OrderDate");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabOrders_PatientId] ON [LabOrders] ([PatientId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabOrders_PackageId" ON "LabOrders" ("PackageId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_LabOrders_TenantId_OrderNo] ON [LabOrders] ([TenantId], [OrderNo]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabOrders_PatientId" ON "LabOrders" ("PatientId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabOrders_VisitId] ON [LabOrders] ([VisitId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_LabOrders_TenantId_OrderNo" ON "LabOrders" ("TenantId", "OrderNo");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabPackageMasters_Name] ON [LabPackageMasters] ([Name]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabOrders_VisitId" ON "LabOrders" ("VisitId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabPackageReports_PackageId] ON [LabPackageReports] ([PackageId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabPackageMasters_Name" ON "LabPackageMasters" ("Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabPackageReports_ReportId] ON [LabPackageReports] ([ReportId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabPackageReports_PackageId" ON "LabPackageReports" ("PackageId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabReportAnalytes_AnalyteId] ON [LabReportAnalytes] ([AnalyteId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabPackageReports_ReportId" ON "LabPackageReports" ("ReportId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabReportAnalytes_ReportId] ON [LabReportAnalytes] ([ReportId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabReportAnalytes_AnalyteId" ON "LabReportAnalytes" ("AnalyteId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabReports_Name] ON [LabReports] ([Name]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabReportAnalytes_ReportId" ON "LabReportAnalytes" ("ReportId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabResults_AnalyteId] ON [LabResults] ([AnalyteId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabReports_Name" ON "LabReports" ("Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_LabResults_OrderReportId] ON [LabResults] ([OrderReportId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabResults_AnalyteId" ON "LabResults" ("AnalyteId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Patients_Name] ON [Patients] ([Name]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_LabResults_OrderReportId" ON "LabResults" ("OrderReportId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Patients_Phone] ON [Patients] ([Phone]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Patients_Name" ON "Patients" ("Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_Patients_TenantId_PatientNo] ON [Patients] ([TenantId], [PatientNo]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Patients_Phone" ON "Patients" ("Phone");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_PediatricProfiles_PatientId] ON [PediatricProfiles] ([PatientId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_Patients_TenantId_PatientNo" ON "Patients" ("TenantId", "PatientNo");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_PrescriptionItems_ProductId] ON [PrescriptionItems] ([ProductId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_PediatricProfiles_PatientId" ON "PediatricProfiles" ("PatientId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_PrescriptionItems_VisitId] ON [PrescriptionItems] ([VisitId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_PrescriptionItems_ProductId" ON "PrescriptionItems" ("ProductId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_ProcedureBillItems_BillId] ON [ProcedureBillItems] ([BillId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_PrescriptionItems_VisitId" ON "PrescriptionItems" ("VisitId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_ProcedureBillItems_ProcedureId] ON [ProcedureBillItems] ([ProcedureId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_ProcedureBillItems_BillId" ON "ProcedureBillItems" ("BillId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_ProcedureBills_BillDate] ON [ProcedureBills] ([BillDate]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_ProcedureBillItems_ProcedureId" ON "ProcedureBillItems" ("ProcedureId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_ProcedureBills_PatientId] ON [ProcedureBills] ([PatientId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_ProcedureBills_BillDate" ON "ProcedureBills" ("BillDate");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_ProcedureBills_TenantId_BillNo] ON [ProcedureBills] ([TenantId], [BillNo]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_ProcedureBills_PatientId" ON "ProcedureBills" ("PatientId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_ProcedureBills_VisitId] ON [ProcedureBills] ([VisitId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_ProcedureBills_TenantId_BillNo" ON "ProcedureBills" ("TenantId", "BillNo");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Procedures_Department_Name] ON [Procedures] ([Department], [Name]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_ProcedureBills_VisitId" ON "ProcedureBills" ("VisitId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Products_Name] ON [Products] ([Name]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Procedures_Department_Name" ON "Procedures" ("Department", "Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    EXEC(N'CREATE UNIQUE INDEX [IX_Products_TenantId_SearchKey] ON [Products] ([TenantId], [SearchKey]) WHERE [IsDeleted] = 0');
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Products_Name" ON "Products" ("Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_ReminderLogs_DueOn] ON [ReminderLogs] ([DueOn]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_Products_TenantId_SearchKey" ON "Products" ("TenantId", "SearchKey") WHERE "IsDeleted" = false;
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_ReminderLogs_PatientId] ON [ReminderLogs] ([PatientId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_ReminderLogs_DueOn" ON "ReminderLogs" ("DueOn");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_SaleItems_SaleId] ON [SaleItems] ([SaleId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_ReminderLogs_PatientId" ON "ReminderLogs" ("PatientId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Sales_BillDate] ON [Sales] ([BillDate]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_SaleItems_SaleId" ON "SaleItems" ("SaleId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Sales_PatientId] ON [Sales] ([PatientId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Sales_BillDate" ON "Sales" ("BillDate");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_Sales_TenantId_BillNo] ON [Sales] ([TenantId], [BillNo]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Sales_PatientId" ON "Sales" ("PatientId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Sales_VisitId] ON [Sales] ([VisitId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_Sales_TenantId_BillNo" ON "Sales" ("TenantId", "BillNo");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_Settings_TenantId_Key] ON [Settings] ([TenantId], [Key]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Sales_VisitId" ON "Sales" ("VisitId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_StockAdjustments_AdjustedOn] ON [StockAdjustments] ([AdjustedOn]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_Settings_TenantId_Key" ON "Settings" ("TenantId", "Key");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_StockAdjustments_BatchId] ON [StockAdjustments] ([BatchId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_StockAdjustments_AdjustedOn" ON "StockAdjustments" ("AdjustedOn");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_StockAdjustments_ProductId] ON [StockAdjustments] ([ProductId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_StockAdjustments_BatchId" ON "StockAdjustments" ("BatchId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_StockEntries_SupplierInvoiceNo] ON [StockEntries] ([SupplierInvoiceNo]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_StockAdjustments_ProductId" ON "StockAdjustments" ("ProductId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_StockEntries_TenantId_EntryNo] ON [StockEntries] ([TenantId], [EntryNo]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_StockEntries_SupplierInvoiceNo" ON "StockEntries" ("SupplierInvoiceNo");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_StockEntryItems_ProductId] ON [StockEntryItems] ([ProductId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_StockEntries_TenantId_EntryNo" ON "StockEntries" ("TenantId", "EntryNo");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_StockEntryItems_StockEntryId] ON [StockEntryItems] ([StockEntryId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_StockEntryItems_ProductId" ON "StockEntryItems" ("ProductId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_Tenants_Slug] ON [Tenants] ([Slug]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_StockEntryItems_StockEntryId" ON "StockEntryItems" ("StockEntryId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_Users_Username] ON [Users] ([Username]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_Tenants_Slug" ON "Tenants" ("Slug");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_VaccinationRecords_BatchId] ON [VaccinationRecords] ([BatchId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_Users_Username" ON "Users" ("Username");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_VaccinationRecords_PatientId] ON [VaccinationRecords] ([PatientId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_VaccinationRecords_BatchId" ON "VaccinationRecords" ("BatchId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_VaccinationRecords_ProductId] ON [VaccinationRecords] ([ProductId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_VaccinationRecords_PatientId" ON "VaccinationRecords" ("PatientId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_VaccinationRecords_VaccineId] ON [VaccinationRecords] ([VaccineId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_VaccinationRecords_ProductId" ON "VaccinationRecords" ("ProductId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
-BEGIN
-    CREATE INDEX [IX_VaccineMasters_Name] ON [VaccineMasters] ([Name]);
-END;
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_VaccinationRecords_VaccineId" ON "VaccinationRecords" ("VaccineId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_VendorProductCodes_ProductId] ON [VendorProductCodes] ([ProductId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_VaccineMasters_Name" ON "VaccineMasters" ("Name");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_VendorProductCodes_TenantId_VendorProfile_Code] ON [VendorProductCodes] ([TenantId], [VendorProfile], [Code]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_VendorProductCodes_ProductId" ON "VendorProductCodes" ("ProductId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_VisitDiagnosticRequests_TestId] ON [VisitDiagnosticRequests] ([TestId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_VendorProductCodes_TenantId_VendorProfile_Code" ON "VendorProductCodes" ("TenantId", "VendorProfile", "Code");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_VisitDiagnosticRequests_VisitId] ON [VisitDiagnosticRequests] ([VisitId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_VisitDiagnosticRequests_TestId" ON "VisitDiagnosticRequests" ("TestId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Visits_AppointmentId] ON [Visits] ([AppointmentId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_VisitDiagnosticRequests_VisitId" ON "VisitDiagnosticRequests" ("VisitId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Visits_DoctorId] ON [Visits] ([DoctorId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Visits_AppointmentId" ON "Visits" ("AppointmentId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Visits_FeePaidOn] ON [Visits] ([FeePaidOn]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Visits_DoctorId" ON "Visits" ("DoctorId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Visits_FollowUpOn] ON [Visits] ([FollowUpOn]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Visits_FeePaidOn" ON "Visits" ("FeePaidOn");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Visits_PatientId] ON [Visits] ([PatientId]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Visits_FollowUpOn" ON "Visits" ("FollowUpOn");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE INDEX [IX_Visits_ScheduledOn] ON [Visits] ([ScheduledOn]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Visits_PatientId" ON "Visits" ("PatientId");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    CREATE UNIQUE INDEX [IX_Visits_TenantId_VisitNo] ON [Visits] ([TenantId], [VisitNo]);
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE INDEX "IX_Visits_ScheduledOn" ON "Visits" ("ScheduledOn");
+    END IF;
+END $EF$;
 
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260824171118_InitialCreate'
-)
+DO $EF$
 BEGIN
-    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20260824171118_InitialCreate', N'10.0.11');
-END;
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    CREATE UNIQUE INDEX "IX_Visits_TenantId_VisitNo" ON "Visits" ("TenantId", "VisitNo");
+    END IF;
+END $EF$;
 
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260920032241_InitialCreate') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20260920032241_InitialCreate', '10.0.11');
+    END IF;
+END $EF$;
 COMMIT;
-GO
-
-BEGIN TRANSACTION;
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260826021158_FixProductSearchKeyIndexFilter'
-)
-BEGIN
-    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
-    VALUES (N'20260826021158_FixProductSearchKeyIndexFilter', N'10.0.11');
-END;
-
-COMMIT;
-GO
 

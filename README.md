@@ -19,7 +19,7 @@ are the frozen desktop reference — not necessarily what HMS_WEB does today.
 backend/
   SivayaanHMS.slnx
   src/SivayaanHMS.Core   domain entities, enums, calculators (ported from Pharma.Core)
-  src/SivayaanHMS.Data   EF Core + SQL Server, services, migrations (ported from Pharma.Data)
+  src/SivayaanHMS.Data   EF Core + PostgreSQL (Npgsql), services, migrations (ported from Pharma.Data)
   src/SivayaanHMS.Api    ASP.NET Core Web API, multi-tenant
   tests/SivayaanHMS.Tests
 frontend/                React + TypeScript (Vite)
@@ -31,12 +31,15 @@ docs/                    operations runbooks, parity checklists, architecture re
 ## Decisions locked in for this build
 
 - **Frontend:** React + TypeScript.
-- **Database:** **SQL Server** (Express in production, LocalDB is not
-  supported — it is per-user and stops when nobody is logged in). Shared
-  schema, `TenantId` on every row. SQLite was the original choice and is
-  gone: the provider, the migrations and the test harness all moved. See
-  [SQL_SERVER_MIGRATION.md](docs/SQL_SERVER_MIGRATION.md) for what that
-  found.
+- **Database:** **PostgreSQL** (16+; built against 18), through the Npgsql
+  EF Core provider. Shared schema, `TenantId` on every row. Everything the
+  application knows about its database — host, port, name, role, password,
+  SSL, pool, timeouts — is the `Database` section of `appsettings.json` and
+  nothing else; see [POSTGRESQL_SETUP.md](docs/POSTGRESQL_SETUP.md). SQLite
+  was the original choice and SQL Server the second; both are gone, and
+  [SQL_SERVER_MIGRATION.md](docs/SQL_SERVER_MIGRATION.md) is kept for the
+  reasoning that survived both moves (the numbering allocator, transactions
+  under a retry policy).
 - **Tenancy:** shared database, `TenantId` + a global EF Core query filter
   applied centrally, never per-query.
 - **Not doing:** the plan's WebView2-wrapped "one UI, two shells" option.
@@ -51,10 +54,10 @@ on that same machine and never leaves it.
 **Every release, in this order:**
 
 ```powershell
-.\deploy\Migrate-Database.ps1 -SqlInstance <instance> -DryRun   # see what is pending
+.\deploy\Migrate-Database.ps1 -DryRun     # see what is pending
 Stop-Service SivayaanHMSApi
-.\deploy\Migrate-Database.ps1 -SqlInstance <instance>           # back up, then migrate
-.\deploy\Deploy-Production.ps1 -SqlInstance <instance>          # publish and restart
+.\deploy\Migrate-Database.ps1             # back up, then migrate
+.\deploy\Deploy-Production.ps1            # publish and restart
 ```
 
 Then push the branch Cloudflare Pages watches; the frontend deploys itself.
@@ -100,7 +103,8 @@ handoff listed as outstanding. Every desktop module now has a web equivalent.
 |---|---|
 | Deploy a release | [DATABASE_RELEASES.md](docs/DATABASE_RELEASES.md), then [DEPLOY_CLOUDFLARE.md](docs/DEPLOY_CLOUDFLARE.md) |
 | Set up a brand new machine | [FIRST_DEPLOYMENT.md](docs/FIRST_DEPLOYMENT.md) |
-| Understand the database, or upgrade it | [SQL_SERVER_SETUP.md](docs/SQL_SERVER_SETUP.md), [DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md) |
+| Release the PostgreSQL build to the existing server | [RELEASE_POSTGRESQL.md](docs/RELEASE_POSTGRESQL.md) — `deployNew-Release.ps1` makes the folder to copy |
+| Understand the database, configure it, or upgrade it | [POSTGRESQL_SETUP.md](docs/POSTGRESQL_SETUP.md), [DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md) |
 | Know where data is stored on disk | [STORAGE_PATHS.md](docs/STORAGE_PATHS.md) |
 | Pick up the codebase cold | [HANDOFF.md](docs/HANDOFF.md) |
 | Check a module against the desktop | the `PARITY_*.md` files below |
@@ -111,12 +115,12 @@ handoff listed as outstanding. Every desktop module now has a web equivalent.
 ## Testing
 
 ```bash
-dotnet test backend                              # 85 unit/integration tests, real SQL Server
+dotnet test backend                              # 85 unit/integration tests, real PostgreSQL
 dotnet test backend/tests/SivayaanHMS.UatTests    # 8 real-browser journeys, real API, throwaway database
 ```
 
-The second suite is not a mock of the app — it publishes the actual API, creates a throwaway SQL
-Server database, starts the actual Vite client, registers a clinic through the real sign-up
+The second suite is not a mock of the app — it publishes the actual API, creates a throwaway
+PostgreSQL database, starts the actual Vite client, registers a clinic through the real sign-up
 endpoint, and drives Playwright through eight business journeys (signing in, registering a
 patient, booking a visit, reading back today's OPD register, and more) exactly as a person would.
 See its own README for the shape and the reasoning; it is built on the same tools as the sibling

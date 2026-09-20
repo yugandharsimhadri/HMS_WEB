@@ -6,14 +6,14 @@ runs them; this project is where they are defined.
 
 Built on the same tools and the same shape as **TransTrack.Automation** (`TransTrack/TransTruck_Web`)
 and, one level further back, **ABPS_WEB.Automation** — Playwright for .NET, a `Workflow` object per
-business journey, xUnit as the runner. Ported, not copied: SivayaanHMS speaks SQL Server rather
+business journey, xUnit as the runner. Ported, not copied: SivayaanHMS speaks PostgreSQL rather
 than SQLite and Vite rather than Next.js, and both of those change real things about how the
 harness has to work. What follows explains the shape and calls out where it genuinely differs.
 
 ## Why this exists
 
 A UI test that asserts against a fixture proves the client renders a shape someone typed into that
-fixture. This proves the client, the controllers, EF Core, the tenant filter and SQL Server all
+fixture. This proves the client, the controllers, EF Core, the tenant filter and PostgreSQL all
 agree — because they are the actual four things running, not a stand-in for any of them.
 
 ## Layout
@@ -22,7 +22,7 @@ agree — because they are the actual four things running, not a stand-in for an
 |---|---|
 | `Workflows/` | `IWorkflow`, the base class, the catalog, the runner, and the eight scenarios themselves |
 | `ClinicSession.cs` | browser + page + sign-in; what a workflow is handed |
-| `ApiServer.cs` | publishes and runs the real API against a throwaway SQL Server database |
+| `ApiServer.cs` | publishes and runs the real API against a throwaway PostgreSQL database |
 | `WebDevServer.cs` | starts the real Vite dev server, or reuses yours |
 | `DemoData.cs` | the fixed cast, and the seeder that creates it through the product's own API |
 | `RepoPaths.cs`, `ManagedProcess.cs`, `BrowserProvisioning.cs` | infrastructure, close ports to their TransTrack.Automation counterparts |
@@ -34,17 +34,21 @@ dotnet test backend/tests/SivayaanHMS.UatTests
 ```
 
 That is the whole interface. Every environment variable below has a working default, so this needs
-no setup on a checkout that has never run it before — it publishes the API, creates a database,
+no setup on a checkout that has never run it before, beyond the one-time development role in
+docs/POSTGRESQL_SETUP.md §2 — it publishes the API, creates a database,
 starts Vite, seeds a clinic, and runs all eight workflows headless.
 
 ## What a run actually does
 
 1. Publishes `SivayaanHMS.Api` to `backend/artifacts/uat/api-publish` (Release, once per run).
-2. Starts it against a brand-new database — `SivayaanHMSUat_<timestamp>` on
-   `(localdb)\MSSQLLocalDB` by default — with `ASPNETCORE_ENVIRONMENT=Development`, which is what
-   makes `Program.cs`'s own startup migration create the database and apply every migration to it.
-   Nothing here runs a migration tool of its own; it is the same code path the app always uses in
-   development, pointed at a database nobody has used before.
+2. Starts it against a brand-new database — `sivayaanhms_uat_<timestamp>` on the local PostgreSQL
+   server by default, as the `sivayaanhms` development role — with
+   `ASPNETCORE_ENVIRONMENT=Development`, which is what makes `Program.cs`'s own startup migration
+   create the database and apply every migration to it. Nothing here runs a migration tool of its
+   own; it is the same code path the app always uses in development, pointed at a database nobody
+   has used before. The whole of the database configuration reaches the process as one
+   `Database__ConnectionString` environment variable, which `DatabaseOptions` treats as replacing
+   every key in appsettings.json's `Database` section.
 3. Registers a clinic through `POST /api/tenants/register` — no token, no recovery flow, just the
    same call the sign-up form makes — signs in as its admin, turns on Diagnostics and Pediatrics
    from Settings > Features (both off by default), adds two patients and books one visit.
@@ -58,8 +62,8 @@ starts Vite, seeds a clinic, and runs all eight workflows headless.
 
 ## Why a publish, not `dotnet run`
 
-`appsettings.Local.json` holds a developer's own SQL password and is loaded **last** by
-`Program.cs`, deliberately, so it overrides everything — including a connection string this
+`appsettings.Local.json` holds a developer's own database password and is loaded **last** by
+`Program.cs`, deliberately, so it overrides everything — including the database settings this
 automation sets as an environment variable. A plain `dotnet build` still copies that file into
 `bin/`; a `dotnet publish` does not, because it is marked `CopyToPublishDirectory="Never"` in
 `SivayaanHMS.Api.csproj` for exactly this reason on the production deployment path. Running the
@@ -68,25 +72,28 @@ checks this explicitly after every publish and refuses to start if the file is s
 a UAT run must never be able to reach a real clinic's database, and that check is what makes
 "never" something more than an intention.
 
-## Why SQL Server here and not a mock
+## Why a real PostgreSQL here and not a mock
 
 TransTrack.Automation explains its own version of this choice by pointing at ABPS_WEB.Automation,
-which mocks every `/api/**` response because its API needs SQL Server and a mock is what makes the
-suite runnable at all. SivayaanHMS also needs SQL Server — but by the time this project was
-written, `TestDb.cs` in `SivayaanHMS.Tests` had already solved "a throwaway SQL Server database per
-test run, created and dropped cleanly" for the xUnit suite. This reuses that same idea at the
-process level instead of the connection level: one throwaway database per `dotnet test` run,
-created by the app's own startup migration rather than by a separate tool.
+which mocks every `/api/**` response because its API needs a database server and a mock is what
+makes the suite runnable at all. SivayaanHMS also needs one — but by the time this project was
+written, `TestDb.cs` in `SivayaanHMS.Tests` had already solved "a throwaway database per test
+run, created and dropped cleanly" for the xUnit suite. This reuses that same idea at the process
+level instead of the connection level: one throwaway database per `dotnet test` run, created by
+the app's own startup migration rather than by a separate tool. Both suites sign in as the same
+development role, which is why that role — and only that role — is granted `CREATEDB` in
+docs/POSTGRESQL_SETUP.md.
 
 The database is **left in place** after a run, exactly as TransTrack.Automation leaves its
 SQLite file — a failed scenario is far easier to diagnose against the data it actually ran on.
-Dropping it is not automatic, because a LocalDB database does not just disappear when a folder is
-cleaned up the way a stray file would; each run logs the exact `sqlcmd` command to drop the one it
-created. To sweep every leftover one at once:
+Dropping it is not automatic, because a database does not just disappear when a folder is cleaned
+up the way a stray file would; each run logs the exact `psql` command to drop the one it created.
+To sweep every leftover one at once (the unit tests' `sivayaanhms_test_*` included):
 
 ```powershell
-sqlcmd -S "(localdb)\MSSQLLocalDB" -E -C -h -1 -W -Q "SELECT name FROM sys.databases WHERE name LIKE 'SivayaanHMSUat_%';" |
-  ForEach-Object { sqlcmd -S "(localdb)\MSSQLLocalDB" -E -C -Q "ALTER DATABASE [$_] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [$_];" }
+$env:PGPASSWORD = 'sivayaanhms-dev'
+psql -h localhost -U sivayaanhms -d postgres -At -c "SELECT datname FROM pg_database WHERE datname LIKE 'sivayaanhms_uat_%' OR datname LIKE 'sivayaanhms_test_%';" |
+  ForEach-Object { psql -h localhost -U sivayaanhms -d postgres -c "DROP DATABASE `"$_`" WITH (FORCE);" }
 ```
 
 ## Where this genuinely differs from TransTrack.Automation, and why
@@ -113,7 +120,7 @@ sqlcmd -S "(localdb)\MSSQLLocalDB" -E -C -h -1 -W -Q "SELECT name FROM sys.datab
 |---|---|---|
 | `SIVAYAANHMS_UAT_BASE_URL` | `http://localhost:5410` | where the client is served |
 | `SIVAYAANHMS_UAT_API_BASE_URL` | `http://localhost:5411` | where the API is served |
-| `SIVAYAANHMS_UAT_SQL_INSTANCE` | `(localdb)\MSSQLLocalDB` | passed straight to `sqlcmd -S` / the connection string |
+| `SIVAYAANHMS_UAT_PG` | `Host=localhost;Port=5432;Username=sivayaanhms;Password=sivayaanhms-dev` | the server and a role allowed to `CREATE DATABASE`, as an Npgsql connection string with no `Database` key |
 | `SIVAYAANHMS_UAT_WEB_PATH` | repo discovery | absolute path, if repo discovery fails |
 | `SIVAYAANHMS_UAT_MANAGE_SERVERS` | `true` | `false` to point at servers and a database you already have running |
 | `SIVAYAANHMS_UAT_SKIP_API_PUBLISH` | `false` | `true` to reuse the last publish while iterating on a workflow's Playwright steps |
@@ -155,7 +162,7 @@ browsers the sibling projects on this machine depend on.
 ## A note on machine load while writing this
 
 Every timing number in this file (page timeouts, publish timeouts) was set generously on purpose,
-because the machine this was built on routinely has SQL Server, the API, a Vite dev server and
+because the machine this was built on routinely has PostgreSQL, the API, a Vite dev server and
 several unrelated `dotnet` processes running at once during a long working session. A UAT run's
 own defaults reflect that reality rather than an idealised idle machine; they cost nothing extra
 when the machine genuinely is idle.
