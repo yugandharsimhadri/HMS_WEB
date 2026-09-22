@@ -173,7 +173,7 @@ dotnet ef database update --project backend/src/SivayaanHMS.Data
 Then regenerate the committed script, which is what a reviewer reads:
 
 ```powershell
-.deployNew-FullSchemaScript.ps1   # regenerates db/migrate.sql AND db/full-schema.sql
+.\deploy\New-FullSchemaScript.ps1   # regenerates db/migrate.sql AND db/full-schema.sql
 ```
 
 ### The guard that matters most
