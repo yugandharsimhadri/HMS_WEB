@@ -123,6 +123,9 @@ export interface ClinicUser {
   /** So the list can mark your own row and the editor can explain why some
    * changes to it are refused. */
   isYou: boolean;
+  /** Where their password-reset code goes. Null until somebody fills it in;
+   * without it this person cannot reset their own password. */
+  phone: string | null;
 }
 
 export interface TemporaryPasswordResponse {

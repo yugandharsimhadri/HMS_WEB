@@ -110,10 +110,12 @@ Two things to know before choosing one:
 
 ## Known gaps
 
-- **Staff accounts have no phone.** `User.Phone` is nullable and only
-  registration collects it, so a receptionist added from Settings cannot use
-  self-service reset yet and still asks their admin. The column and the flow
-  are ready; the Settings form is not.
+- **Staff accounts without a number still ask an Admin.** Settings → Staff
+  logins now collects a mobile number, but it is optional there, unlike at
+  registration: a clinic adding six people at once should not be blocked
+  because two are away from their desk. Anyone without one cannot use Forgot
+  password — which is exactly where they were before — and the field says so
+  while it is empty. Existing staff have no number until somebody edits them.
 - **`EnterpriseAdmin` is excluded on purpose.** It belongs to no clinic and
   has no phone; it is recovered by whoever holds the server's configuration.
 - **Codes are not swept.** Spent and expired rows stay in `PasswordResetCodes`.

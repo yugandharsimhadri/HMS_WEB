@@ -13,7 +13,8 @@ namespace SivayaanHMS.Api.Controllers;
 /// entity is what guarantees that.</summary>
 public record ClinicUser(
     Guid Id, string Username, string DisplayName, UserRole Role,
-    bool IsActive, bool MustChangePassword, DateTime? LastLoginOn, bool IsYou);
+    bool IsActive, bool MustChangePassword, DateTime? LastLoginOn, bool IsYou,
+    string? Phone);
 
 /// <summary>
 /// Adding or editing one member of staff.
@@ -28,7 +29,8 @@ public record ClinicUser(
 /// made to change it at next sign-in.
 /// </summary>
 public record SaveClinicUserRequest(
-    Guid? Id, string LocalPart, string DisplayName, UserRole Role, bool IsActive, string? Password);
+    Guid? Id, string LocalPart, string DisplayName, UserRole Role, bool IsActive, string? Password,
+    string? Phone);
 
 public record TemporaryPasswordResponse(string Username, string TemporaryPassword);
 
@@ -62,7 +64,7 @@ public class UsersController(
         return Ok((await auth.GetUsersAsync())
             .Select(u => new ClinicUser(
                 u.Id, u.Username, u.DisplayName, u.Role, u.IsActive,
-                u.MustChangePassword, u.LastLoginOn, u.Id == me))
+                u.MustChangePassword, u.LastLoginOn, u.Id == me, u.Phone))
             .ToList());
     }
 
@@ -74,6 +76,21 @@ public class UsersController(
 
         if (string.IsNullOrWhiteSpace(request.DisplayName))
             return BadRequest("Enter the person's name, so the rest of the clinic knows who this is.");
+
+        // Optional, unlike at registration: a clinic adding six staff at once
+        // should not be blocked because two of them are not at their desk to
+        // give a number. Without one, that person cannot reset their own
+        // password and asks an Admin, which is the route they have today.
+        //
+        // Validated only when given, and counted in digits so "+91 98765
+        // 43210" passes.
+        var phone = (request.Phone ?? string.Empty).Trim();
+        if (phone.Length > 0)
+        {
+            var digits = phone.Count(char.IsDigit);
+            if (digits < 8 || digits > 15)
+                return BadRequest("That mobile number does not look right. Leave it empty if you do not have one.");
+        }
 
         await using var db = await factory.CreateDbContextAsync();
 
@@ -121,6 +138,7 @@ public class UsersController(
         user.DisplayName = request.DisplayName.Trim();
         user.Role = request.Role;
         user.IsActive = request.IsActive;
+        user.Phone = phone.Length == 0 ? null : phone;
 
         try
         {

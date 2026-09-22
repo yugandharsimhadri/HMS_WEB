@@ -33,6 +33,7 @@ export function StaffEditorDialog({ existing, clinicCode, onClose, onSaved }: Pr
   const [displayName, setDisplayName] = useState(existing?.displayName ?? '');
   const [role, setRole] = useState<UserRole>(existing?.role ?? 'Pharmacy');
   const [isActive, setIsActive] = useState(existing?.isActive ?? true);
+  const [phone, setPhone] = useState(existing?.phone ?? '');
   const [password, setPassword] = useState('');
 
   const [error, setError] = useState<string | null>(null);
@@ -49,6 +50,7 @@ export function StaffEditorDialog({ existing, clinicCode, onClose, onSaved }: Pr
         displayName,
         role,
         isActive,
+        phone: phone.trim(),
         password: password.trim() ? password : null,
       });
       onSaved(`${result.username} saved.`, result);
@@ -105,6 +107,26 @@ export function StaffEditorDialog({ existing, clinicCode, onClose, onSaved }: Pr
               {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
             </select>
             <p className="hint">{ROLES.find((r) => r.value === role)?.what}</p>
+          </div>
+
+          {/* Optional here, unlike at signup. Without a number this person
+              cannot use Forgot password and has to ask an Admin — which is
+              exactly the position everyone was in before, so it is a
+              nudge rather than a blocker. */}
+          <div className="settings-row">
+            <label>Mobile number</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+91 98765 43210"
+              autoComplete="tel"
+            />
+            <p className="hint">
+              {phone.trim()
+                ? 'Used only to send password-reset codes. Include the country code.'
+                : 'Optional — but without it they cannot reset their own password and will have to ask you.'}
+            </p>
           </div>
 
           <div className="settings-row">

@@ -126,6 +126,11 @@ public class AuthService(IDbContextFactory<AppDbContext> factory, IClock clock)
         entity.Role = user.Role;
         entity.IsActive = user.IsActive;
 
+        // Where this person's password-reset code is sent. Copied like the
+        // rest: SaveUserAsync builds the stored row from the one handed in,
+        // and a field missed here is a field that silently never saves.
+        entity.Phone = user.Phone;
+
         if (isNew && string.IsNullOrWhiteSpace(newPassword))
             throw new InvalidOperationException("A password is required for a new user.");
 
