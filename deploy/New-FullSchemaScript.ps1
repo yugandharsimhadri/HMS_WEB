@@ -118,5 +118,12 @@ SELECT count(*) AS tables FROM pg_tables WHERE schemaname = 'public' AND tableow
 \echo Done. Point the API at this database (docs/POSTGRESQL_SETUP.md section 3) and register a clinic.
 '@
 
-Set-Content -Path $Out -Value ($header + $schema + $footer) -Encoding utf8 -NoNewline
+# UTF-8 *without* a byte-order mark. Windows PowerShell 5.1's
+# Set-Content -Encoding utf8 always writes one, and psql does not skip it: the
+# three bytes are glued onto the first statement, which then fails with
+# 'syntax error at or near "ï»¿"' before anything has run.
+[System.IO.File]::WriteAllText(
+    [System.IO.Path]::GetFullPath($Out),
+    ($header + $schema + $footer),
+    (New-Object System.Text.UTF8Encoding($false)))
 Write-Host "Wrote $Out ($([math]::Round((Get-Item $Out).Length / 1KB)) KB)"
