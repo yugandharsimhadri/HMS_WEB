@@ -21,7 +21,7 @@ namespace SivayaanHMS.Api.Controllers;
 /// mistyped confirmation is a typing mistake to catch before the request
 /// leaves, and sending the same secret twice only widens where it can leak.
 /// </summary>
-public record RegisterTenantRequest(string ClinicName, string ClinicCode, string Username, string Password);
+public record RegisterTenantRequest(string ClinicName, string ClinicCode, string Username, string Password, string? Phone);
 
 public record RegisterTenantResponse(Guid TenantId, string Slug, string AdminUsername);
 
@@ -50,7 +50,10 @@ public record RegisterTenantResponse(Guid TenantId, string Slug, string AdminUse
 /// </summary>
 [ApiController]
 [Route("api/tenants")]
-public partial class TenantsController(DbContextOptions<AppDbContext> dbOptions, ILoggerFactory loggerFactory) : ControllerBase
+public partial class TenantsController(
+    DbContextOptions<AppDbContext> dbOptions,
+    ILoggerFactory loggerFactory,
+    SivayaanHMS.Data.Messaging.IMessageSender messages) : ControllerBase
 {
     [HttpPost("register")]
     public async Task<ActionResult<RegisterTenantResponse>> Register(RegisterTenantRequest request)
@@ -64,6 +67,18 @@ public partial class TenantsController(DbContextOptions<AppDbContext> dbOptions,
 
         if (string.IsNullOrWhiteSpace(request.Password) || request.Password.Length < 8)
             return BadRequest("Choose a password of at least 8 characters.");
+
+        // Required at signup, unlike on staff accounts: this is the one
+        // account that cannot be recovered by asking an admin, because it IS
+        // the admin. Without a number on it, a forgotten password means
+        // phoning support.
+        //
+        // Counted in digits so spaces, hyphens and a +91 all pass, and no
+        // country is assumed — see User.Phone.
+        var phone = (request.Phone ?? string.Empty).Trim();
+        var phoneDigits = phone.Count(char.IsDigit);
+        if (phoneDigits < 8 || phoneDigits > 15)
+            return BadRequest("Enter the mobile number that should receive password-reset codes.");
 
         var slug = NormaliseSlug(request.ClinicCode ?? string.Empty);
         if (slug.Length < 3)
@@ -114,7 +129,29 @@ public partial class TenantsController(DbContextOptions<AppDbContext> dbOptions,
         // MustChangePassword stays on for the temporary passwords
         // EnterpriseAdmin issues, which is what it is actually for.
         admin.MustChangePassword = false;
+        admin.Phone = phone;
         await db.SaveChangesAsync();
+
+        // Welcome message. Deliberately carries the clinic name and the
+        // username and *not* the password: they chose that password thirty
+        // seconds ago, so repeating it teaches them nothing and leaves their
+        // credentials sitting in a chat history, a phone backup and the
+        // provider's logs. A forgotten one is handled by the reset code
+        // flow, which is safe to send.
+        var welcome = $"Welcome to Sivayaan HMS, {clinicName}. " +
+                      $"Your admin username is {admin.Username} — sign in with the password you chose. " +
+                      "Password reset codes will come to this number.";
+
+        try
+        {
+            await messages.SendAsync(phone, SivayaanHMS.Data.Messaging.MessagePurpose.Welcome, welcome);
+        }
+        catch (Exception ex)
+        {
+            // The clinic exists and the account works; a failed welcome text
+            // is not a reason to fail the signup they just completed.
+            logger.LogError(ex, "Clinic {Slug} registered but the welcome message could not be sent.", slug);
+        }
 
         return Ok(new RegisterTenantResponse(tenantId, slug, admin.Username));
     }

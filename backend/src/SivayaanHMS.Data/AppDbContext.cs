@@ -89,6 +89,7 @@ public class AppDbContext : DbContext
     public DbSet<ImportProfile> ImportProfiles => Set<ImportProfile>();
     public DbSet<VendorProductCode> VendorProductCodes => Set<VendorProductCode>();
     public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
+    public DbSet<PasswordResetCode> PasswordResetCodes => Set<PasswordResetCode>();
 
     /// <summary>The tenant registry itself — not tenant-scoped, since it is
     /// what tenant-scoping is scoped against. See Tenant's own class doc.</summary>
@@ -494,6 +495,13 @@ public class AppDbContext : DbContext
         // for the same tenant+counter serialize on it instead of racing in
         // memory.
         b.Entity<Counter>(e => e.HasIndex(x => new { x.TenantId, x.Name }).IsUnique());
+
+        b.Entity<PasswordResetCode>(e =>
+        {
+            // Every lookup is "the live codes for this user", and the sweep
+            // that expires them reads the same rows.
+            e.HasIndex(x => new { x.UserId, x.ExpiresOn });
+        });
 
         b.Entity<User>(e =>
         {

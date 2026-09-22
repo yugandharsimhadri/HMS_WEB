@@ -58,6 +58,7 @@ export function RegisterPage() {
   const [clinicCode, setClinicCode] = useState('');
   const [codeEdited, setCodeEdited] = useState(false);
   const [username, setUsername] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +94,7 @@ export function RegisterPage() {
         clinicCode: code,
         username,
         password,
+        phone: phone.trim(),
       });
       // Straight into the new clinic — no separate "now go and log in" step.
       // adminUsername comes back fully qualified ("you@your-clinic"), which
@@ -164,6 +166,27 @@ export function RegisterPage() {
             You will sign in as <strong>{localPart}@{code}</strong>
           </p>
         )}
+
+        {/* Asked here because this account cannot be recovered by asking an
+            admin — it is the admin. The number is only ever used to send a
+            reset code, which the field says plainly: a signup form asking
+            for a mobile number without saying why is the kind of thing
+            people give a fake answer to. */}
+        <label>
+          Mobile number
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="+91 98765 43210"
+            autoComplete="tel"
+            required
+          />
+          <span className="hint">
+            Used only to send password-reset codes, and to confirm your account by SMS or WhatsApp.
+            Include the country code.
+          </span>
+        </label>
 
         <label>
           Password

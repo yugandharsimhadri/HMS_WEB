@@ -13,6 +13,10 @@ export function LoginPage() {
   // explanation, which reads as the application having logged them out at
   // random rather than a token reaching its eight-hour limit.
   const expired = params.get('expired') === '1';
+
+  // Set by the reset screen on its way here, so the person knows the new
+  // password took effect rather than wondering whether it saved.
+  const justReset = params.get('reset') === '1';
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -47,6 +51,9 @@ export function LoginPage() {
         {expired && (
           <p className="status-line">Your session ended. Please sign in again.</p>
         )}
+        {justReset && (
+          <p className="status-line">Password changed. Sign in with your new one.</p>
+        )}
 
         <label>
           Username
@@ -75,6 +82,10 @@ export function LoginPage() {
         <button type="submit" disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
+
+        <p className="auth-footer">
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
 
         <p className="auth-footer">
           New clinic? <Link to="/register">Register here</Link>

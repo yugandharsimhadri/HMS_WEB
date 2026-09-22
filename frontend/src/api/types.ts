@@ -9,6 +9,11 @@ export interface LoginResponse {
   clinicName: string;
 }
 
+export interface ForgotPasswordResponse {
+  /** The same sentence whether or not the account exists — see the API. */
+  message: string;
+}
+
 export interface RegisterTenantResponse {
   tenantId: string;
   slug: string;

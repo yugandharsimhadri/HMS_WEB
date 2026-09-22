@@ -1408,8 +1408,49 @@ public class User : BaseEntity
 
     public DateTime? LastLoginOn { get; set; }
 
+    /// <summary>
+    /// Where a password-reset code is sent, and nothing else. Optional
+    /// because the accounts that existed before this column did not have one
+    /// and a clinic cannot be locked out of its own staff list to backfill
+    /// them — a user with no number simply cannot use self-service reset and
+    /// has to ask their admin, which is the pre-existing route.
+    ///
+    /// Stored exactly as typed. Normalising to E.164 needs a country to
+    /// assume, and assuming wrong silently sends a clinic's codes to a
+    /// number in another country.
+    /// </summary>
+    public string? Phone { get; set; }
+
     /// <summary>"Admin — Front Desk (Pharmacy)", for the recovery screen's user picker.</summary>
     public string Display => $"{Username} — {DisplayName} ({Role})";
+}
+
+/// <summary>
+/// A one-time code for "I forgot my password", sent to the phone on the
+/// account and exchanged for a new password.
+///
+/// The code itself is never stored — only a hash of it, salted per row, the
+/// same way passwords are. Anyone reading this table (a backup, a support
+/// query, a leaked dump) can therefore reset nobody's password, which is the
+/// whole point of not simply e-mailing a reset link.
+/// </summary>
+public class PasswordResetCode : BaseEntity
+{
+    public Guid UserId { get; set; }
+
+    public string CodeHash { get; set; } = string.Empty;
+    public string CodeSalt { get; set; } = string.Empty;
+
+    public DateTime ExpiresOn { get; set; }
+
+    /// <summary>Set the moment the code is spent, so the same code cannot be
+    /// replayed to change the password a second time.</summary>
+    public DateTime? UsedOn { get; set; }
+
+    /// <summary>Wrong guesses so far. A six-digit code is only 1,000,000
+    /// possibilities, which is nothing to a script — so the code dies after
+    /// a handful of failures rather than waiting to expire.</summary>
+    public int Attempts { get; set; }
 }
 
 /// <summary>

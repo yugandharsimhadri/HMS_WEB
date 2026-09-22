@@ -99,6 +99,18 @@ builder.Services.AddScoped<ProcedureBillsService>();
 builder.Services.AddScoped<DataHealthService>();
 builder.Services.AddScoped<SivayaanHMS.Data.Import.PurchaseImportService>();
 
+// ── Outbound messages (welcome, password-reset codes) ────────────────────
+// No SMS/WhatsApp provider is chosen yet, so the only implementation writes
+// the message to the log. That is enough to walk the whole reset flow on a
+// developer's machine, and adding MSG91, Twilio or WhatsApp Cloud API later
+// is one class plus one line here.
+//
+// The warning is loud and at startup rather than at the first failed reset:
+// in Production this configuration means reset codes are generated, never
+// delivered, and left in the log for whoever can read it.
+builder.Services.AddSingleton<SivayaanHMS.Data.Messaging.IMessageSender,
+                              SivayaanHMS.Data.Messaging.LoggingMessageSender>();
+
 // ── Auth ─────────────────────────────────────────────────────────────────
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
 builder.Services.AddSingleton<JwtTokenService>();
@@ -208,6 +220,17 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+// Promised by the registration above: say it once, at startup, where it will
+// be seen — not at the first reset nobody receives.
+if (!app.Environment.IsDevelopment() &&
+    app.Services.GetRequiredService<SivayaanHMS.Data.Messaging.IMessageSender>()
+        is SivayaanHMS.Data.Messaging.LoggingMessageSender)
+{
+    app.Logger.LogWarning(
+        "No SMS/WhatsApp provider is configured. Welcome messages and password-reset codes will " +
+        "be written to this log instead of being delivered. Configure a provider before real use.");
+}
 
 // Apply pending migrations at startup — on by default in Development so a
 // fresh checkout just works, off everywhere else because a real deployment

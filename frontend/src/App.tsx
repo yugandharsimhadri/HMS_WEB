@@ -19,6 +19,7 @@ import { LoginPage } from './pages/LoginPage';
  * before anything at all appeared.
  */
 const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
 const PatientsPage = lazy(() => import('./pages/PatientsPage').then((m) => ({ default: m.PatientsPage })));
 const OpdQueuePage = lazy(() => import('./pages/OpdQueuePage').then((m) => ({ default: m.OpdQueuePage })));
 const PharmacyCounterPage = lazy(() => import('./pages/PharmacyCounterPage').then((m) => ({ default: m.PharmacyCounterPage })));
@@ -123,6 +124,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         {/* Outside ProtectedRoute deliberately — it is the one clinic screen a
             must-change-password session is allowed to reach, and putting it
             inside would bounce it to itself forever. */}
