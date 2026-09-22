@@ -100,16 +100,31 @@ builder.Services.AddScoped<DataHealthService>();
 builder.Services.AddScoped<SivayaanHMS.Data.Import.PurchaseImportService>();
 
 // ── Outbound messages (welcome, password-reset codes) ────────────────────
-// No SMS/WhatsApp provider is chosen yet, so the only implementation writes
-// the message to the log. That is enough to walk the whole reset flow on a
-// developer's machine, and adding MSG91, Twilio or WhatsApp Cloud API later
-// is one class plus one line here.
-//
-// The warning is loud and at startup rather than at the first failed reset:
-// in Production this configuration means reset codes are generated, never
-// delivered, and left in the log for whoever can read it.
-builder.Services.AddSingleton<SivayaanHMS.Data.Messaging.IMessageSender,
-                              SivayaanHMS.Data.Messaging.LoggingMessageSender>();
+// WhatsApp when it is configured, the log when it is not. Chosen here once,
+// at startup, from whether the WhatsApp section actually carries both a
+// token and a phone number id — so a half-filled section falls back loudly
+// rather than failing at the first reset somebody needs.
+builder.Services.Configure<SivayaanHMS.Data.Messaging.WhatsAppOptions>(
+    builder.Configuration.GetSection(SivayaanHMS.Data.Messaging.WhatsAppOptions.SectionName));
+
+var whatsApp = builder.Configuration
+    .GetSection(SivayaanHMS.Data.Messaging.WhatsAppOptions.SectionName)
+    .Get<SivayaanHMS.Data.Messaging.WhatsAppOptions>() ?? new SivayaanHMS.Data.Messaging.WhatsAppOptions();
+
+if (whatsApp.IsConfigured)
+{
+    // A typed client, so the handler is pooled rather than a new socket per
+    // message, and the timeout is ours rather than the 100-second default —
+    // a clinic waiting on a signup form should not wait that long for Meta.
+    builder.Services.AddHttpClient<SivayaanHMS.Data.Messaging.IMessageSender,
+                                   SivayaanHMS.Data.Messaging.WhatsAppCloudMessageSender>(
+        client => client.Timeout = TimeSpan.FromSeconds(15));
+}
+else
+{
+    builder.Services.AddSingleton<SivayaanHMS.Data.Messaging.IMessageSender,
+                                  SivayaanHMS.Data.Messaging.LoggingMessageSender>();
+}
 
 // ── Auth ─────────────────────────────────────────────────────────────────
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
@@ -228,8 +243,9 @@ if (!app.Environment.IsDevelopment() &&
         is SivayaanHMS.Data.Messaging.LoggingMessageSender)
 {
     app.Logger.LogWarning(
-        "No SMS/WhatsApp provider is configured. Welcome messages and password-reset codes will " +
-        "be written to this log instead of being delivered. Configure a provider before real use.");
+        "No WhatsApp provider is configured. Welcome messages and password-reset codes will be " +
+        "written to this log instead of being delivered, where anyone who can read the log can " +
+        "read the codes. Set the WhatsApp section — see docs/WHATSAPP_SETUP.md.");
 }
 
 // Apply pending migrations at startup — on by default in Development so a

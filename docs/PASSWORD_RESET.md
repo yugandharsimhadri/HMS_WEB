@@ -93,18 +93,16 @@ Outside Development the API logs a warning at startup saying exactly this,
 because the failure is otherwise silent: codes are generated, nobody receives
 them, and every one sits in the log.
 
-**Adding a real provider is one class and one line.** Implement
-`IMessageSender` and register it in `Program.cs` instead of
-`LoggingMessageSender`. Nothing that calls it changes.
+**WhatsApp is implemented** — `WhatsAppCloudMessageSender`, against Meta's
+Cloud API. It takes over automatically as soon as the `WhatsApp` section
+carries both an access token and a phone number id; until then the logging
+sender stands in. Setting it up is **docs/WHATSAPP_SETUP.md**, and the slow
+part is Meta's business verification and template approval, not the code.
 
-Two things to know before choosing one:
-
-- **Indian SMS needs DLT registration.** Sender ID and message templates are
-  registered with the telecom regulator before anything sends. `MessagePurpose`
-  exists so each message can be mapped to its registered template.
-- **WhatsApp needs approved templates too**, and business verification with
-  Meta. A code can go out as a template message; free-form replies are only
-  allowed inside a 24-hour window the customer opens.
+Adding SMS later is another `IMessageSender` and one line in `Program.cs`.
+Note that Indian SMS needs DLT registration of the sender ID and each
+template with the telecom regulator — which is why `MessagePurpose` and
+`OutboundMessage.Parameters` exist: every transport here is template-based.
 
 ---
 

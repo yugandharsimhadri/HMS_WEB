@@ -189,13 +189,20 @@ public class AuthController(
         // tell the difference could use it to probe which accounts are busy.
         if (code is null) return Ok(new ForgotPasswordResponse(Always));
 
-        var text = $"{tenant.ClinicName}: your Sivayaan HMS password reset code is {code}. " +
-                   $"It expires in {PasswordResetService.Lifetime.TotalMinutes:0} minutes. " +
-                   "If you did not ask for it, ignore this message and tell your clinic admin.";
+        var minutes = $"{PasswordResetService.Lifetime.TotalMinutes:0}";
+
+        var text = new OutboundMessage(
+            MessagePurpose.PasswordResetCode,
+            $"{tenant.ClinicName}: your Sivayaan HMS password reset code is {code}. " +
+            $"It expires in {minutes} minutes. " +
+            "If you did not ask for it, ignore this message and tell your clinic admin.",
+            // {{1}} clinic, {{2}} code, {{3}} minutes — the order the approved
+            // WhatsApp template declares. See docs/WHATSAPP_SETUP.md.
+            new[] { tenant.ClinicName, code, minutes });
 
         try
         {
-            await messages.SendAsync(user.Phone!, MessagePurpose.PasswordResetCode, text, ct);
+            await messages.SendAsync(user.Phone!, text, ct);
         }
         catch (Exception ex)
         {

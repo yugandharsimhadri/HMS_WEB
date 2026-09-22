@@ -138,13 +138,18 @@ public partial class TenantsController(
         // credentials sitting in a chat history, a phone backup and the
         // provider's logs. A forgotten one is handled by the reset code
         // flow, which is safe to send.
-        var welcome = $"Welcome to Sivayaan HMS, {clinicName}. " +
-                      $"Your admin username is {admin.Username} — sign in with the password you chose. " +
-                      "Password reset codes will come to this number.";
+        var welcome = new SivayaanHMS.Data.Messaging.OutboundMessage(
+            SivayaanHMS.Data.Messaging.MessagePurpose.Welcome,
+            $"Welcome to Sivayaan HMS, {clinicName}. " +
+            $"Your admin username is {admin.Username} — sign in with the password you chose. " +
+            "Password reset codes will come to this number.",
+            // {{1}} clinic, {{2}} username — the order the approved WhatsApp
+            // template declares. See docs/WHATSAPP_SETUP.md.
+            new[] { clinicName, admin.Username });
 
         try
         {
-            await messages.SendAsync(phone, SivayaanHMS.Data.Messaging.MessagePurpose.Welcome, welcome);
+            await messages.SendAsync(phone, welcome);
         }
         catch (Exception ex)
         {

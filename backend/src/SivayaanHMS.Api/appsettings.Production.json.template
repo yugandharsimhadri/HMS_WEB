@@ -37,6 +37,24 @@
     "ApplicationName": "SivayaanHMS"
   },
 
+  "WhatsApp": {
+    "//": [
+      "Welcome messages and password-reset codes. Leave AccessToken or PhoneNumberId empty and the",
+      "application writes them to its log instead of sending - it says so at startup. Full guide:",
+      "docs/WHATSAPP_SETUP.md.",
+      "AccessToken        - the PERMANENT system-user token, not the 24-hour one the dashboard shows first.",
+      "PhoneNumberId      - from WhatsApp > API Setup. A long number, not the phone number.",
+      "DefaultCountryCode - prepended to a bare national number. Empty means never guess, and refuse instead.",
+      "LanguageCode       - must match the approved template exactly; en and en_US are different templates."
+    ],
+    "AccessToken": "",
+    "PhoneNumberId": "",
+    "WelcomeTemplate": "hms_welcome",
+    "ResetCodeTemplate": "hms_password_reset",
+    "LanguageCode": "en",
+    "DefaultCountryCode": "91"
+  },
+
   "Jwt": {
     "//": "At least 32 bytes, and nothing like the development placeholder - Program.cs refuses to start outside Development if REPLACE-BEFORE-PRODUCTION is still in it. Anyone holding this can mint a token for any clinic.",
     "Key": "REPLACE-ME-with-at-least-32-bytes-of-random-text",
