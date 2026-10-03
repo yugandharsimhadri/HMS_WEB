@@ -2093,6 +2093,54 @@ BEGIN
 END $EF$;
 COMMIT;
 
+START TRANSACTION;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260922165651_PasswordResetByPhone') THEN
+    ALTER TABLE "Users" ADD "Phone" text;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260922165651_PasswordResetByPhone') THEN
+    CREATE TABLE "PasswordResetCodes" (
+        "Id" uuid NOT NULL,
+        "UserId" uuid NOT NULL,
+        "CodeHash" text NOT NULL,
+        "CodeSalt" text NOT NULL,
+        "ExpiresOn" timestamp without time zone NOT NULL,
+        "UsedOn" timestamp without time zone,
+        "Attempts" integer NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_PasswordResetCodes" PRIMARY KEY ("Id")
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260922165651_PasswordResetByPhone') THEN
+    CREATE INDEX "IX_PasswordResetCodes_UserId_ExpiresOn" ON "PasswordResetCodes" ("UserId", "ExpiresOn");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20260922165651_PasswordResetByPhone') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20260922165651_PasswordResetByPhone', '10.0.11');
+    END IF;
+END $EF$;
+COMMIT;
+
 
 -- ------------------------------------------------------------ 5. check
 
