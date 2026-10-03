@@ -64,15 +64,31 @@ Say 'Building the migration bundle (self-contained migrate.exe)'
 & dotnet ef migrations bundle --self-contained -r win-x64 --project $DataProj --startup-project $DataProj -o (Join-Path $Out 'migrate.exe') --force
 if ($LASTEXITCODE -ne 0) { Die 'dotnet ef migrations bundle failed. Is dotnet-ef installed? dotnet tool install --global dotnet-ef' }
 
+# Regenerated rather than copied as it stands, so the release can never carry
+# a schema script older than the migrations beside it.
+Say 'Regenerating db\full-schema.sql'
+& (Join-Path $PSScriptRoot 'New-FullSchemaScript.ps1')
+
 # ----------------------------------------------------------------- frontend
 
 Say 'Building the frontend'
 Push-Location $Frontend
 try {
-    if (-not (Test-Path 'node_modules')) { & npm ci; if ($LASTEXITCODE -ne 0) { Die 'npm ci failed.' } }
-    & npm run build
+    # npm writes its notices to stderr, and Windows PowerShell turns a native
+    # command's stderr into error records - which under ErrorActionPreference
+    # 'Stop' aborts the script on a *notice*. Exit code is the only honest
+    # signal from a native exe, so that is what is checked here.
+    $ErrorActionPreference = 'Continue'
+    if (-not (Test-Path 'node_modules')) {
+        & npm ci 2>&1 | Out-Host
+        if ($LASTEXITCODE -ne 0) { Die 'npm ci failed.' }
+    }
+    & npm run build 2>&1 | Out-Host
     if ($LASTEXITCODE -ne 0) { Die 'npm run build failed.' }
-} finally { Pop-Location }
+} finally {
+    $ErrorActionPreference = 'Stop'
+    Pop-Location
+}
 Copy-Item (Join-Path $Frontend 'dist') (Join-Path $Out 'frontend') -Recurse
 
 # ------------------------------------------------------ scripts and the rest
@@ -81,9 +97,22 @@ Say 'Copying deploy scripts, SQL, template and the guide'
 New-Item -ItemType Directory -Force (Join-Path $Out 'deploy') | Out-Null
 Copy-Item (Join-Path $PSScriptRoot 'Deploy-Production.ps1'), (Join-Path $PSScriptRoot 'Migrate-Database.ps1'), (Join-Path $PSScriptRoot 'PostgresSettings.ps1') (Join-Path $Out 'deploy')
 Copy-Item (Join-Path $PSScriptRoot 'sql') (Join-Path $Out 'sql') -Recurse
+Copy-Item (Join-Path $Repo 'db\full-schema.sql') (Join-Path $Out 'sql')
 Copy-Item (Join-Path $PSScriptRoot 'cloudflared') (Join-Path $Out 'cloudflared') -Recurse
 Copy-Item (Join-Path $ApiProj 'appsettings.Production.json.template') $Out
-Copy-Item (Join-Path $Repo 'docs\RELEASE_POSTGRESQL.md') $Out
+Copy-Item (Join-Path $Repo 'docs\RELEASE_POSTGRESQL.md'), (Join-Path $Repo 'docs\DEPLOY_IIS.md') $Out
+
+# The filled-in settings, when the operator keeps a copy beside these scripts.
+# Git-ignored, so this is the one thing in the release that is not in source
+# control - and the reason the zip can be unzipped on a server and started
+# without editing anything.
+$filled = Join-Path $PSScriptRoot 'appsettings.Production.json'
+if (Test-Path $filled) {
+    Copy-Item $filled (Join-Path $Out 'api')
+    Write-Host '    Including the filled-in appsettings.Production.json (it carries secrets - treat the zip accordingly)'
+} else {
+    Write-Host '    No deploy\appsettings.Production.json; the server will need the template filled in by hand.'
+}
 
 $commit = (& git -C $Repo rev-parse --short HEAD 2>$null)
 $stamp  = "$(Get-Date -Format yyyyMMdd)-$commit"

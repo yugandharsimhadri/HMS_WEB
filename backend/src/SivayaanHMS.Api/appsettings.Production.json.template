@@ -2,7 +2,15 @@
   "//": "TEMPLATE. Copy to appsettings.Production.json IN THE PUBLISHED FOLDER ON THE SERVER, fill in the two secrets, and do not commit the result. This file ships as a template on purpose; the filled-in copy is git-ignored.",
 
   "Kestrel": {
-    "//": "Port 6051, and localhost on purpose. The Cloudflare tunnel runs on this same machine and reaches the API over loopback, so binding to 0.0.0.0 would expose the API to the whole LAN for no benefit - anyone on the clinic wifi could skip the tunnel entirely. Override with ASPNETCORE_URLS if the tunnel is ever moved to another host.",
+    "//": [
+      "IGNORED UNDER IIS, which is how this is deployed - see docs/DEPLOY_IIS.md. In-process hosting",
+      "takes the port from the IIS site binding, so bind the site to 127.0.0.1:6051 there and the",
+      "Cloudflare tunnel config needs no change. This section is what applies when the API is run as",
+      "a Windows service or from the console instead (docs/RELEASE_POSTGRESQL.md).",
+      "Port 6051, and localhost on purpose: the tunnel runs on this same machine and reaches the API",
+      "over loopback, so binding 0.0.0.0 would expose the API to the whole LAN for no benefit -",
+      "anyone on the clinic wifi could skip the tunnel entirely."
+    ],
     "Endpoints": {
       "Http": {
         "Url": "http://localhost:6051"
@@ -28,7 +36,7 @@
     "Host": "localhost",
     "Port": 5432,
     "Name": "sivayaanhms",
-    "Username": "sivayaanhms",
+    "Username": "healthone_app",
     "Password": "REPLACE-ME",
     "SslMode": "Prefer",
     "MaxPoolSize": 50,

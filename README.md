@@ -103,7 +103,8 @@ handoff listed as outstanding. Every desktop module now has a web equivalent.
 |---|---|
 | Deploy a release | [DATABASE_RELEASES.md](docs/DATABASE_RELEASES.md), then [DEPLOY_CLOUDFLARE.md](docs/DEPLOY_CLOUDFLARE.md) |
 | Set up a brand new machine | [FIRST_DEPLOYMENT.md](docs/FIRST_DEPLOYMENT.md) |
-| Release the PostgreSQL build to the existing server | [RELEASE_POSTGRESQL.md](docs/RELEASE_POSTGRESQL.md) — `deploy/New-Release.ps1` makes the folder to copy |
+| Build a new server from nothing (IIS + PostgreSQL + tunnel) | [DEPLOY_IIS.md](docs/DEPLOY_IIS.md) — `deploy/New-Release.ps1` makes the zip to copy |
+| Release to a server already running as a Windows service | [RELEASE_POSTGRESQL.md](docs/RELEASE_POSTGRESQL.md) |
 | Understand the database, configure it, or upgrade it | [POSTGRESQL_SETUP.md](docs/POSTGRESQL_SETUP.md), [DATABASE_DESIGN.md](docs/DATABASE_DESIGN.md) |
 | Know where data is stored on disk | [STORAGE_PATHS.md](docs/STORAGE_PATHS.md) |
 | Pick up the codebase cold | [HANDOFF.md](docs/HANDOFF.md) |
