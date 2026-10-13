@@ -102,6 +102,19 @@ New-Item -ItemType Directory -Force C:\SivayaanHMS\api | Out-Null
 Copy-Item api\* C:\SivayaanHMS\api -Recurse -Force
 ```
 
+> **The site's physical path must be this folder — the one holding
+> `web.config` — and not the unzipped release folder above it.** Point IIS at
+> the release root and the application never starts: there is no `web.config`
+> there, so `AspNetCoreModuleV2` reports
+> `Could not load configuration. Exception message: Attribute 'processPath' is required.`
+> in the Application event log and every request gets a `500.30`. This is
+> the single most likely way to lose half an hour here; it cost us that on
+> the first real deployment.
+>
+> Keep the deployment tooling out of the web root for the same reason —
+> `migrate.exe`, `sql\`, `deploy\` and the `.md` files belong somewhere like
+> `C:\SivayaanHMS\tools`, not beside the binaries.
+
 `web.config` is already in there and already says what it needs to:
 in-process hosting, and `ASPNETCORE_ENVIRONMENT=Production` as an
 environment variable of the site rather than of the machine.
@@ -224,6 +237,25 @@ happens under IIS and not in the console, turn stdout logging on in
 `C:\SivayaanHMS\api\logs\stdout_*.log`, and turn it back off — those files
 are never rotated.
 
+Two things about that console run:
+
+- **It will try to bind 6051 and fail**, because the `Kestrel` section of
+  `appsettings.Production.json` overrides `ASPNETCORE_URLS` — Kestrel says so
+  in its first log line, then dies with
+  `SocketException (10013): access to a socket in a way forbidden`, which is
+  http.sys already owning the port for IIS. Override the *configuration key*
+  instead and it runs happily beside the live site:
+  ```powershell
+  $env:Kestrel__Endpoints__Http__Url = 'http://127.0.0.1:6099'
+  ```
+- **`curl http://127.0.0.1:6051` answers `400 Bad Request - Invalid
+  Hostname`** from `Microsoft-HTTPAPI/2.0` whenever the site binding carries
+  a host name. That is http.sys refusing before IIS routes anything, not an
+  application error. Either send the header the binding expects —
+  `curl.exe -H "Host: hoapi.sivayaantechnologies.com" …` — or add a second
+  binding on `127.0.0.1:6051` with the host name left blank, which is what
+  makes plain local health checks work.
+
 ---
 
 ## 7 · The tunnel
@@ -262,6 +294,81 @@ user, numbering counters, diagnostic tests, vaccine schedule, lab analytes
 and dental procedures are all seeded at that moment. Sign in as
 `<username>@<cliniccode>`, and check `EnterpriseAdmin` can sign in with the
 step-4 password and see the clinic listed.
+
+---
+
+## 8b · If the database came from somewhere else
+
+Step 2 creates a database from nothing. If instead you restored or copied one
+— a `pg_dump` from the old server, or a copy made as the `postgres`
+superuser — then **the tables exist but belong to `postgres`, and the
+application role cannot read them**. The symptoms are confusing, because the
+role connects perfectly and then fails on the first query:
+
+```
+Npgsql.PostgresException 42501: permission denied for table "Tenants"
+```
+
+What it looks like from psql, as the application role:
+
+```sql
+SELECT tableowner, count(*) FROM pg_tables WHERE schemaname='public' GROUP BY tableowner;
+--  postgres | 49
+SELECT has_table_privilege('healthone_app', '"Tenants"', 'SELECT');
+--  f
+```
+
+Hand the whole database over, as `postgres`. First, from any database:
+
+```sql
+ALTER DATABASE sivayaanhms OWNER TO healthone_app;
+```
+
+That also settles schema `public`, which PostgreSQL 15+ owns via
+`pg_database_owner` — a role that resolves to whoever owns the database. Then,
+in a Query Tool **connected to `sivayaanhms`** (check with
+`SELECT current_database();` — getting this wrong applies the rest to the
+`postgres` database instead, silently):
+
+```sql
+DO $do$
+DECLARE t text;
+BEGIN
+  FOR t IN SELECT tablename FROM pg_tables WHERE schemaname = 'public'
+  LOOP
+    EXECUTE format('ALTER TABLE public.%I OWNER TO healthone_app', t);
+  END LOOP;
+END
+$do$;
+```
+
+> **`REASSIGN OWNED BY postgres TO healthone_app` does not work here**, which
+> is the obvious thing to reach for. PostgreSQL refuses it outright —
+> `2BP01: cannot reassign ownership of objects owned by role postgres because
+> they are required by the database system` — because that role also owns
+> pinned system objects. It is the right tool only for a non-superuser source
+> role. The loop above is the way.
+>
+> Keep the `$do$` markers if you paste this into pgAdmin. Stripped, the bare
+> `BEGIN` reads as *start a transaction* and everything after it misbehaves.
+> pgAdmin's Query Tool also understands no backslash commands at all, so
+> `\connect` does nothing there — switch databases by opening a Query Tool on
+> the database itself.
+
+Ownership, not merely `GRANT SELECT, INSERT, …`: grants get the app running
+today, but the next release's migration runs `ALTER TABLE`, which only an
+owner may do.
+
+Finally, check the schema version matches the build you deployed:
+
+```sql
+SELECT "MigrationId" FROM "__EFMigrationsHistory" ORDER BY 1;
+```
+
+A copied database can be behind the binaries — and a build whose migration is
+missing fails on every request that touches the changed table, with
+`column "…" does not exist`. Apply what is missing with `migrate.exe` (§9),
+which works unaided once the role owns the tables.
 
 ---
 
