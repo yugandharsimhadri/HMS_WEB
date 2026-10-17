@@ -145,6 +145,60 @@ needs `ssl = on` with a certificate and the connection string needs
 `SSL Mode=Require` — unencrypted, a clinic's entire patient register is
 readable by anything on the path.
 
+### 2b · When PostgreSQL is on the machine running Docker
+
+The interim arrangement, before the database moves to its own VM: the
+container reaches PostgreSQL on its own host through
+`Host=host.docker.internal`, which `compose.yaml` maps with
+`extra_hosts: host.docker.internal:host-gateway`.
+
+**`pg_hba.conf` still has to be changed, and this is the step that is always
+missed.** `host.docker.internal` resolves to the host's *bridge* address, so
+the connection arrives from `172.x.x.x` — not `127.0.0.1`. The installer's
+default rules allow loopback only:
+
+```
+host    all    all    127.0.0.1/32    scram-sha-256
+host    all    all    ::1/128         scram-sha-256
+```
+
+so a container is refused with `no pg_hba.conf entry for host "172.17.0.1"`,
+which reads like a credential problem and is not one. Add one line, scoped to
+the one database and one role rather than `all`:
+
+```
+# C:\Program Files\PostgreSQL\18\data\pg_hba.conf
+host    sivayaanhms    healthone_app    172.16.0.0/12    scram-sha-256
+```
+
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -c "SELECT pg_reload_conf();"
+```
+
+`listen_addresses` usually needs no change on Windows — the EnterpriseDB
+installer already writes `'*'`. Check it rather than assume:
+
+```powershell
+findstr /B /C:"listen_addresses" "C:\Program Files\PostgreSQL\18\data\postgresql.conf"
+```
+
+### 2c · Docker and IIS cannot both have port 6051
+
+If the API is already serving under IIS on this machine, that site holds
+6051 and `docker compose up` will fail to bind. They are two deployments of
+the same thing; run one.
+
+To cut over, stop IIS first:
+
+```powershell
+Import-Module WebAdministration; Stop-Website SivayaanHMS
+Set-ItemProperty 'IIS:\Sites\SivayaanHMS' -Name serverAutoStart -Value $false
+```
+
+To run both side by side while testing, publish the container on a different
+host port instead — `"127.0.0.1:6052:8080"` in `compose.yaml` — and leave the
+tunnel pointed at IIS until you are satisfied.
+
 ---
 
 ## 3 · Build and run
