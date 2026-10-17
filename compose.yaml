@@ -1,0 +1,110 @@
+# SivayaanHMS — the API, in a Linux container, on either a Linux VM or a
+# Windows box running Docker Desktop. One image for both; see
+# docs/DEPLOY_DOCKER.md for the whole sequence and the reasoning.
+#
+#   cp deploy/docker/.env.example deploy/docker/.env   # then fill it in
+#   docker compose build
+#   docker compose run --rm migrate                    # schema, as its own step
+#   docker compose up -d
+#
+# Not in here, deliberately:
+#   * PostgreSQL — installed on its own Linux VM, reached over the network.
+#   * The frontend — deployed to Cloudflare Pages, unchanged by any of this.
+#   * cloudflared — see the commented service at the bottom; today it runs on
+#     the host and needs no change, because the API is still published on 6051.
+
+services:
+  api:
+    image: sivayaanhms-api:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+
+    # Host 6051 → container 8080, so the existing tunnel config
+    # (hoapi.sivayaantechnologies.com → http://localhost:6051) needs no edit.
+    #
+    # Bound to 127.0.0.1 and not 0.0.0.0: cloudflared runs on this machine and
+    # connects over loopback, so publishing to every interface would put the
+    # API on the clinic wifi where anyone could bypass the tunnel. Drop the
+    # 127.0.0.1 prefix only if the tunnel moves to another host.
+    ports:
+      - "127.0.0.1:6051:8080"
+
+    env_file:
+      - deploy/docker/.env
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+
+      # Clinic-local wall-clock time. The schema stores DateTime with no
+      # offset, so a container left on UTC shifts every visit time, receipt
+      # and day-book boundary by 5½ hours, silently. Also set in the image;
+      # repeated here because this is the line an operator in another
+      # timezone has to change.
+      TZ: ${TZ:-Asia/Kolkata}
+
+      # The Docker bridge, so X-Forwarded-Proto from cloudflared is honoured.
+      # Without it the app concludes every request arrived over http and
+      # UseHttpsRedirection starts issuing redirects, which a browser reports
+      # as an opaque CORS error — see the comment in Program.cs.
+      ForwardedHeaders__KnownNetworks: ${DOCKER_BRIDGE_CIDR:-172.16.0.0/12}
+
+    # Lets Database__ConnectionString say host.docker.internal when PostgreSQL
+    # is on the machine running Docker rather than on its own VM. Harmless
+    # when it is not used.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+    logging:
+      # Container logs are the only place a startup failure is written, and
+      # the default json-file driver grows without bound.
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Schema, as a release step of its own — never a side-effect of a service
+  # starting, which two instances coming up together would race. Same image
+  # as the API, so the migrations it applies are exactly the ones its
+  # binaries expect.
+  #
+  #   docker compose run --rm migrate
+  #
+  # Exits non-zero on failure, so a deploy script stops.
+  migrate:
+    image: sivayaanhms-api:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["--migrate"]
+    restart: "no"
+    profiles: ["tools"]   # kept out of `docker compose up`
+    env_file:
+      - deploy/docker/.env
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      TZ: ${TZ:-Asia/Kolkata}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+# Optional: run the tunnel as a container too, which is what you want on a
+# Linux VM with nothing else installed on it. Needs a tunnel token from the
+# Cloudflare dashboard (Zero Trust → Networks → Tunnels), and the tunnel's
+# public hostname then points at http://api:8080 — container to container, so
+# the published port above becomes unnecessary.
+#
+#  cloudflared:
+#    image: cloudflare/cloudflared:latest
+#    restart: unless-stopped
+#    command: ["tunnel", "--no-autoupdate", "run", "--token", "${CLOUDFLARE_TUNNEL_TOKEN}"]
+#    depends_on:
+#      api:
+#        condition: service_healthy

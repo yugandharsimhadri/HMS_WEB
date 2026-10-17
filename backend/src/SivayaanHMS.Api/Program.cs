@@ -248,12 +248,40 @@ if (!app.Environment.IsDevelopment() &&
         "read the codes. Set the WhatsApp section — see docs/WHATSAPP_SETUP.md.");
 }
 
+// `--migrate`: apply pending migrations, then exit without serving anything.
+//
+// This is the containerised equivalent of deploy\Migrate-Database.ps1 and the
+// migrate.exe bundle: `docker compose run --rm migrate` runs the same image
+// the API runs, so the schema and the binaries cannot disagree about which
+// migrations exist. It keeps the rule the rest of the deployment follows —
+// migrating is a release step of its own, never a side-effect of a service
+// starting — while needing no SDK in the image and no second artifact.
+if (args.Contains("--migrate"))
+{
+    using var migrationScope = app.Services.CreateScope();
+    var migrationFactory = migrationScope.ServiceProvider.GetRequiredService<IDbContextFactory<AppDbContext>>();
+    await using var migrationDb = await migrationFactory.CreateDbContextAsync();
+
+    var pending = (await migrationDb.Database.GetPendingMigrationsAsync()).ToList();
+    if (pending.Count == 0)
+    {
+        Console.WriteLine("Already current — no migrations pending.");
+        return;
+    }
+
+    Console.WriteLine($"Applying {pending.Count} migration(s): {string.Join(", ", pending)}");
+    await migrationDb.Database.MigrateAsync();
+    Console.WriteLine("Done.");
+    return;
+}
+
 // Apply pending migrations at startup — on by default in Development so a
 // fresh checkout just works, off everywhere else because a real deployment
-// applies migrations as its own release step (deploy/Migrate-Database.ps1),
-// not as a race between app instances. Database:MigrateOnStartup overrides
-// either way; MigrateAsync also creates the database itself when the role
-// is allowed to, which is what the UAT harness relies on.
+// applies migrations as its own release step (deploy/Migrate-Database.ps1,
+// or `--migrate` above), not as a race between app instances.
+// Database:MigrateOnStartup overrides either way; MigrateAsync also creates
+// the database itself when the role is allowed to, which is what the UAT
+// harness relies on.
 if (database.MigrateOnStartup ?? app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
@@ -284,6 +312,39 @@ var forwarded = new ForwardedHeadersOptions
 };
 forwarded.KnownProxies.Add(IPAddress.Loopback);
 forwarded.KnownProxies.Add(IPAddress.IPv6Loopback);
+
+// Loopback alone is right for the Windows-service and IIS deployments, where
+// cloudflared runs on the same machine and reaches the app over 127.0.0.1.
+// In a container it is not: the tunnel arrives from the Docker bridge
+// (172.17.0.1, or a sibling container's address), the headers are therefore
+// ignored, the app concludes every request came over http, and
+// UseHttpsRedirection below starts redirecting - which reaches the browser
+// as an opaque CORS failure naming no redirect, the exact afternoon the
+// comment above was written about. So the trusted set is configurable, and
+// compose.yaml sets ForwardedHeaders__KnownNetworks for the bridge.
+foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
+{
+    if (!IPAddress.TryParse(proxy, out var address))
+        throw new InvalidOperationException(
+            $"ForwardedHeaders:KnownProxies contains '{proxy}', which is not an IP address.");
+    forwarded.KnownProxies.Add(address);
+}
+
+foreach (var cidr in builder.Configuration.GetSection("ForwardedHeaders:KnownNetworks").Get<string[]>() ?? [])
+{
+    // Parsed rather than trusted: a typo here silently stops the headers
+    // being honoured, which is indistinguishable from the bug above.
+    if (!System.Net.IPNetwork.TryParse(cidr, out var parsed))
+        throw new InvalidOperationException(
+            $"ForwardedHeaders:KnownNetworks contains '{cidr}', which is not CIDR notation (e.g. 172.16.0.0/12).");
+
+    // System.Net's parser, but the collection wants the HttpOverrides type of
+    // the same name - hence both spelled out, rather than a using alias that
+    // would make the next reader wonder which one is in play.
+    forwarded.KnownNetworks.Add(
+        new Microsoft.AspNetCore.HttpOverrides.IPNetwork(parsed.BaseAddress, parsed.PrefixLength));
+}
+
 app.UseForwardedHeaders(forwarded);
 
 app.UseHttpsRedirection();
@@ -294,5 +355,34 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
+// ── Health ───────────────────────────────────────────────────────────────
+// Two probes, both anonymous, both deliberately silent about detail: an
+// orchestrator needs a status code, and anything more through a public
+// tunnel is free reconnaissance about a clinic's internals.
+//
+// They exist because the alternative was probing /api/settings/general and
+// treating 401 as healthy - which is true, and also true of an application
+// whose database is unreachable. That gap is how a server once sat
+// "healthy" while every real request failed: see docs/DEPLOY_IIS.md.
+app.MapGet("/health", () => Results.Text("ok")).AllowAnonymous();
+
+app.MapGet("/health/ready", async (IDbContextFactory<AppDbContext> factory, CancellationToken ct) =>
+{
+    try
+    {
+        await using var db = await factory.CreateDbContextAsync(ct);
+        return await db.Database.CanConnectAsync(ct)
+            ? Results.Text("ready")
+            : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+    catch
+    {
+        // Whatever went wrong - authentication refused, host unreachable,
+        // schema missing - the answer to a probe is the same, and the
+        // reason belongs in the log rather than the response body.
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+}).AllowAnonymous();
 
 app.Run();

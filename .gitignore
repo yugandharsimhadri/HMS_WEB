@@ -36,3 +36,6 @@ backend/artifacts/
 ## IDE
 .vs/
 .vscode/
+
+# Docker: the filled-in environment file carries the three secrets.
+deploy/docker/.env

@@ -1,0 +1,26 @@
+# Everything the image does not need, and two things it must never get.
+
+# Secrets. Also excluded from publish by the csproj, and the Dockerfile
+# asserts their absence - three guards, because one copy of either in an
+# image is one too many.
+**/appsettings.Local.json
+**/appsettings.Production.json
+
+# Build output and artifacts: a 59 MB release zip and a 108 MB migrate.exe in
+# the build context cost a slow upload to the daemon for nothing.
+**/bin
+**/obj
+backend/artifacts
+db/migrate.exe
+
+# Not part of the API image. The frontend is deployed to Cloudflare Pages.
+frontend
+node_modules
+
+# Tests and the Playwright automation: not built by this image.
+backend/tests
+backend/tools
+
+.git
+.vs
+.idea
