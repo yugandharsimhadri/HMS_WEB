@@ -250,12 +250,14 @@ if (!app.Environment.IsDevelopment() &&
 
 // `--migrate`: apply pending migrations, then exit without serving anything.
 //
-// This is the containerised equivalent of deploy\Migrate-Database.ps1 and the
-// migrate.exe bundle: `docker compose run --rm migrate` runs the same image
-// the API runs, so the schema and the binaries cannot disagree about which
-// migrations exist. It keeps the rule the rest of the deployment follows —
-// migrating is a release step of its own, never a side-effect of a service
-// starting — while needing no SDK in the image and no second artifact.
+// A third way to do what deploy\Migrate-Database.ps1 and the migrate.exe
+// bundle do, and the only one that needs neither the SDK nor a second
+// artifact: the deployed application migrates its own database, so the
+// schema and the binaries cannot disagree about which migrations exist. It
+// keeps the rule the rest of the deployment follows — migrating is a release
+// step of its own, never a side-effect of a service starting.
+//
+//     SivayaanHMS.Api.exe --migrate
 if (args.Contains("--migrate"))
 {
     using var migrationScope = app.Services.CreateScope();
@@ -313,15 +315,18 @@ var forwarded = new ForwardedHeadersOptions
 forwarded.KnownProxies.Add(IPAddress.Loopback);
 forwarded.KnownProxies.Add(IPAddress.IPv6Loopback);
 
-// Loopback alone is right for the Windows-service and IIS deployments, where
-// cloudflared runs on the same machine and reaches the app over 127.0.0.1.
-// In a container it is not: the tunnel arrives from the Docker bridge
-// (172.17.0.1, or a sibling container's address), the headers are therefore
-// ignored, the app concludes every request came over http, and
-// UseHttpsRedirection below starts redirecting - which reaches the browser
-// as an opaque CORS failure naming no redirect, the exact afternoon the
-// comment above was written about. So the trusted set is configurable, and
-// compose.yaml sets ForwardedHeaders__KnownNetworks for the bridge.
+// Loopback alone is right for the IIS and Windows-service deployments, where
+// cloudflared runs on the same machine and reaches the app over 127.0.0.1 —
+// and it is the only thing trusted unless configuration says otherwise.
+//
+// It stops being right the moment the proxy is somewhere else: another host,
+// or a container bridge. The headers are then ignored, the app concludes
+// every request arrived over http, and UseHttpsRedirection below starts
+// redirecting — which reaches the browser as an opaque CORS failure naming
+// no redirect, the exact afternoon the comment above was written about. So
+// the trusted set is configurable, by address or by CIDR:
+//
+//     "ForwardedHeaders": { "KnownNetworks": [ "172.16.0.0/12" ] }
 foreach (var proxy in builder.Configuration.GetSection("ForwardedHeaders:KnownProxies").Get<string[]>() ?? [])
 {
     if (!IPAddress.TryParse(proxy, out var address))
