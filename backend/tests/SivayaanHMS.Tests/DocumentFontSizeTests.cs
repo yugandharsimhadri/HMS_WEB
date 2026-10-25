@@ -6,11 +6,20 @@ namespace SivayaanHMS.Tests;
 
 /// <summary>
 /// The per-element sizes in Settings > Document branding. Two things have to
-/// hold: an untouched install still prints the desktop's numbers, and a
-/// changed number actually reaches the page.
+/// hold: an untouched install prints exactly the desktop's page, and a changed
+/// number actually reaches it.
+///
+/// Sizes are stated here in the desktop's own unit — WPF device-independent
+/// pixels, 1/96" — and converted with <see cref="Px"/> to the points a PDF
+/// records. They used to be asserted as raw points, which is how the web came to
+/// print every size 33% larger than the desktop: it copied WPF's numbers and
+/// read them as points.
 /// </summary>
 public class DocumentFontSizeTests
 {
+    /// <summary>A WPF size as the PDF will record it.</summary>
+    private static double Px(double px) => px * 0.75;
+
     private static Visit SampleVisit() => new()
     {
         VisitNo = "V00001",
@@ -37,24 +46,25 @@ public class DocumentFontSizeTests
     private static IReadOnlyList<double> ReceiptSizes(DocumentTheme theme)
         => PdfContent.FontSizes(FeeReceiptDocument.Generate(SampleVisit(), SampleClinic(), theme));
 
-    /// <summary>The defaults are the desktop's own sizes. The clinical +2 sits
-    /// on the body of this document, so the letterhead is the one size that
-    /// appears on the page exactly as configured.</summary>
+    /// <summary>The defaults are the desktop's own sizes, and the receipt's body prints two
+    /// larger than the pharmacy bill's, by request — so the letterhead is the part of the page
+    /// that appears exactly as configured.</summary>
     [Fact]
     public void Defaults_print_the_desktop_sizes()
     {
         var sizes = ReceiptSizes(new DocumentTheme());
 
-        PdfSizeAssert.Contains(15d, sizes);   // clinic name, which takes no delta
-        PdfSizeAssert.Contains(8.6d, sizes);  // "CASH RECEIPT", likewise
-        PdfSizeAssert.Contains(11d, sizes);   // body 9 + clinical 2
-        PdfSizeAssert.Contains(10.5d, sizes); // table row 8.5 + clinical 2
-        PdfSizeAssert.Contains(9.5d, sizes);  // table header 7.5 + clinical 2
-        PdfSizeAssert.Contains(10d, sizes);   // contact line 8 + clinical 2
-        PdfSizeAssert.Contains(9.4d, sizes);  // footer 7.4 + clinical 2
-        // Totals land on 15 too (13 + 2), so they are not asserted here -
-        // a match would not tell us which of the two produced it. The
-        // totals size gets its own test below.
+        PdfSizeAssert.Contains(Px(15), sizes);    // clinic name, which takes no delta
+        PdfSizeAssert.Contains(Px(8.6), sizes);   // "CASH RECEIPT", likewise; also an identity label (6.6 + 2)
+        PdfSizeAssert.Contains(Px(8), sizes);     // address and phone
+        PdfSizeAssert.Contains(Px(11), sizes);    // body 9 + clinical 2 ("Review on")
+        PdfSizeAssert.Contains(Px(10.4), sizes);  // table row 8.4 + clinical 2
+        PdfSizeAssert.Contains(Px(9.6), sizes);   // table header 7.6 + clinical 2
+        PdfSizeAssert.Contains(Px(9.8), sizes);   // identity value 7.8 + clinical 2
+        PdfSizeAssert.Contains(Px(10), sizes);    // "Paid by", amount in words: 8 + clinical 2
+        PdfSizeAssert.Contains(Px(9.4), sizes);   // footer 7.4 + clinical 2
+        // RECEIVED lands on 15 too (13 + 2), so it is not asserted here - a match would not tell
+        // us which of the two produced it. The totals size gets its own test below.
     }
 
     [Theory]
@@ -64,7 +74,7 @@ public class DocumentFontSizeTests
     {
         var sizes = ReceiptSizes(new DocumentTheme { LetterheadNameSize = size });
 
-        PdfSizeAssert.Contains(size, sizes);
+        PdfSizeAssert.Contains(Px(size), sizes);
     }
 
     [Fact]
@@ -72,8 +82,8 @@ public class DocumentFontSizeTests
     {
         var sizes = ReceiptSizes(new DocumentTheme { TableRowSize = 11.5, TotalsSize = 18 });
 
-        PdfSizeAssert.Contains(13.5d, sizes); // 11.5 + clinical 2
-        PdfSizeAssert.Contains(20d, sizes);   // 18 + clinical 2
+        PdfSizeAssert.Contains(Px(13.5), sizes); // 11.5 + clinical 2
+        PdfSizeAssert.Contains(Px(20), sizes);   // 18 + clinical 2
     }
 
     /// <summary>The global nudge still works, and still moves the per-element
@@ -83,19 +93,31 @@ public class DocumentFontSizeTests
     {
         var sizes = ReceiptSizes(new DocumentTheme { LetterheadNameSize = 20, PrintFontSizeDelta = 1 });
 
-        PdfSizeAssert.Contains(21d, sizes);
+        PdfSizeAssert.Contains(Px(21), sizes);
     }
 
-    /// <summary>The identity grid is derived from the table sizes, so moving
-    /// the table moves the grid with it - the relationship that makes the
-    /// block under the letterhead read as a grid rather than as loose text.
-    /// </summary>
+    /// <summary>The identity grid follows the table sizes - the relationship that makes the block
+    /// under the letterhead read as a grid rather than as loose text. On the desktop the label sits
+    /// 1.0 under the table header and the value 0.6 under the table row; shifting a table size
+    /// shifts the grid by the same amount.</summary>
     [Fact]
     public void Identity_grid_follows_the_table_sizes()
     {
         var sizes = ReceiptSizes(new DocumentTheme { TableHeaderSize = 12, TableRowSize = 14 });
 
-        PdfSizeAssert.Contains(13.1d, sizes); // label: 12 - 0.9 + clinical 2
-        PdfSizeAssert.Contains(15.3d, sizes); // value: 14 - 0.7 + clinical 2
+        PdfSizeAssert.Contains(Px(13.0), sizes); // label: 6.6 + (12 - 7.6) + clinical 2
+        PdfSizeAssert.Contains(Px(15.4), sizes); // value: 7.8 + (14 - 8.4) + clinical 2
+    }
+
+    /// <summary>
+    /// The table defaults are the desktop's 8.4 and 7.6; they said 8.5 and 7.5 until a real print
+    /// of each was measured side by side. (Installs that saved the old values are read back as
+    /// untouched by <c>SettingsService.GetDocumentThemeAsync</c>, which needs a database to test.)
+    /// </summary>
+    [Fact]
+    public void The_table_defaults_are_the_desktops_own_sizes()
+    {
+        Assert.Equal(8.4, new DocumentTheme().TableRowSize);
+        Assert.Equal(7.6, new DocumentTheme().TableHeaderSize);
     }
 }

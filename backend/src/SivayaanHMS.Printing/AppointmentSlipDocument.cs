@@ -1,66 +1,41 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using SivayaanHMS.Core;
 using SivayaanHMS.Data;
-using static SivayaanHMS.Printing.DocumentStyle;
+using static SivayaanHMS.Printing.Wpf;
 
 namespace SivayaanHMS.Printing;
 
-/// <summary>
-/// A printed confirmation slip for a booked-ahead appointment — deliberately
-/// short, the same reasoning <see cref="FeeReceiptDocument"/> gives for its
-/// own brevity: the patient needs when, with whom, and a number they can
-/// quote if they call to change it, and nothing else.
-/// </summary>
+/// <summary>Appointment confirmation, ported line for line from the desktop's AppointmentSlipDocument.cs.</summary>
 public static class AppointmentSlipDocument
 {
     public static byte[] Generate(Appointment appointment, ClinicProfile clinic, DocumentTheme theme)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-        return Document.Create(c => Compose(c, appointment, clinic, theme)).GeneratePdf();
-    }
+        var doc = new FlowDoc();
 
-    private static void Compose(
-        IDocumentContainer container, Appointment appointment, ClinicProfile clinic, DocumentTheme theme)
-    {
-        const float d = ClinicalSizeDelta;
+        AddClinicHeader(doc, clinic, theme, "APPOINTMENT CONFIRMATION");
 
-        container.Page(page =>
-        {
-            page.Size(PageSizes.A5);
-            page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
+        var grid = NewTable(1, 1, 1);
+        grid.Rows.Add(IdentityRow(
+            ("Appointment No", appointment.AppointmentNo),
+            ("Date", $"{appointment.ScheduledOn:dd/MM/yyyy}"),
+            ("Time", $"{appointment.ScheduledOn:hh\\:mm tt}")));
+        grid.Rows.Add(IdentityRow(
+            ("Patient", appointment.PatientName),
+            ("Doctor", appointment.DoctorName),
+            ("Phone", appointment.PatientPhone)));
+        doc.Add(grid);
+        doc.Add(Rule());
 
-            page.Content().Column(col =>
-            {
-                Header(col, clinic.Name, clinic.AddressLine, clinic.AddressLine2, clinic.Phone,
-                       clinic.GstRegistered ? clinic.Gstin : null, "APPOINTMENT CONFIRMATION", theme, d);
+        if (!string.IsNullOrWhiteSpace(appointment.Reason))
+            doc.Add(Text($"Reason: {appointment.Reason}", 9, topMargin: 6, role: SizeRole.Body));
 
-                IdentityRow(col, theme, d,
-                    ("Appointment No", appointment.AppointmentNo),
-                    ("Date", $"{appointment.ScheduledOn:dd/MM/yyyy}"),
-                    ("Time", $"{appointment.ScheduledOn:hh\\:mm tt}"));
-                IdentityRow(col, theme, d,
-                    ("Patient", appointment.PatientName),
-                    ("Doctor", appointment.DoctorName),
-                    ("Phone", appointment.PatientPhone));
+        doc.Add(Text(
+            "Please arrive a few minutes early. Call the clinic to cancel or reschedule.",
+            7.4, brush: Muted, topMargin: 8, role: SizeRole.Footer));
 
-                Rule(col);
+        var footer = string.IsNullOrWhiteSpace(clinic.FooterText) ? theme.Footer : clinic.FooterText;
+        if (!string.IsNullOrWhiteSpace(footer))
+            doc.Add(Text(footer, 7.4, brush: Muted, topMargin: 3, role: SizeRole.Footer));
 
-                if (!string.IsNullOrWhiteSpace(appointment.Reason))
-                    col.Item().PaddingTop(6).Text($"Reason: {appointment.Reason}")
-                        .FontSize(Body(theme, (float)theme.BodyTextSize, d));
-
-                col.Item().PaddingTop(8).AlignCenter()
-                    .Text("Please arrive a few minutes early. Call the clinic to cancel or reschedule.")
-                    .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
-
-                var footer = Footer(clinic.FooterText, theme);
-                if (!string.IsNullOrWhiteSpace(footer))
-                    col.Item().PaddingTop(3).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
-            });
-        });
+        return doc.ToPdf(theme);
     }
 }

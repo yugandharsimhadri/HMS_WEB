@@ -1,118 +1,101 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using SivayaanHMS.Core;
 using SivayaanHMS.Data;
-using static SivayaanHMS.Printing.DocumentStyle;
+using static SivayaanHMS.Printing.Wpf;
 
 namespace SivayaanHMS.Printing;
 
 /// <summary>
-/// Receipt for a consultation fee. Deliberately short, as on the desktop —
-/// the parent needs the amount, who it was paid to, and a number they can
-/// quote, and nothing else.
+/// Receipt for a consultation fee, ported line for line from the desktop's
+/// FeeReceiptDocument.cs. Deliberately short — the parent needs the amount,
+/// who it was paid to, and a number they can quote, and nothing else. Body text
+/// runs two points larger than the pharmacy bill and the diagnostic bill
+/// print at, by request; every size below is the document's original size plus
+/// that same +2.
 ///
-/// No GST is shown even when the clinic is GST-registered: a consultation is
-/// a service, not a taxable supply of goods, and the desktop makes the same
-/// call in the same place. Adding it is a decision for the clinic's
-/// accountant, not a default.
+/// No GST is shown even when the clinic is GST-registered: a consultation is a
+/// service, not a taxable supply of goods.
+///
+/// Three things the desktop prints that this system has no data for yet, and
+/// what is printed instead — each is what the desktop itself prints when that
+/// data is absent, so the page is still the desktop's page:
+/// <list type="bullet">
+/// <item>The doctor's degrees (<c>Doctor.Qualification</c>): the name alone.</item>
+/// <item>The visit type (<c>Visit.IsReview</c>): "New". There are no review
+/// visits here, so every visit is one.</item>
+/// <item>The free-review cover date (<c>FreeFollowUpUntil</c>): no line.</item>
+/// </list>
 /// </summary>
 public static class FeeReceiptDocument
 {
+    private const double SizeDelta = 2;
+
     public static byte[] Generate(Visit visit, ClinicProfile clinic, DocumentTheme theme, bool isReprint = false)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-        return Document.Create(c => Compose(c, visit, clinic, theme, isReprint)).GeneratePdf();
-    }
+        var doc = new FlowDoc();
 
-    private static void Compose(
-        IDocumentContainer container, Visit visit, ClinicProfile clinic, DocumentTheme theme, bool isReprint)
-    {
-        const float d = ClinicalSizeDelta;
+        AddClinicHeader(doc, clinic, theme, "CASH RECEIPT");
+
+        // Two rows of four: what this receipt is, then who it is about.
+        //
+        // Date and time are one field because they are one fact. The speciality is
+        // not repeated here; it names the consultation on the particulars line.
+        // Neither the visit number nor the patient number is printed — both are
+        // internal references the parent cannot act on; the receipt number is
+        // what they are asked to quote.
         var when = visit.FeePaidOn ?? visit.ScheduledOn;
 
-        container.Page(page =>
-        {
-            page.Size(PageSizes.A5);
-            page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
+        var grid = NewTable(1.0, 1.1, 1.4, 0.9);
 
-            page.Content().Column(col =>
-            {
-                Header(col, clinic.Name, clinic.AddressLine, clinic.AddressLine2, clinic.Phone,
-                       clinic.GstRegistered ? clinic.Gstin : null, "CASH RECEIPT", theme, d);
+        grid.Rows.Add(IdentityRow(SizeDelta,
+            ("Receipt No", visit.FeeReceiptNo ?? "(not issued)"),
+            ("Date & time", $"{when:dd/MM/yyyy}  {when:hh\\:mm tt}"),
+            ("Visit", "New"),
+            ("Token No", visit.TokenNo.ToString())));
 
-                IdentityRow(col, theme, d,
-                    ("Receipt No", visit.FeeReceiptNo ?? "(not issued)"),
-                    ("Date", $"{when:dd/MM/yyyy}"),
-                    ("Time", $"{when:hh\\:mm tt}"));
-                // Patient number and token/visit are deliberately absent. They
-                // are internal handles — the queue position and the register
-                // key — and mean nothing to the person holding the receipt,
-                // who already has the receipt number to quote.
-                IdentityRow(col, theme, d,
-                    ("Patient", visit.Patient.Name),
-                    ("Age / Sex", $"{visit.Patient.Age} / {visit.Patient.Gender}"),
-                    ("Doctor", visit.Doctor.Name));
+        grid.Rows.Add(IdentityRow(SizeDelta,
+            ("Patient", visit.Patient.Name),
+            ("Age / Sex", $"{visit.Patient.Age} / {visit.Patient.Gender}"),
+            ("Doctor", visit.Doctor.Name),
+            ("Reg. No", visit.Doctor.RegistrationNo ?? "—")));
 
-                // The prescriber's registration number. Kept even when the
-                // clinic has not recorded one — a blank beside the label is
-                // what prompts somebody to go and fill it in, where dropping
-                // the row entirely hides that anything is missing.
-                IdentityRow(col, theme, d,
-                    ("Speciality", visit.Doctor.Speciality ?? ""),
-                    ("Reg. No", visit.Doctor.RegistrationNo ?? "—"));
+        doc.Add(grid);
+        doc.Add(Rule());
 
-                Rule(col);
+        var lines = NewTable(3, 0.2, 1.2);
+        lines.Rows.Add(Row(true, SizeDelta, "PARTICULARS", "", "AMOUNT"));
 
-                col.Item().PaddingTop(2).Row(row =>
-                {
-                    row.RelativeItem(3).Text("PARTICULARS").FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
-                    row.RelativeItem(1).AlignRight().Text("AMOUNT").FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
-                });
-                col.Item().PaddingTop(3).Row(row =>
-                {
-                    row.RelativeItem(3).Text(string.IsNullOrWhiteSpace(visit.Doctor.Speciality)
-                        ? "Consultation fee"
-                        : $"Consultation fee — {visit.Doctor.Speciality}").FontSize(Body(theme, (float)theme.TableRowSize, d));
-                    row.RelativeItem(1).AlignRight().Text(visit.Fee.ToString("0.00")).FontSize(Body(theme, (float)theme.TableRowSize, d));
-                });
+        var particulars = string.IsNullOrWhiteSpace(visit.Doctor.Speciality)
+            ? "Consultation fee"
+            : $"Consultation fee — {visit.Doctor.Speciality}";
 
-                Rule(col);
+        lines.Rows.Add(Row(false, SizeDelta, particulars, "", visit.Fee.ToString("0.00")));
+        doc.Add(lines);
 
-                col.Item().PaddingTop(1).AlignRight().Text($"RECEIVED   Rs. {visit.Fee:0.00}")
-                    .FontSize(Body(theme, (float)theme.TotalsSize, d)).Bold();
+        doc.Add(Rule());
 
-                col.Item().AlignRight().Text($"Paid by {visit.FeePaymentMode?.ToString() ?? "Cash"}")
-                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
+        doc.Add(Text($"RECEIVED   ₹{visit.Fee:0.00}", 13 + SizeDelta, Weight.Bold, align: Align.Right, topMargin: 1, role: SizeRole.Totals));
 
-                if (!string.IsNullOrWhiteSpace(visit.FeeTransactionNo))
-                    col.Item().AlignRight().Text($"Ref: {visit.FeeTransactionNo}")
-                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
+        doc.Add(Text($"Paid by {visit.FeePaymentMode?.ToString() ?? "Cash"}",
+                     8 + SizeDelta, brush: Muted, align: Align.Right, role: SizeRole.Contact));
 
-                col.Item().PaddingTop(4).AlignRight().Text(AmountInWords.Convert(visit.Fee))
-                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
+        doc.Add(Text(AmountInWords.Convert(visit.Fee), 8 + SizeDelta, brush: Muted,
+                     align: Align.Right, topMargin: 4, role: SizeRole.Contact));
 
-                if (visit.FollowUpOn is { } follow)
-                    col.Item().PaddingTop(5).Text($"Review on {follow:dd MMM yyyy}")
-                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).SemiBold();
+        if (visit.FollowUpOn is { } follow)
+            doc.Add(Text($"Review on {follow:dd MMM yyyy}", 9 + SizeDelta, Weight.SemiBold, topMargin: 5, role: SizeRole.Body));
 
-                // A consultation is a service, not a taxable supply - said out
-                // loud so nobody looks for a GST line that was never meant to
-                // be there.
-                col.Item().PaddingTop(8).AlignCenter()
-                    .Text("Consultation services. Fees once paid are not refundable.")
-                    .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
+        doc.Add(Text("Consultation services. Fees once paid are not refundable.",
+                     7.4 + SizeDelta, brush: Muted, align: Align.Center, topMargin: 8, role: SizeRole.Footer));
 
-                var footer = Footer(clinic.FooterText, theme);
-                if (!string.IsNullOrWhiteSpace(footer))
-                    col.Item().PaddingTop(3).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
+        // The clinic's own footer, set on the Clinic settings tab, takes over from
+        // the shared Reports footer once it is typed.
+        var footer = string.IsNullOrWhiteSpace(clinic.FooterText) ? theme.Footer : clinic.FooterText;
+        if (!string.IsNullOrWhiteSpace(footer))
+            doc.Add(Text(footer, 7.4 + SizeDelta, brush: Muted, align: Align.Center, topMargin: 3, role: SizeRole.Footer));
 
-                if (isReprint)
-                    col.Item().PaddingTop(5).AlignCenter().Text("DUPLICATE")
-                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).Bold().FontColor(Muted);
-            });
-        });
+        if (isReprint)
+            doc.Add(Text("DUPLICATE", 9 + SizeDelta, Weight.Bold, Muted, Align.Center, topMargin: 5));
+
+        return doc.ToPdf(theme);
     }
 }

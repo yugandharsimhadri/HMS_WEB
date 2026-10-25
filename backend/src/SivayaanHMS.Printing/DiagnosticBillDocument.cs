@@ -1,136 +1,68 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using SivayaanHMS.Core;
 using SivayaanHMS.Data;
-using static SivayaanHMS.Printing.DocumentStyle;
+using static SivayaanHMS.Printing.Wpf;
 
 namespace SivayaanHMS.Printing;
 
-/// <summary>
-/// The diagnostic/lab bill. Deliberately plain next to
-/// <see cref="PharmacyInvoiceDocument"/>: no GST, no batch, no HSN — a list
-/// of tests, a total, and who paid. A consultation or a test is a service,
-/// not a taxable supply of goods, and the desktop draws the line in the same
-/// place.
-/// </summary>
+/// <summary>Diagnostic bill, ported line for line from the desktop's DiagnosticBillPrinter.cs.</summary>
 public static class DiagnosticBillDocument
 {
     public static byte[] Generate(
         DiagnosticBill bill, ClinicProfile clinic, DocumentTheme theme, bool isReprint = false)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-        return Document.Create(c => Compose(c, bill, clinic, theme, isReprint)).GeneratePdf();
+        var doc = new FlowDoc();
+
+        AddClinicHeader(doc, clinic, theme, isReprint ? "DIAGNOSTIC BILL (DUPLICATE)" : "DIAGNOSTIC BILL");
+
+        // Date and time sit side by side rather than one under the other.
+        var head = NewTable(1, 1, 1);
+        head.Rows.Add(IdentityRow(
+            ("Bill No", bill.BillNo),
+            ("Date", $"{bill.BillDate:dd/MM/yyyy}"),
+            ("Time", $"{bill.BillDate:HH:mm}")));
+        head.Rows.Add(IdentityRow(
+            ("Patient", bill.PatientName),
+            ("Patient No", bill.PatientNo),
+            ("Status", bill.Status.ToString())));
+        head.Rows.Add(IdentityRow(
+            ("Payment", bill.PaymentMode.ToString())));
+        doc.Add(head);
+        doc.Add(Rule());
+
+        var items = NewTable(3.6, 0.8, 1.0, 1.2);
+        items.Rows.Add(Row(true, "TEST", "QTY", "PRICE", "AMOUNT"));
+
+        foreach (var item in bill.Items)
+            items.Rows.Add(Row(false, item.TestName, item.Quantity.ToString(),
+                item.Price.ToString("0.00"), item.Amount.ToString("0.00")));
+
+        doc.Add(items);
+        doc.Add(Rule());
+
+        var totals = NewTable(3, 0.2, 1.2);
+        totals.Rows.Add(TotalRow("Total", bill.TotalAmount.ToString("0.00")));
+        if (bill.Discount > 0)
+            totals.Rows.Add(TotalRow("Discount", $"-{bill.Discount:0.00}"));
+        doc.Add(totals);
+
+        doc.Add(Text($"AMOUNT PAYABLE   ₹{bill.FinalAmount:0.00}", 13, Weight.Bold, align: Align.Right, topMargin: 1, role: SizeRole.Totals));
+        doc.Add(Text($"Paid by {bill.PaymentMode}", 8, brush: Muted, align: Align.Right, role: SizeRole.Contact));
+        doc.Add(Text(AmountInWords.Convert(bill.FinalAmount), 8, brush: Muted, align: Align.Right, topMargin: 3, role: SizeRole.Contact));
+
+        if (!string.IsNullOrWhiteSpace(bill.Remarks))
+            doc.Add(Text($"Remarks: {bill.Remarks}", 8, brush: Muted, topMargin: 3, role: SizeRole.Contact));
+
+        doc.Add(Rule());
+
+        // No test-specific footer field exists — the clinic's own, then the shared
+        // Reports one, the same fallback the fee receipt uses.
+        var footer = string.IsNullOrWhiteSpace(clinic.FooterText) ? theme.Footer : clinic.FooterText;
+        if (!string.IsNullOrWhiteSpace(footer))
+            doc.Add(Text(footer, 7.4, brush: Muted, align: Align.Center, topMargin: 6, role: SizeRole.Footer));
+
+        if (isReprint)
+            doc.Add(Text("DUPLICATE", 9, Weight.Bold, Muted, Align.Center, topMargin: 5));
+
+        return doc.ToPdf(theme);
     }
-
-    private static void Compose(
-        IDocumentContainer container, DiagnosticBill bill, ClinicProfile clinic,
-        DocumentTheme theme, bool isReprint)
-    {
-        const float d = ClinicalSizeDelta;
-
-        container.Page(page =>
-        {
-            page.Size(PageSizes.A5);
-            page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
-
-            page.Content().Column(col =>
-            {
-                Header(col, clinic.Name, clinic.AddressLine, clinic.AddressLine2, clinic.Phone,
-                       clinic.GstRegistered ? clinic.Gstin : null,
-                       isReprint ? "DIAGNOSTIC BILL (DUPLICATE)" : "DIAGNOSTIC BILL", theme, d);
-
-                IdentityRow(col, theme, d,
-                    ("Bill No", bill.BillNo),
-                    ("Date", $"{bill.BillDate:dd/MM/yyyy}"),
-                    ("Time", $"{bill.BillDate:HH:mm}"));
-                IdentityRow(col, theme, d,
-                    ("Patient", bill.PatientName),
-                    ("Patient No", bill.PatientNo),
-                    ("Status", bill.Status.ToString()));
-
-                // Who referred them, when they did not come through our own
-                // OPD. Omitted entirely otherwise rather than printed blank —
-                // the bill already carries the visit it belongs to.
-                if (!string.IsNullOrWhiteSpace(bill.ReferredBy))
-                    LabelValue(col, theme, d, "Referred by", bill.ReferredBy);
-
-                Rule(col);
-
-                col.Item().PaddingTop(4).Table(table =>
-                {
-                    table.ColumnsDefinition(c =>
-                    {
-                        c.RelativeColumn(3.6f); c.RelativeColumn(0.8f);
-                        c.RelativeColumn(1.0f); c.RelativeColumn(1.2f);
-                    });
-
-                    HeaderRow(table, theme, d, "TEST", "QTY", "PRICE", "AMOUNT");
-
-                    foreach (var item in bill.Items)
-                        Row(table, theme, d,
-                            item.TestName,
-                            item.Quantity.ToString(),
-                            item.Price.ToString("0.00"),
-                            item.Amount.ToString("0.00"));
-                });
-
-                Rule(col);
-
-                TotalLine(col, theme, d, "Total", bill.TotalAmount.ToString("0.00"));
-                if (bill.Discount > 0)
-                    TotalLine(col, theme, d, "Discount", $"-{bill.Discount:0.00}");
-
-                col.Item().PaddingTop(1).AlignRight()
-                    .Text($"AMOUNT PAYABLE   Rs. {bill.FinalAmount:0.00}")
-                    .FontSize(Body(theme, (float)theme.TotalsSize, d)).Bold();
-
-                col.Item().AlignRight().Text($"Paid by {bill.PaymentMode}")
-                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-
-                if (!string.IsNullOrWhiteSpace(bill.TransactionNo))
-                    col.Item().AlignRight().Text($"Ref: {bill.TransactionNo}")
-                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-
-                col.Item().PaddingTop(3).AlignRight().Text(AmountInWords.Convert(bill.FinalAmount))
-                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-
-                if (!string.IsNullOrWhiteSpace(bill.Remarks))
-                    col.Item().PaddingTop(3).Text($"Remarks: {bill.Remarks}")
-                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-
-                Rule(col);
-
-                var footer = Footer(clinic.FooterText, theme);
-                if (!string.IsNullOrWhiteSpace(footer))
-                    col.Item().PaddingTop(6).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
-
-                if (isReprint)
-                    col.Item().PaddingTop(5).AlignCenter().Text("DUPLICATE")
-                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).Bold().FontColor(Muted);
-            });
-        });
-    }
-
-    private static void HeaderRow(TableDescriptor table, DocumentTheme theme, float d, params string[] cells)
-    {
-        foreach (var cell in cells)
-            table.Cell().BorderBottom(1).PaddingBottom(2).Text(cell)
-                .FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
-    }
-
-    private static void Row(TableDescriptor table, DocumentTheme theme, float d, params string[] cells)
-    {
-        foreach (var cell in cells)
-            table.Cell().PaddingVertical(1.5f).Text(cell).FontSize(Body(theme, (float)theme.TableRowSize, d));
-    }
-
-    private static void TotalLine(ColumnDescriptor col, DocumentTheme theme, float d, string label, string value)
-        => col.Item().Row(row =>
-        {
-            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, (float)theme.BodyTextSize, d));
-            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, (float)theme.BodyTextSize, d));
-        });
 }

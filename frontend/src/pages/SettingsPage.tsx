@@ -61,8 +61,8 @@ const DESKTOP_SIZES = {
   contactLineSize: 8,
   documentKindSize: 8.6,
   bodyTextSize: 9,
-  tableHeaderSize: 7.5,
-  tableRowSize: 8.5,
+  tableHeaderSize: 7.6,
+  tableRowSize: 8.4,
   totalsSize: 13,
   footerSize: 7.4,
 };

@@ -176,11 +176,22 @@ public class DocumentTheme
     /// <summary>The page default: prescription lines, notes, most prose.</summary>
     public double BodyTextSize { get; set; } = 9;
 
-    /// <summary>Line items in the medicine, test and procedure tables.</summary>
-    public double TableRowSize { get; set; } = 8.5;
+    /// <summary>Line items in the medicine, test and procedure tables. 8.4 - the desktop's
+    /// own row size; this said 8.5 until a real print of each was measured side by side.</summary>
+    public double TableRowSize { get; set; } = DesktopTableRowSize;
 
-    /// <summary>Column headings, and the small labels beside them.</summary>
-    public double TableHeaderSize { get; set; } = 7.5;
+    /// <summary>What older installs saved as their "default" row size. Read back as untouched,
+    /// so a clinic that once opened Document branding and pressed Save does not stay 0.1 off the
+    /// desktop's page for ever.</summary>
+    public const double LegacyTableRowSize = 8.5;
+    public const double DesktopTableRowSize = 8.4;
+
+    /// <summary>Column headings, and the small labels beside them. 7.6 - the desktop's own
+    /// heading size; previously 7.5. See <see cref="LegacyTableRowSize"/>.</summary>
+    public double TableHeaderSize { get; set; } = DesktopTableHeaderSize;
+
+    public const double LegacyTableHeaderSize = 7.5;
+    public const double DesktopTableHeaderSize = 7.6;
 
     /// <summary>The one figure a patient looks for — "RECEIVED", "NET
     /// PAYABLE".</summary>
@@ -445,12 +456,19 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
             ContactLineSize = Double(map, KeyDocsContactLineSize, fallback.ContactLineSize),
             DocumentKindSize = Double(map, KeyDocsDocumentKindSize, fallback.DocumentKindSize),
             BodyTextSize = Double(map, KeyDocsBodyTextSize, fallback.BodyTextSize),
-            TableRowSize = Double(map, KeyDocsTableRowSize, fallback.TableRowSize),
-            TableHeaderSize = Double(map, KeyDocsTableHeaderSize, fallback.TableHeaderSize),
+            TableRowSize = Untouched(Double(map, KeyDocsTableRowSize, fallback.TableRowSize),
+                DocumentTheme.LegacyTableRowSize, fallback.TableRowSize),
+            TableHeaderSize = Untouched(Double(map, KeyDocsTableHeaderSize, fallback.TableHeaderSize),
+                DocumentTheme.LegacyTableHeaderSize, fallback.TableHeaderSize),
             TotalsSize = Double(map, KeyDocsTotalsSize, fallback.TotalsSize),
             FooterSize = Double(map, KeyDocsFooterSize, fallback.FooterSize)
         };
     }
+
+    /// <summary>A size saved as the previous default was never a choice - Save writes every size,
+    /// customised or not - so it is read back as the current default.</summary>
+    private static double Untouched(double stored, double legacyDefault, double current)
+        => Math.Abs(stored - legacyDefault) < 0.0001 ? current : stored;
 
     public async Task SaveDocumentThemeAsync(DocumentTheme theme)
     {

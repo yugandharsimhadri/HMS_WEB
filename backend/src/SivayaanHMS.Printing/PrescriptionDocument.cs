@@ -1,157 +1,130 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using SivayaanHMS.Core;
 using SivayaanHMS.Data;
-using static SivayaanHMS.Printing.DocumentStyle;
+using static SivayaanHMS.Printing.Wpf;
 
 namespace SivayaanHMS.Printing;
 
 /// <summary>
-/// OPD prescription slip. Ported from the desktop's PrescriptionPrinter with
-/// the same content in the same order: clinic letterhead, the doctor and
-/// their credentials, a three-row identity grid, vitals, complaint and
-/// diagnosis, the Rx table (with per-line instructions indented beneath their
-/// medicine), investigations advised, advice, follow-up, and a signature
-/// block.
+/// OPD prescription slip, ported from the desktop's PrescriptionPrinter.cs —
+/// boxed clinic header, identity grid, Rx table, follow-up. Body text runs two
+/// points larger than the pharmacy bill and the diagnostic bill print at, by
+/// request; every size below is the document's original size plus that same +2.
+///
+/// Where this deliberately differs from the desktop, each at the clinic's
+/// request or because this system holds data the desktop does not:
+/// <list type="bullet">
+/// <item><b>No Visit No, Patient No or Token</b> in the identity grid. The
+/// desktop still prints all three; the clinic asked for them off this slip, and
+/// for the doctor's registration number to take their place. The registration
+/// therefore has its own cell and is no longer repeated in the credentials line.</item>
+/// <item><b>Height, heart rate and SpO₂</b> after the vitals the desktop prints
+/// (weight, blood pressure, temperature). The desktop has nowhere to record
+/// them; here a clinician may have, and dropping them from the paper would lose
+/// what they entered.</item>
+/// </list>
 /// </summary>
 public static class PrescriptionDocument
 {
+    private const double SizeDelta = 2;
+
     public static byte[] Generate(Visit visit, ClinicProfile clinic, DocumentTheme theme)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-        return Document.Create(c => Compose(c, visit, clinic, theme)).GeneratePdf();
-    }
+        var doc = new FlowDoc();
 
-    private static void Compose(IDocumentContainer container, Visit visit, ClinicProfile clinic, DocumentTheme theme)
-    {
-        const float d = ClinicalSizeDelta;
+        AddClinicHeader(doc, clinic, theme, null);
 
-        container.Page(page =>
+        doc.Add(Text(visit.Doctor.Name, 10 + SizeDelta, Weight.SemiBold, align: Align.Center));
+
+        if (!string.IsNullOrWhiteSpace(visit.Doctor.Speciality))
+            doc.Add(Text(visit.Doctor.Speciality!, 8 + SizeDelta, brush: Muted, align: Align.Center, role: SizeRole.Contact));
+
+        // Date and time side by side; the patient in row 2; the doctor, their
+        // speciality and registration in row 3.
+        var grid = NewTable(1, 1, 1);
+        grid.Rows.Add(IdentityRow(SizeDelta,
+            ("Date", $"{visit.ScheduledOn:dd/MM/yyyy}"),
+            ("Time", $"{visit.ScheduledOn:hh\\:mm tt}")));
+        grid.Rows.Add(IdentityRow(SizeDelta,
+            ("Patient", visit.Patient.Name),
+            ("Age / Sex", $"{visit.Patient.Age} / {visit.Patient.Gender}")));
+        grid.Rows.Add(IdentityRow(SizeDelta,
+            ("Doctor", visit.Doctor.Name),
+            ("Speciality", visit.Doctor.Speciality ?? ""),
+            ("Reg. No", visit.Doctor.RegistrationNo ?? "—")));
+        doc.Add(grid);
+        doc.Add(Rule());
+
+        var vitals = new List<string>();
+        if (visit.WeightKg is { } w) vitals.Add($"Wt {w:0.#} kg");
+        if (!string.IsNullOrWhiteSpace(visit.BloodPressure)) vitals.Add($"BP {visit.BloodPressure}");
+        if (visit.TemperatureF is { } t) vitals.Add($"Temp {t:0.#} °F");
+        if (visit.HeightCm is { } h) vitals.Add($"Ht {h:0.#} cm");
+        if (visit.HeartRateBpm is { } hr) vitals.Add($"HR {hr}/min");
+        if (visit.Spo2Percent is { } spo2) vitals.Add($"SpO₂ {spo2}%");
+        if (vitals.Count > 0)
+            doc.Add(Text(string.Join("   ·   ", vitals), 8 + SizeDelta, brush: Muted, role: SizeRole.Contact));
+
+        if (!string.IsNullOrWhiteSpace(visit.Complaint))
+            doc.Add(LabelValueText("Complaint", visit.Complaint, 8.5 + SizeDelta, topMargin: 3, role: SizeRole.Body));
+
+        if (!string.IsNullOrWhiteSpace(visit.Diagnosis))
+            doc.Add(LabelValueText("Diagnosis", visit.Diagnosis, 8.5 + SizeDelta, role: SizeRole.Body));
+
+        doc.Add(Text("Rx", 15 + SizeDelta, Weight.Bold, topMargin: 6, bottomMargin: 1));
+
+        if (visit.Prescription.Count > 0)
         {
-            page.Size(PageSizes.A5);
-            page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
+            var table = NewTable(3.4, 1.4, 1.2, 0.8, 0.8);
+            table.Rows.Add(Row(true, SizeDelta, "MEDICINE", "DOSE", "FREQUENCY", "DAYS", "QTY"));
 
-            page.Content().Column(col =>
+            foreach (var item in visit.Prescription)
             {
-                Header(col, clinic.Name, clinic.AddressLine, clinic.AddressLine2, clinic.Phone,
-                       clinic.GstRegistered ? clinic.Gstin : null, null, theme, d);
+                table.Rows.Add(Row(false, SizeDelta,
+                    item.MedicineName,
+                    item.Dosage ?? "",
+                    item.Frequency ?? "",
+                    item.Days > 0 ? item.Days.ToString() : "",
+                    item.Quantity > 0 ? item.Quantity.ToString() : ""));
 
-                col.Item().PaddingTop(3).AlignCenter().Text(visit.Doctor.Name)
-                    .FontSize(Body(theme, 10, d)).SemiBold();
+                if (!string.IsNullOrWhiteSpace(item.Instructions))
+                    table.Rows.Add(Row(false, SizeDelta, $"    {item.Instructions}", "", "", "", ""));
+            }
 
-                // Speciality only, here — Reg. No now has its own row below,
-                // in the identity grid rather than this muted credentials
-                // line, so it is not printed twice.
-                if (!string.IsNullOrWhiteSpace(visit.Doctor.Speciality))
-                    col.Item().AlignCenter().Text(visit.Doctor.Speciality!)
-                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
+            doc.Add(table);
+        }
+        else
+        {
+            doc.Add(Text("No medicines prescribed.", 8.5 + SizeDelta, brush: Muted, role: SizeRole.Body));
+        }
 
-                // Visit No, Patient No and Token are internal handles — the
-                // register key and the queue position — and mean nothing to
-                // the person holding the slip, the same reasoning
-                // FeeReceiptDocument already applies to its own identity
-                // grid. Reg. No takes their place: kept even when the clinic
-                // has not recorded one, so a blank beside the label is what
-                // prompts filling it in rather than hiding that it is missing.
-                IdentityRow(col, theme, d,
-                    ("Date", $"{visit.ScheduledOn:dd/MM/yyyy}"),
-                    ("Time", $"{visit.ScheduledOn:hh\\:mm tt}"));
-                IdentityRow(col, theme, d,
-                    ("Patient", visit.Patient.Name),
-                    ("Age / Sex", $"{visit.Patient.Age} / {visit.Patient.Gender}"));
-                IdentityRow(col, theme, d,
-                    ("Doctor", visit.Doctor.Name),
-                    ("Speciality", visit.Doctor.Speciality ?? ""),
-                    ("Reg. No", visit.Doctor.RegistrationNo ?? "—"));
+        if (visit.DiagnosticRequests.Count > 0)
+        {
+            doc.Add(Text("Investigations advised", 12 + SizeDelta, Weight.Bold, topMargin: 8, bottomMargin: 1));
 
-                Rule(col);
+            var tests = NewTable(1);
+            tests.Rows.Add(Row(true, SizeDelta, "TEST"));
 
-                var vitals = new List<string>();
-                if (visit.WeightKg is { } w) vitals.Add($"Wt {w:0.#} kg");
-                if (!string.IsNullOrWhiteSpace(visit.BloodPressure)) vitals.Add($"BP {visit.BloodPressure}");
-                if (visit.TemperatureF is { } t) vitals.Add($"Temp {t:0.#} °F");
-                if (visit.HeightCm is { } h) vitals.Add($"Ht {h:0.#} cm");
-                if (visit.HeartRateBpm is { } hr) vitals.Add($"HR {hr}/min");
-                if (visit.Spo2Percent is { } spo2) vitals.Add($"SpO₂ {spo2}%");
-                if (vitals.Count > 0)
-                    col.Item().Text(string.Join("   ·   ", vitals)).FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
+            foreach (var request in visit.DiagnosticRequests)
+                tests.Rows.Add(Row(false, SizeDelta, request.TestName));
 
-                if (!string.IsNullOrWhiteSpace(visit.Complaint))
-                    LabelValue(col, theme, d, "Complaint", visit.Complaint!);
+            doc.Add(tests);
+        }
 
-                if (!string.IsNullOrWhiteSpace(visit.Diagnosis))
-                    LabelValue(col, theme, d, "Diagnosis", visit.Diagnosis!);
+        if (!string.IsNullOrWhiteSpace(visit.Notes))
+            doc.Add(Text($"Advice: {visit.Notes}", 8.5 + SizeDelta, topMargin: 4, role: SizeRole.Body));
 
-                col.Item().PaddingTop(6).Text("Rx").FontSize(Body(theme, 15, d)).Bold();
+        if (visit.FollowUpOn is { } follow)
+            doc.Add(Text($"Review on {follow:dd MMM yyyy}", 9 + SizeDelta, Weight.SemiBold, topMargin: 4, role: SizeRole.Body));
 
-                if (visit.Prescription.Count > 0)
-                {
-                    col.Item().PaddingTop(1).Table(table =>
-                    {
-                        table.ColumnsDefinition(c =>
-                        {
-                            c.RelativeColumn(3.4f); c.RelativeColumn(1.4f);
-                            c.RelativeColumn(1.2f); c.RelativeColumn(0.8f); c.RelativeColumn(0.8f);
-                        });
+        // The clinic's own footer, set on the Clinic settings tab, takes over from
+        // the shared Reports footer once it is typed.
+        var footer = string.IsNullOrWhiteSpace(clinic.FooterText) ? theme.Footer : clinic.FooterText;
+        if (!string.IsNullOrWhiteSpace(footer))
+            doc.Add(Text(footer, 7.6 + SizeDelta, brush: Muted, align: Align.Center, topMargin: 6, role: SizeRole.Footer));
 
-                        foreach (var head in new[] { "MEDICINE", "DOSE", "FREQUENCY", "DAYS", "QTY" })
-                            table.Cell().BorderBottom(1).PaddingBottom(2).Text(head)
-                                .FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
+        doc.Add(Text(visit.Doctor.Name, 8.5 + SizeDelta, Weight.SemiBold, align: Align.Right, topMargin: 20));
+        doc.Add(Text("Signature", 7.4 + SizeDelta, brush: Muted, align: Align.Right, role: SizeRole.Footer));
 
-                        foreach (var item in visit.Prescription)
-                        {
-                            Cell(table, item.MedicineName);
-                            Cell(table, item.Dosage ?? "");
-                            Cell(table, item.Frequency ?? "");
-                            Cell(table, item.Days > 0 ? item.Days.ToString() : "");
-                            Cell(table, item.Quantity > 0 ? item.Quantity.ToString() : "");
-
-                            // Instructions ride under their own medicine, indented,
-                            // rather than in a column of their own - they are usually
-                            // a sentence and would squeeze every other column.
-                            if (!string.IsNullOrWhiteSpace(item.Instructions))
-                            {
-                                table.Cell().ColumnSpan(5).PaddingLeft(12).PaddingBottom(2)
-                                    .Text(item.Instructions).FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-                            }
-                        }
-
-                        void Cell(TableDescriptor t, string value)
-                            => t.Cell().PaddingVertical(1.5f).Text(value).FontSize(Body(theme, (float)theme.TableRowSize, d));
-                    });
-                }
-                else
-                {
-                    col.Item().Text("No medicines prescribed.").FontSize(Body(theme, (float)theme.TableRowSize, d)).FontColor(Muted);
-                }
-
-                if (visit.DiagnosticRequests.Count > 0)
-                {
-                    col.Item().PaddingTop(8).Text("Investigations advised")
-                        .FontSize(Body(theme, 12, d)).Bold();
-
-                    foreach (var request in visit.DiagnosticRequests)
-                        col.Item().PaddingLeft(8).Text($"•  {request.TestName}").FontSize(Body(theme, (float)theme.TableRowSize, d));
-                }
-
-                if (!string.IsNullOrWhiteSpace(visit.Notes))
-                    col.Item().PaddingTop(4).Text($"Advice: {visit.Notes}").FontSize(Body(theme, (float)theme.TableRowSize, d));
-
-                if (visit.FollowUpOn is { } follow)
-                    col.Item().PaddingTop(4).Text($"Review on {follow:dd MMM yyyy}")
-                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).SemiBold();
-
-                var footer = Footer(clinic.FooterText, theme);
-                if (!string.IsNullOrWhiteSpace(footer))
-                    col.Item().PaddingTop(6).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
-
-                col.Item().PaddingTop(20).AlignRight().Text(visit.Doctor.Name)
-                    .FontSize(Body(theme, (float)theme.TableRowSize, d)).SemiBold();
-                col.Item().AlignRight().Text("Signature").FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
-            });
-        });
+        return doc.ToPdf(theme);
     }
 }

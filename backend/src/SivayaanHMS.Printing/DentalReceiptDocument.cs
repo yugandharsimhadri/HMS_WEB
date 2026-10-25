@@ -1,18 +1,14 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using SivayaanHMS.Core;
 using SivayaanHMS.Data;
-using static SivayaanHMS.Printing.DocumentStyle;
+using static SivayaanHMS.Printing.Wpf;
 
 namespace SivayaanHMS.Printing;
 
 /// <summary>
-/// Receipt for one instalment against a dental case. Unlike every other
-/// receipt here it prints the case's whole standing — total, paid to date,
-/// balance due — because dentistry is paid across sittings and the question
-/// the patient actually asks at the counter is "how much is left", not
-/// "what did I just hand over".
+/// Dental payment receipt, ported line for line from the desktop's
+/// DentalReceiptDocument.cs. The reprint marking is this system's own addition —
+/// the desktop has no reprint of this document — and is styled as the desktop
+/// styles it on every document that does.
 /// </summary>
 public static class DentalReceiptDocument
 {
@@ -20,81 +16,47 @@ public static class DentalReceiptDocument
         DentalPayment payment, DentalCase dentalCase, ClinicProfile clinic, DocumentTheme theme,
         bool isReprint = false)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-        return Document.Create(c => Compose(c, payment, dentalCase, clinic, theme, isReprint)).GeneratePdf();
+        var doc = new FlowDoc();
+
+        AddClinicHeader(doc, clinic, theme,
+            isReprint ? "DENTAL PAYMENT RECEIPT (DUPLICATE)" : "DENTAL PAYMENT RECEIPT");
+
+        var grid = NewTable(1, 1, 1);
+        grid.Rows.Add(IdentityRow(
+            ("Receipt No", payment.ReceiptNo),
+            ("Date", $"{payment.PaidOn:dd/MM/yyyy}"),
+            ("Time", $"{payment.PaidOn:HH:mm}")));
+        grid.Rows.Add(IdentityRow(
+            ("Patient", dentalCase.PatientName),
+            ("Procedure / Package", dentalCase.ProcedureName ?? dentalCase.PackageName ?? ""),
+            ("Tooth", dentalCase.ToothNumber ?? "")));
+        doc.Add(grid);
+        doc.Add(Rule());
+
+        doc.Add(Text($"AMOUNT RECEIVED   ₹{payment.Amount:0.00}", 13, Weight.Bold, align: Align.Right, topMargin: 1, role: SizeRole.Totals));
+        doc.Add(Text($"Paid by {payment.PaymentMode}", 8, brush: Muted, align: Align.Right, role: SizeRole.Contact));
+        doc.Add(Text(AmountInWords.Convert(payment.Amount), 8, brush: Muted, align: Align.Right, topMargin: 3, role: SizeRole.Contact));
+
+        doc.Add(Rule());
+
+        var totals = NewTable(3, 0.2, 1.2);
+        totals.Rows.Add(TotalRow("Case total", dentalCase.TotalCost.ToString("0.00")));
+        totals.Rows.Add(TotalRow("Paid to date", dentalCase.AmountPaid.ToString("0.00")));
+        doc.Add(totals);
+
+        doc.Add(Text($"BALANCE DUE   ₹{dentalCase.Balance:0.00}", 11, Weight.Bold,
+                     brush: dentalCase.Balance > 0 ? Muted : null,
+                     align: Align.Right, topMargin: 4));
+
+        doc.Add(Rule());
+
+        var footer = string.IsNullOrWhiteSpace(clinic.FooterText) ? theme.Footer : clinic.FooterText;
+        if (!string.IsNullOrWhiteSpace(footer))
+            doc.Add(Text(footer, 7.4, brush: Muted, align: Align.Center, topMargin: 6, role: SizeRole.Footer));
+
+        if (isReprint)
+            doc.Add(Text("DUPLICATE", 9, Weight.Bold, Muted, Align.Center, topMargin: 5));
+
+        return doc.ToPdf(theme);
     }
-
-    private static void Compose(
-        IDocumentContainer container, DentalPayment payment, DentalCase dentalCase,
-        ClinicProfile clinic, DocumentTheme theme, bool isReprint)
-    {
-        const float d = ClinicalSizeDelta;
-
-        container.Page(page =>
-        {
-            page.Size(PageSizes.A5);
-            page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
-
-            page.Content().Column(col =>
-            {
-                Header(col, clinic.Name, clinic.AddressLine, clinic.AddressLine2, clinic.Phone,
-                       clinic.GstRegistered ? clinic.Gstin : null,
-                       isReprint ? "DENTAL PAYMENT RECEIPT (DUPLICATE)" : "DENTAL PAYMENT RECEIPT", theme, d);
-
-                IdentityRow(col, theme, d,
-                    ("Receipt No", payment.ReceiptNo),
-                    ("Date", $"{payment.PaidOn:dd/MM/yyyy}"),
-                    ("Time", $"{payment.PaidOn:HH:mm}"));
-                IdentityRow(col, theme, d,
-                    ("Patient", dentalCase.PatientName),
-                    ("Procedure / Package", dentalCase.ProcedureName ?? dentalCase.PackageName ?? ""),
-                    ("Tooth", dentalCase.ToothNumber ?? ""));
-
-                Rule(col);
-
-                col.Item().PaddingTop(1).AlignRight()
-                    .Text($"AMOUNT RECEIVED   Rs. {payment.Amount:0.00}")
-                    .FontSize(Body(theme, (float)theme.TotalsSize, d)).Bold();
-
-                col.Item().AlignRight().Text($"Paid by {payment.PaymentMode}")
-                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-
-                if (!string.IsNullOrWhiteSpace(payment.TransactionNo))
-                    col.Item().AlignRight().Text($"Ref: {payment.TransactionNo}")
-                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-
-                col.Item().PaddingTop(3).AlignRight().Text(AmountInWords.Convert(payment.Amount))
-                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-
-                Rule(col);
-
-                TotalLine(col, theme, d, "Case total", dentalCase.TotalCost.ToString("0.00"));
-                TotalLine(col, theme, d, "Paid to date", dentalCase.AmountPaid.ToString("0.00"));
-
-                col.Item().PaddingTop(4).AlignRight()
-                    .Text($"BALANCE DUE   Rs. {dentalCase.Balance:0.00}")
-                    .FontSize(Body(theme, 11, d)).Bold()
-                    .FontColor(dentalCase.Balance > 0 ? Muted : Colors.Black);
-
-                Rule(col);
-
-                var footer = Footer(clinic.FooterText, theme);
-                if (!string.IsNullOrWhiteSpace(footer))
-                    col.Item().PaddingTop(6).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
-
-                if (isReprint)
-                    col.Item().PaddingTop(5).AlignCenter().Text("DUPLICATE")
-                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).Bold().FontColor(Muted);
-            });
-        });
-    }
-
-    private static void TotalLine(ColumnDescriptor col, DocumentTheme theme, float d, string label, string value)
-        => col.Item().Row(row =>
-        {
-            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, (float)theme.BodyTextSize, d));
-            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, (float)theme.BodyTextSize, d));
-        });
 }

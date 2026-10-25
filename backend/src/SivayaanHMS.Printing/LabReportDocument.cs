@@ -1,157 +1,84 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using SivayaanHMS.Core;
 using SivayaanHMS.Data;
-using static SivayaanHMS.Printing.DocumentStyle;
+using static SivayaanHMS.Printing.Wpf;
 
 namespace SivayaanHMS.Printing;
 
-/// <summary>
-/// The pathology lab report — one section per ordered report, each listing
-/// its analytes' results against the reference range snapshotted at entry
-/// time.
-///
-/// Only ever printed once the order has been verified. That is enforced by
-/// the controller, not here: this builder renders whatever it is given, so
-/// the guard lives at the one door the browser can knock on.
-/// </summary>
+/// <summary>Laboratory report, ported line for line from the desktop's LabReportDocument.cs.</summary>
 public static class LabReportDocument
 {
     public static byte[] Generate(LabOrder order, ClinicProfile clinic, DocumentTheme theme)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-        return Document.Create(c => Compose(c, order, clinic, theme)).GeneratePdf();
-    }
+        var doc = new FlowDoc();
 
-    private static void Compose(
-        IDocumentContainer container, LabOrder order, ClinicProfile clinic, DocumentTheme theme)
-    {
-        const float d = ClinicalSizeDelta;
+        AddClinicHeader(doc, clinic, theme, "LABORATORY REPORT");
 
-        container.Page(page =>
+        var head = NewTable(1, 1, 1);
+        head.Rows.Add(IdentityRow(
+            ("Order No", order.OrderNo),
+            ("Date", $"{order.OrderDate:dd/MM/yyyy}"),
+            ("Time", $"{order.OrderDate:HH:mm}")));
+        head.Rows.Add(IdentityRow(
+            ("Patient", order.PatientName),
+            ("Patient No", order.PatientNo),
+            ("Referred By", order.ReferredBy ?? "-")));
+
+        if (!string.IsNullOrWhiteSpace(order.SpecimenId) || order.CollectedOn is not null)
+            head.Rows.Add(IdentityRow(
+                ("Specimen", order.SpecimenId ?? "-"),
+                ("Collected", order.CollectedOn is { } collected ? $"{collected:dd/MM/yyyy HH:mm}" : "-"),
+                ("Received", order.ReceivedOn is { } received ? $"{received:dd/MM/yyyy HH:mm}" : "-")));
+
+        doc.Add(head);
+        doc.Add(Rule());
+
+        foreach (var orderReport in order.Reports.OrderBy(r => r.ReportName))
         {
-            page.Size(PageSizes.A4);
-            page.Margin(24);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
+            doc.Add(Text(orderReport.ReportName.ToUpperInvariant(), 10, Weight.Bold, topMargin: 6, bottomMargin: 2));
 
-            page.Content().Column(col =>
+            var table = NewTable(2.2, 1, 0.8, 1.6, 0.8);
+            table.Rows.Add(Row(true, "ANALYTE", "RESULT", "UNITS", "REFERENCE RANGE", "FLAG"));
+
+            foreach (var result in orderReport.Results.OrderBy(r => r.AnalyteName))
             {
-                Header(col, clinic.Name, clinic.AddressLine, clinic.AddressLine2, clinic.Phone,
-                       clinic.GstRegistered ? clinic.Gstin : null, "LABORATORY REPORT", theme, d);
+                var flagText = result.Flag == LabResultFlag.Normal ? "" : result.Flag.ToString().ToUpperInvariant();
+                table.Rows.Add(Row(false, result.AnalyteName, result.ResultValue, result.Units,
+                    result.ReferenceRangeDisplay, flagText));
+            }
 
-                IdentityRow(col, theme, d,
-                    ("Order No", order.OrderNo),
-                    ("Date", $"{order.OrderDate:dd/MM/yyyy}"),
-                    ("Time", $"{order.OrderDate:HH:mm}"));
-                IdentityRow(col, theme, d,
-                    ("Patient", order.PatientName),
-                    ("Patient No", order.PatientNo),
-                    ("Referred By", order.ReferredBy ?? "-"));
+            doc.Add(table);
 
-                if (!string.IsNullOrWhiteSpace(order.SpecimenId) || order.CollectedOn is not null)
-                    IdentityRow(col, theme, d,
-                        ("Specimen", order.SpecimenId ?? "-"),
-                        ("Collected", order.CollectedOn is { } collected ? $"{collected:dd/MM/yyyy HH:mm}" : "-"),
-                        ("Received", order.ReceivedOn is { } received ? $"{received:dd/MM/yyyy HH:mm}" : "-"));
+            if (!string.IsNullOrWhiteSpace(orderReport.Notes))
+                doc.Add(Text($"Interpretation: {orderReport.Notes}", 8, brush: Muted, topMargin: 2, role: SizeRole.Contact));
+        }
 
-                Rule(col);
+        doc.Add(Rule());
 
-                foreach (var orderReport in order.Reports.OrderBy(r => r.ReportName))
-                {
-                    col.Item().PaddingTop(6).PaddingBottom(2)
-                        .Text(orderReport.ReportName.ToUpperInvariant())
-                        .FontSize(Body(theme, 10, d)).Bold();
+        var totals = NewTable(3, 0.2, 1.2);
+        totals.Rows.Add(TotalRow("Total", order.TotalAmount.ToString("0.00")));
+        if (order.Discount > 0) totals.Rows.Add(TotalRow("Discount", $"-{order.Discount:0.00}"));
+        doc.Add(totals);
 
-                    col.Item().Table(table =>
-                    {
-                        table.ColumnsDefinition(c =>
-                        {
-                            c.RelativeColumn(2.2f); c.RelativeColumn(1f); c.RelativeColumn(0.8f);
-                            c.RelativeColumn(1.6f); c.RelativeColumn(0.8f);
-                        });
+        doc.Add(Text($"AMOUNT PAID   ₹{order.FinalAmount:0.00}", 13, Weight.Bold, align: Align.Right, topMargin: 1, role: SizeRole.Totals));
+        doc.Add(Text($"Paid by {order.PaymentMode}", 8, brush: Muted, align: Align.Right, role: SizeRole.Contact));
 
-                        HeaderRow(table, theme, d, "ANALYTE", "RESULT", "UNITS", "REFERENCE RANGE", "FLAG");
+        if (!string.IsNullOrWhiteSpace(order.Remarks))
+            doc.Add(Text($"Remarks: {order.Remarks}", 8, brush: Muted, topMargin: 3, role: SizeRole.Contact));
 
-                        foreach (var result in orderReport.Results.OrderBy(r => r.AnalyteName))
-                        {
-                            // A normal result carries no flag text at all —
-                            // a column of "NORMAL" would bury the one row
-                            // that is not.
-                            var flagText = result.Flag == LabResultFlag.Normal
-                                ? ""
-                                : result.Flag.ToString().ToUpperInvariant();
+        doc.Add(Rule());
 
-                            var abnormal = result.Flag != LabResultFlag.Normal;
+        var verifiedOn = order.Reports.SelectMany(r => r.Results).Select(r => r.VerifiedOn).Where(v => v is not null).Max();
+        var verifiedBy = order.Reports.SelectMany(r => r.Results).Select(r => r.VerifiedBy)
+            .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
 
-                            Cell(table, theme, d, result.AnalyteName, false);
-                            Cell(table, theme, d, result.ResultValue, abnormal);
-                            Cell(table, theme, d, result.Units, false);
-                            Cell(table, theme, d, result.ReferenceRangeDisplay, false);
-                            Cell(table, theme, d, flagText, abnormal);
-                        }
-                    });
+        if (verifiedOn is not null)
+            doc.Add(Text($"Verified by {verifiedBy} on {verifiedOn:dd/MM/yyyy HH:mm}", 7.6, brush: Muted,
+                         align: Align.Right, topMargin: 4, role: SizeRole.Footer));
 
-                    if (!string.IsNullOrWhiteSpace(orderReport.Notes))
-                        col.Item().PaddingTop(2).Text($"Interpretation: {orderReport.Notes}")
-                            .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-                }
+        var footer = string.IsNullOrWhiteSpace(clinic.FooterText) ? theme.Footer : clinic.FooterText;
+        if (!string.IsNullOrWhiteSpace(footer))
+            doc.Add(Text(footer, 7.4, brush: Muted, align: Align.Center, topMargin: 6, role: SizeRole.Footer));
 
-                Rule(col);
-
-                TotalLine(col, theme, d, "Total", order.TotalAmount.ToString("0.00"));
-                if (order.Discount > 0)
-                    TotalLine(col, theme, d, "Discount", $"-{order.Discount:0.00}");
-
-                col.Item().PaddingTop(1).AlignRight()
-                    .Text($"AMOUNT PAID   Rs. {order.FinalAmount:0.00}")
-                    .FontSize(Body(theme, (float)theme.TotalsSize, d)).Bold();
-
-                col.Item().AlignRight().Text($"Paid by {order.PaymentMode}")
-                    .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-
-                if (!string.IsNullOrWhiteSpace(order.Remarks))
-                    col.Item().PaddingTop(3).Text($"Remarks: {order.Remarks}")
-                        .FontSize(Body(theme, (float)theme.ContactLineSize, d)).FontColor(Muted);
-
-                Rule(col);
-
-                // Who stood behind these numbers, and when. The whole status
-                // chain exists so this line can be printed truthfully.
-                var results = order.Reports.SelectMany(r => r.Results).ToList();
-                var verifiedOn = results.Where(r => r.VerifiedOn is not null).Max(r => r.VerifiedOn);
-                var verifiedBy = results.FirstOrDefault(r => !string.IsNullOrWhiteSpace(r.VerifiedBy))?.VerifiedBy;
-
-                if (verifiedOn is not null)
-                    col.Item().PaddingTop(4).AlignRight()
-                        .Text($"Verified by {verifiedBy} on {verifiedOn:dd/MM/yyyy HH:mm}")
-                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
-
-                var footer = Footer(clinic.FooterText, theme);
-                if (!string.IsNullOrWhiteSpace(footer))
-                    col.Item().PaddingTop(6).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
-            });
-        });
+        return doc.ToPdf(theme);
     }
-
-    private static void HeaderRow(TableDescriptor table, DocumentTheme theme, float d, params string[] cells)
-    {
-        foreach (var cell in cells)
-            table.Cell().BorderBottom(1).PaddingBottom(2).Text(cell)
-                .FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
-    }
-
-    private static void Cell(TableDescriptor table, DocumentTheme theme, float d, string text, bool emphasise)
-    {
-        var span = table.Cell().PaddingVertical(1.5f).Text(text).FontSize(Body(theme, (float)theme.TableRowSize, d));
-        if (emphasise) span.Bold();
-    }
-
-    private static void TotalLine(ColumnDescriptor col, DocumentTheme theme, float d, string label, string value)
-        => col.Item().Row(row =>
-        {
-            row.RelativeItem().AlignRight().Text(label).FontSize(Body(theme, (float)theme.BodyTextSize, d));
-            row.ConstantItem(70).AlignRight().Text(value).FontSize(Body(theme, (float)theme.BodyTextSize, d));
-        });
 }

@@ -1,107 +1,56 @@
-using QuestPDF.Fluent;
-using QuestPDF.Helpers;
-using QuestPDF.Infrastructure;
 using SivayaanHMS.Core;
 using SivayaanHMS.Data;
-using static SivayaanHMS.Printing.DocumentStyle;
+using static SivayaanHMS.Printing.Wpf;
 
 namespace SivayaanHMS.Printing;
 
-/// <summary>
-/// A patient's vaccination record, printable as a simple certificate-style
-/// list — what a parent hands to a school or asks for before travel. Prints
-/// even when empty, saying so: a card showing no doses is a real answer,
-/// and refusing to print one would send the parent away with nothing.
-/// </summary>
+/// <summary>Vaccination record, ported line for line from the desktop's VaccinationHistoryDocument.cs.</summary>
 public static class VaccinationHistoryDocument
 {
     public static byte[] Generate(
         Patient patient, IReadOnlyList<VaccinationRecord> records, ClinicProfile clinic, DocumentTheme theme)
     {
-        QuestPDF.Settings.License = LicenseType.Community;
-        return Document.Create(c => Compose(c, patient, records, clinic, theme)).GeneratePdf();
-    }
+        var doc = new FlowDoc();
 
-    private static void Compose(
-        IDocumentContainer container, Patient patient, IReadOnlyList<VaccinationRecord> records,
-        ClinicProfile clinic, DocumentTheme theme)
-    {
-        const float d = ClinicalSizeDelta;
+        AddClinicHeader(doc, clinic, theme, "VACCINATION RECORD");
 
-        container.Page(page =>
+        var head = NewTable(1, 1, 1);
+        head.Rows.Add(IdentityRow(
+            ("Patient", patient.Name),
+            ("Patient No", patient.PatientNo),
+            ("Age", $"{patient.Age} yrs")));
+        head.Rows.Add(IdentityRow(
+            ("Gender", patient.Gender.ToString()),
+            ("Guardian", patient.GuardianName ?? "-"),
+            ("Printed on", $"{DateTime.Now:dd/MM/yyyy}")));
+        doc.Add(head);
+        doc.Add(Rule());
+
+        var table = NewTable(1, 1.8, 1.8, 0.6, 1, 1.2);
+        table.Rows.Add(Row(true, "GIVEN ON", "TYPE", "BRAND GIVEN", "DOSE", "BATCH", "SITE"));
+
+        foreach (var record in records.OrderBy(r => r.GivenOn))
         {
-            page.Size(PageSizes.A5.Landscape());
-            page.Margin(20);
-            page.DefaultTextStyle(t => t.FontFamily(BodyFont(theme)).FontSize(Body(theme, (float)theme.BodyTextSize, d)));
+            var brand = record.ProductName is { } product
+                ? (record.Manufacturer is { } maker ? $"{product} ({maker})" : product)
+                : "-";
 
-            page.Content().Column(col =>
-            {
-                Header(col, clinic.Name, clinic.AddressLine, clinic.AddressLine2, clinic.Phone,
-                       clinic.GstRegistered ? clinic.Gstin : null, "VACCINATION RECORD", theme, d);
+            table.Rows.Add(Row(false,
+                $"{record.GivenOn:dd/MM/yyyy}", record.VaccineName, brand, record.DoseNumber.ToString(),
+                record.BatchNo ?? "-", record.SiteOfInjection ?? "-"));
+        }
 
-                IdentityRow(col, theme, d,
-                    ("Patient", patient.Name),
-                    ("Patient No", patient.PatientNo),
-                    ("Age", $"{patient.Age} yrs"));
-                IdentityRow(col, theme, d,
-                    ("Gender", patient.Gender.ToString()),
-                    ("Guardian", patient.GuardianName ?? "-"),
-                    ("Printed on", $"{DateTime.Now:dd/MM/yyyy}"));
+        doc.Add(table);
 
-                Rule(col);
+        if (records.Count == 0)
+            doc.Add(Text("No doses recorded yet.", 9, brush: Muted, topMargin: 6, role: SizeRole.Body));
 
-                col.Item().PaddingTop(4).Table(table =>
-                {
-                    table.ColumnsDefinition(c =>
-                    {
-                        c.RelativeColumn(1f); c.RelativeColumn(1.8f); c.RelativeColumn(1.8f);
-                        c.RelativeColumn(0.6f); c.RelativeColumn(1f); c.RelativeColumn(1.2f);
-                    });
+        doc.Add(Rule());
 
-                    HeaderRow(table, theme, d, "GIVEN ON", "TYPE", "BRAND GIVEN", "DOSE", "BATCH", "SITE");
+        var footer = string.IsNullOrWhiteSpace(clinic.FooterText) ? theme.Footer : clinic.FooterText;
+        if (!string.IsNullOrWhiteSpace(footer))
+            doc.Add(Text(footer, 7.4, brush: Muted, align: Align.Center, topMargin: 6, role: SizeRole.Footer));
 
-                    foreach (var record in records.OrderBy(r => r.GivenOn))
-                    {
-                        // The brand is the manufacturer's, and a parent
-                        // travelling may be asked for exactly it.
-                        var brand = record.ProductName is { } product
-                            ? (record.Manufacturer is { } maker ? $"{product} ({maker})" : product)
-                            : "-";
-
-                        Row(table, theme, d,
-                            $"{record.GivenOn:dd/MM/yyyy}",
-                            record.VaccineName,
-                            brand,
-                            record.DoseNumber.ToString(),
-                            record.BatchNo ?? "-",
-                            record.SiteOfInjection ?? "-");
-                    }
-                });
-
-                if (records.Count == 0)
-                    col.Item().PaddingTop(6).Text("No doses recorded yet.")
-                        .FontSize(Body(theme, (float)theme.BodyTextSize, d)).FontColor(Muted);
-
-                Rule(col);
-
-                var footer = Footer(clinic.FooterText, theme);
-                if (!string.IsNullOrWhiteSpace(footer))
-                    col.Item().PaddingTop(6).AlignCenter().Text(footer)
-                        .FontSize(Body(theme, (float)theme.FooterSize, d)).FontColor(Muted);
-            });
-        });
-    }
-
-    private static void HeaderRow(TableDescriptor table, DocumentTheme theme, float d, params string[] cells)
-    {
-        foreach (var cell in cells)
-            table.Cell().BorderBottom(1).PaddingBottom(2).Text(cell)
-                .FontSize(Body(theme, (float)theme.TableHeaderSize, d)).Bold();
-    }
-
-    private static void Row(TableDescriptor table, DocumentTheme theme, float d, params string[] cells)
-    {
-        foreach (var cell in cells)
-            table.Cell().PaddingVertical(1.5f).Text(cell).FontSize(Body(theme, (float)theme.TableRowSize, d));
+        return doc.ToPdf(theme);
     }
 }
