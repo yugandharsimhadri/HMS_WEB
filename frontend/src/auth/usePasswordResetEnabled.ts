@@ -2,36 +2,41 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import type { AuthOptionsResponse } from '../api/types';
 
-// One request per page load, shared by every screen that asks.
-let pending: Promise<boolean> | null = null;
+// One request per page load, shared by every screen that asks. Null when the
+// API could not be asked — callers then behave exactly as before these
+// options existed.
+let pending: Promise<AuthOptionsResponse | null> | null = null;
 
-function load(): Promise<boolean> {
-  pending ??= api
-    .get<AuthOptionsResponse>('/api/auth/options')
-    .then((o) => o.passwordResetEnabled)
-    // Unreachable API: offer the link anyway. The reset page reports the
-    // outage itself, which says more than a link that silently vanished.
-    .catch(() => true);
+function load(): Promise<AuthOptionsResponse | null> {
+  pending ??= api.get<AuthOptionsResponse>('/api/auth/options').catch(() => null);
   return pending;
 }
 
 /**
- * Whether this deployment offers "Forgot password" (PasswordReset:Enabled on
- * the server). Undefined until known, so the link appears once rather than
- * flashing up and disappearing.
+ * GET /api/auth/options: PasswordReset:Enabled and SivaComm:Enabled on the
+ * server. Undefined until known, null if it could not be fetched.
+ *
+ * Every caller treats "not known" as the original behaviour — the Forgot
+ * password link shown, the original reset page — so with SivaComm off nothing
+ * on screen waits for, or depends on, this request.
  */
-export function usePasswordResetEnabled(): boolean | undefined {
-  const [enabled, setEnabled] = useState<boolean | undefined>(undefined);
+export function useAuthOptions(): AuthOptionsResponse | null | undefined {
+  const [options, setOptions] = useState<AuthOptionsResponse | null | undefined>(undefined);
 
   useEffect(() => {
     let live = true;
-    load().then((v) => {
-      if (live) setEnabled(v);
+    load().then((o) => {
+      if (live) setOptions(o);
     });
     return () => {
       live = false;
     };
   }, []);
 
-  return enabled;
+  return options;
+}
+
+/** False only when the server explicitly says self-service reset is off. */
+export function usePasswordResetEnabled(): boolean {
+  return useAuthOptions()?.passwordResetEnabled !== false;
 }

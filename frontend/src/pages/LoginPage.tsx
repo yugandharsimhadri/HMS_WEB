@@ -88,12 +88,11 @@ export function LoginPage() {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
 
-        {resetEnabled === true && (
+        {resetEnabled ? (
           <p className="auth-footer">
             <Link to="/forgot-password">Forgot password?</Link>
           </p>
-        )}
-        {resetEnabled === false && (
+        ) : (
           <p className="auth-footer">Forgot your password? Ask your clinic admin to reset it.</p>
         )}
 

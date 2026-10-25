@@ -13,21 +13,43 @@ number already on file, never to a number somebody types in.**
 
 ## The shape
 
+There are two flows. **`SivaComm:Enabled` is off by default, and off means
+the original flow, unchanged** — the same page, the same endpoints, the same
+responses, the same tables written. The three-step flow exists only when the
+flag is on. ([The switch](#the-switch-sivacommenabled) below.)
+
+**Original flow — `SivaComm:Enabled = false` (default):**
+
 | | |
 |---|---|
-| `POST /api/tenants/register` | now takes `phone`, stores it on the admin user, sends a welcome message |
-| `POST /api/auth/forgot-password` | `{ username }` → `{ message, resetToken }`; sends a 6-digit code to that account's phone |
+| `POST /api/tenants/register` | takes `phone`, stores it on the admin user, sends a welcome message |
+| `POST /api/auth/forgot-password` | `{ username }` → `{ message }`; sends a 6-digit code to that account's phone |
+| `POST /api/auth/reset-password` | `{ username, code, newPassword }` → sets the password |
+
+The page asks for the username, then for the code and the new password on
+one screen (`ClassicForgotPasswordPage`). `verify-reset-code` and
+`resend-reset-code` answer **404** — in this flow they do not exist.
+
+**SivaComm flow — `SivaComm:Enabled = true`:**
+
+| | |
+|---|---|
+| `POST /api/auth/forgot-password` | `{ username }` → `{ message, resetToken }`; SivaComm sends the code |
 | `POST /api/auth/verify-reset-code` | `{ resetToken, code }` → `VERIFIED`, or what went wrong |
 | `POST /api/auth/reset-password` | `{ resetToken, newPassword }` → sets the password, **only** after `VERIFIED` |
 | `POST /api/auth/resend-reset-code` | `{ resetToken }` → a fresh code for the same reset |
 
-All four reset endpoints are anonymous, like `login`.
+`GET /api/auth/options` → `{ passwordResetEnabled, sivaCommEnabled }` tells
+the page which flow to show. Until it answers (or if it cannot), the page
+shows the original flow, so with the flag off nothing on screen waits on it.
+All reset endpoints are anonymous, like `login`.
 
-### Three steps, not two
+### Three steps, not two (SivaComm flow)
 
-The first version took the code and the new password in one submit. It now
-takes them separately, and the screen shows the password fields only after
-the API has said `VERIFIED` — the browser does not decide that.
+The original flow takes the code and the new password in one submit. The
+SivaComm flow takes them separately, and the screen shows the password
+fields only after the API has said `VERIFIED` — the browser does not decide
+that.
 
 That ordering is enforced on the server, not just on the screen. Each reset
 is a row in `PasswordResetTransactions` (stage `CodeSent` → `Verified` →
@@ -47,9 +69,9 @@ Every step answers in one shape, `{ status, message, remainingAttempts? }`:
 | `RATE_LIMITED` | 429 | wait and retry |
 | `TEMPORARY_ERROR` | 503 | "try again in a moment" — **never** treated as success |
 
-The old one-step shape (`{ username, code, newPassword }`) is still accepted
-when `SivaComm:Enabled` is false, so a browser holding the previous build keeps
-working through a deploy. It is refused when SivaComm is enabled.
+A request in the other flow's shape — a browser that loaded the page before
+the flag was switched — gets `400 "This page is out of date. Reload it and
+request a new code."`
 
 ---
 
@@ -135,21 +157,35 @@ One flag, read from the config files at startup:
 | `false` (default) | **The normal flow.** This application generates and checks the code in its own `PasswordResetCodes` table and sends it (and the welcome message) itself — through WhatsApp if the `WhatsApp` section is filled in, otherwise to the log. Nothing in this deployment talks to SivaComm. |
 | `true` | **OTP authentication through SivaComm.** SivaComm generates, sends and verifies the code and sends the welcome message. This application still owns the user, the stored phone, the reset transaction and the password. `BaseUrl`, `ClientId`, `KeyId` and `Secret` are required — the API refuses to start without them rather than failing at the first reset somebody needs. |
 
-The rest of the flow — the user, the stored phone, the reset transaction, the
-password — is this application's either way, and the password never leaves it.
-The three-step screen is the same in both; only who checks the code differs.
+The user, the stored phone and the password are this application's either
+way, and the password never leaves it.
 
-| | **Enabled = false** | **Enabled = true** |
+| | **Enabled = false (default)** | **Enabled = true** |
 |---|---|---|
+| Reset page | original: code + new password on one screen | three steps: code, then new password |
 | Code generated, stored, checked | here, `PasswordResetCodes` | SivaComm (keyed HMAC, not stored) |
 | Sent through | `IMessageSender` → WhatsApp or the log | SivaComm's worker → WhatsApp |
 | Welcome message | `IMessageSender` here | SivaComm (`SivaCommMessageSender`) |
+| `PasswordResetTransactions` rows | none | one per reset |
 | Delivery receipts, dashboard | no | yes — SivaComm's admin dashboard |
 | Configured in | the `WhatsApp` section | the `SivaComm` section |
 
-Disabled is exactly the behaviour this document described before, re-housed
-behind `IOtpGateway` (`LocalOtpGateway`). Nothing changes for a deployment
-that does not opt in.
+**Off is the code that ran before SivaComm, not a re-implementation of it:**
+`forgot-password` runs the original method verbatim
+(`AuthController.ClassicForgotPasswordAsync`), `reset-password` the original
+one-step branch, and the page is the original component
+(`ClassicForgotPasswordPage`, identical to `main` but for its name).
+`ClassicPasswordResetTests` pins that behaviour, and it was checked end to end
+in a browser with no `SivaComm` section in the config at all.
+
+What a deployment that leaves the flag off still gets from this branch:
+
+- **One new, empty table**, `PasswordResetTransactions`, from the migration —
+  run migrations before publishing as for every release. Nothing writes to it
+  while the flag is off.
+- `GET /api/auth/options`, read by the sign-in page. The "Forgot password?"
+  link does not wait for it.
+- `PasswordReset:Enabled` (default `true` = as before).
 
 ### A second, optional switch: `PasswordReset:Enabled`
 

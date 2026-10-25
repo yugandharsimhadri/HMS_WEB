@@ -21,6 +21,8 @@ export interface ForgotPasswordResponse {
 export interface AuthOptionsResponse {
   /** PasswordReset:Enabled. False: no "Forgot password"; the clinic admin resets passwords. */
   passwordResetEnabled: boolean;
+  /** SivaComm:Enabled (default false). False: the original reset page. True: the three-step SivaComm page. */
+  sivaCommEnabled: boolean;
 }
 
 /** What verify-reset-code and reset-password answer — on success and, as the
