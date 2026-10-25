@@ -12,6 +12,35 @@ export interface LoginResponse {
 export interface ForgotPasswordResponse {
   /** The same sentence whether or not the account exists — see the API. */
   message: string;
+  /** Opaque; identifies this reset to the next two steps. Issued for every
+   *  request alike, so it says nothing about whether the account exists. */
+  resetToken?: string;
+}
+
+/** GET /api/auth/options — deployment settings the sign-in screens need. */
+export interface AuthOptionsResponse {
+  /** PasswordReset:Enabled. False: no "Forgot password"; the clinic admin resets passwords. */
+  passwordResetEnabled: boolean;
+}
+
+/** What verify-reset-code and reset-password answer — on success and, as the
+ *  ApiError body, on failure. */
+export interface ResetStepResponse {
+  status:
+    | 'VERIFIED'
+    | 'PASSWORD_CHANGED'
+    | 'INVALID_OTP'
+    | 'EXPIRED'
+    | 'ATTEMPTS_EXCEEDED'
+    | 'ALREADY_USED'
+    | 'CANCELLED'
+    | 'NOT_VERIFIED'
+    | 'INVALID_PASSWORD'
+    | 'RATE_LIMITED'
+    | 'DISABLED'
+    | 'TEMPORARY_ERROR';
+  message: string;
+  remainingAttempts?: number | null;
 }
 
 export interface RegisterTenantResponse {

@@ -52,14 +52,13 @@ public sealed class TestDb : IDisposable
     private string MaintenanceConnectionString =>
         new NpgsqlConnectionStringBuilder(_server) { Database = "postgres", Pooling = false }.ConnectionString;
 
-    public AppDbContext CreateContext(Guid tenantId)
-    {
-        var options = new DbContextOptionsBuilder<AppDbContext>()
-            .UseNpgsql(ConnectionString)
-            .Options;
+    /// <summary>For code that builds its own tenant-scoped contexts from options,
+    /// the way the API's controllers do.</summary>
+    public DbContextOptions<AppDbContext> Options =>
+        new DbContextOptionsBuilder<AppDbContext>().UseNpgsql(ConnectionString).Options;
 
-        return new AppDbContext(options, currentTenant: new FixedTenantContext(tenantId));
-    }
+    public AppDbContext CreateContext(Guid tenantId) =>
+        new(Options, currentTenant: new FixedTenantContext(tenantId));
 
     /// <summary>
     /// Builds the schema from the model rather than by replaying migrations.

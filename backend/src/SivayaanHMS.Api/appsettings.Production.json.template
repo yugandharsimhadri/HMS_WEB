@@ -45,6 +45,37 @@
     "ApplicationName": "SivayaanHMS"
   },
 
+  "PasswordReset": {
+    "//": [
+      "Whether users can reset a forgotten password themselves with a one-time code to their phone.",
+      "true  - the Forgot password link is shown; codes come from Messaging:Mode below.",
+      "false - the link is hidden and the reset endpoints refuse; the clinic admin resets passwords."
+    ],
+    "Enabled": true
+  },
+
+  "Messaging": {
+    "//": [
+      "Who sends reset codes and welcome messages. Full guide: docs/PASSWORD_RESET.md.",
+      "Local    - this application, through the WhatsApp section below (or the log). The default.",
+      "SivaComm - the central SivaComm service; fill the SivaComm section. The WhatsApp section is then unused."
+    ],
+    "Mode": "Local"
+  },
+
+  "SivaComm": {
+    "//": [
+      "Used only when Messaging:Mode is SivaComm. Values come from SivaComm's dashboard when HMS is registered.",
+      "BaseUrl  - the SivaComm API origin, server to server. Never exposed to the browser.",
+      "Secret   - shown once by SivaComm. This file only, or the SivaComm__Secret environment variable."
+    ],
+    "BaseUrl": "",
+    "ClientId": "hms-web",
+    "KeyId": "",
+    "Secret": "",
+    "TimeoutSeconds": 10
+  },
+
   "WhatsApp": {
     "//": [
       "Welcome messages and password-reset codes. Leave AccessToken or PhoneNumberId empty and the",

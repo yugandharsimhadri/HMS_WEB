@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { PLATFORM_ADMIN_ROLE, useAuth } from '../auth/AuthContext';
 import { ApiError } from '../api/client';
+import { usePasswordResetEnabled } from '../auth/usePasswordResetEnabled';
 
 export function LoginPage() {
   const { login } = useAuth();
@@ -17,6 +18,10 @@ export function LoginPage() {
   // Set by the reset screen on its way here, so the person knows the new
   // password took effect rather than wondering whether it saved.
   const justReset = params.get('reset') === '1';
+
+  // PasswordReset:Enabled on the server. Off, there is no self-service route
+  // and the admin resets passwords, so the link is not offered.
+  const resetEnabled = usePasswordResetEnabled();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -83,9 +88,14 @@ export function LoginPage() {
           {busy ? 'Signing in…' : 'Sign in'}
         </button>
 
-        <p className="auth-footer">
-          <Link to="/forgot-password">Forgot password?</Link>
-        </p>
+        {resetEnabled === true && (
+          <p className="auth-footer">
+            <Link to="/forgot-password">Forgot password?</Link>
+          </p>
+        )}
+        {resetEnabled === false && (
+          <p className="auth-footer">Forgot your password? Ask your clinic admin to reset it.</p>
+        )}
 
         <p className="auth-footer">
           New clinic? <Link to="/register">Register here</Link>

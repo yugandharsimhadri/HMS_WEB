@@ -8,6 +8,12 @@ The code is finished. What remains is an account, a number, and two templates
 Meta has to approve — which is days of waiting, not hours of work, so start it
 before you need it.
 
+> **This page is for `Messaging:Mode = Local`.** In `SivaComm` mode HMS does
+> not talk to Meta at all: the WhatsApp account, token, templates and webhook
+> are configured once in SivaComm (its `docs/WHATSAPP_SETUP.md`) and shared by
+> every application, and this file's `WhatsApp` section is unused. See
+> PASSWORD_RESET.md, "Two modes".
+
 ---
 
 ## The one thing to understand first
@@ -76,10 +82,13 @@ The parameter order matters and is what the code sends:
 Approval usually takes minutes to a day. Rejections are almost always about
 category, or about a template that looks promotional.
 
-> Meta has a dedicated **Authentication** category for codes, with its own
-> rules and a one-tap copy button. It is worth moving to later; this
-> configuration deliberately uses a plain Utility template so there is one
-> shape to get working, not two.
+> **Check this before submitting `hms_password_reset`.** Meta's current
+> template rules put one-time codes in the dedicated **Authentication**
+> category (fixed wording, a copy-code button) and reject or re-categorise a
+> Utility template that carries a code. The Local sender here sends the
+> Utility shape above; if Meta refuses it, use SivaComm mode, whose sender
+> already sends the Authentication shape (code as body parameter and button
+> parameter).
 
 ## 4 · Configuration
 
@@ -136,8 +145,9 @@ read the API log:
 
 ## What this does not do yet
 
-- **No delivery receipts.** The app knows Meta accepted a message, not that a
-  phone received it. That needs a webhook endpoint Meta can call.
+- **No delivery receipts (Local mode).** The app knows Meta accepted a
+  message, not that a phone received it. SivaComm mode has them: SivaComm
+  receives Meta's webhook and shows sent/delivered/read per message.
 - **No SMS fallback.** A number that has never used WhatsApp simply fails, and
   that person asks an admin. Adding SMS is another `IMessageSender`.
 - **Utility templates, not Authentication.** See the note in §3.

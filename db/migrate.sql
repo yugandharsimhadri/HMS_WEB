@@ -2022,3 +2022,55 @@ BEGIN
 END $EF$;
 COMMIT;
 
+START TRANSACTION;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261024160740_PasswordResetTransactions') THEN
+    CREATE TABLE "PasswordResetTransactions" (
+        "Id" uuid NOT NULL,
+        "UserId" uuid NOT NULL,
+        "TokenHash" character varying(64) NOT NULL,
+        "Provider" character varying(16) NOT NULL,
+        "ChallengeId" character varying(64) NOT NULL,
+        "Stage" character varying(20) NOT NULL,
+        "DecoyAttempts" integer NOT NULL,
+        "GrantHandle" character varying(512),
+        "ExpiresOn" timestamp without time zone NOT NULL,
+        "VerifiedOn" timestamp without time zone,
+        "CompletedOn" timestamp without time zone,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_PasswordResetTransactions" PRIMARY KEY ("Id")
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261024160740_PasswordResetTransactions') THEN
+    CREATE UNIQUE INDEX "IX_PasswordResetTransactions_TokenHash" ON "PasswordResetTransactions" ("TokenHash");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261024160740_PasswordResetTransactions') THEN
+    CREATE INDEX "IX_PasswordResetTransactions_UserId_CreatedAt" ON "PasswordResetTransactions" ("UserId", "CreatedAt");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261024160740_PasswordResetTransactions') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20261024160740_PasswordResetTransactions', '10.0.11');
+    END IF;
+END $EF$;
+COMMIT;
+

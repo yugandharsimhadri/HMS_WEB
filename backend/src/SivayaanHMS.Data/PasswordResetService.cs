@@ -100,34 +100,8 @@ public class PasswordResetService(IDbContextFactory<AppDbContext> factory, ICloc
         var now = clock.Now;
         await using var db = await factory.CreateDbContextAsync(ct);
 
-        var candidate = await db.PasswordResetCodes
-            .IgnoreQueryFilters()
-            .Where(c => c.UserId == userId && c.UsedOn == null)
-            .OrderByDescending(c => c.CreatedAt)
-            .FirstOrDefaultAsync(ct);
-
-        if (candidate is null) return ResetOutcome.InvalidCode;
-        if (candidate.Attempts >= MaxAttempts) return ResetOutcome.TooManyAttempts;
-
-        if (candidate.ExpiresOn <= now)
-        {
-            candidate.UsedOn = now;
-            await db.SaveChangesAsync(ct);
-            return ResetOutcome.Expired;
-        }
-
-        if (!PasswordHasher.Verify(code, candidate.CodeHash, candidate.CodeSalt))
-        {
-            candidate.Attempts++;
-
-            // Burn it on the last failure rather than leaving a dead row that
-            // still says "wrong code" — the next try should say plainly that
-            // a new code is needed.
-            if (candidate.Attempts >= MaxAttempts) candidate.UsedOn = now;
-
-            await db.SaveChangesAsync(ct);
-            return candidate.Attempts >= MaxAttempts ? ResetOutcome.TooManyAttempts : ResetOutcome.InvalidCode;
-        }
+        var (outcome, candidate) = await CheckAsync(db, userId, code, now, ct);
+        if (outcome != ResetOutcome.Success) return outcome;
 
         var user = await db.Users.IgnoreQueryFilters().FirstOrDefaultAsync(u => u.Id == userId, ct);
         if (user is null) return ResetOutcome.InvalidCode;
@@ -143,9 +117,66 @@ public class PasswordResetService(IDbContextFactory<AppDbContext> factory, ICloc
         user.MustChangePassword = false;
         user.UpdatedAt = now;
 
-        candidate.UsedOn = now;
+        candidate!.UsedOn = now;
         await db.SaveChangesAsync(ct);
 
         return ResetOutcome.Success;
+    }
+
+    /// <summary>
+    /// Checks and spends a code <i>without</i> touching the password — the
+    /// verify step of the three-step flow, where the new password is asked
+    /// for only after this says yes. Same rules as <see cref="RedeemAsync"/>.
+    /// </summary>
+    public async Task<(ResetOutcome Outcome, int RemainingAttempts)> VerifyCodeAsync(Guid userId, string code, CancellationToken ct = default)
+    {
+        var now = clock.Now;
+        await using var db = await factory.CreateDbContextAsync(ct);
+
+        var (outcome, candidate) = await CheckAsync(db, userId, code, now, ct);
+        if (outcome == ResetOutcome.Success)
+        {
+            candidate!.UsedOn = now;
+            await db.SaveChangesAsync(ct);
+        }
+
+        return (outcome, candidate is null ? 0 : Math.Max(0, MaxAttempts - candidate.Attempts));
+    }
+
+    /// <summary>The live code for the user and whether <paramref name="code"/>
+    /// matches it; counts and saves a wrong guess.</summary>
+    private static async Task<(ResetOutcome, PasswordResetCode?)> CheckAsync(
+        AppDbContext db, Guid userId, string code, DateTime now, CancellationToken ct)
+    {
+        var candidate = await db.PasswordResetCodes
+            .IgnoreQueryFilters()
+            .Where(c => c.UserId == userId && c.UsedOn == null)
+            .OrderByDescending(c => c.CreatedAt)
+            .FirstOrDefaultAsync(ct);
+
+        if (candidate is null) return (ResetOutcome.InvalidCode, null);
+        if (candidate.Attempts >= MaxAttempts) return (ResetOutcome.TooManyAttempts, candidate);
+
+        if (candidate.ExpiresOn <= now)
+        {
+            candidate.UsedOn = now;
+            await db.SaveChangesAsync(ct);
+            return (ResetOutcome.Expired, candidate);
+        }
+
+        if (!PasswordHasher.Verify(code, candidate.CodeHash, candidate.CodeSalt))
+        {
+            candidate.Attempts++;
+
+            // Burn it on the last failure rather than leaving a dead row that
+            // still says "wrong code" — the next try should say plainly that
+            // a new code is needed.
+            if (candidate.Attempts >= MaxAttempts) candidate.UsedOn = now;
+
+            await db.SaveChangesAsync(ct);
+            return (candidate.Attempts >= MaxAttempts ? ResetOutcome.TooManyAttempts : ResetOutcome.InvalidCode, candidate);
+        }
+
+        return (ResetOutcome.Success, candidate);
     }
 }

@@ -111,20 +111,65 @@ var whatsApp = builder.Configuration
     .GetSection(SivayaanHMS.Data.Messaging.WhatsAppOptions.SectionName)
     .Get<SivayaanHMS.Data.Messaging.WhatsAppOptions>() ?? new SivayaanHMS.Data.Messaging.WhatsAppOptions();
 
-if (whatsApp.IsConfigured)
+// Messaging:Mode chooses who sends codes and welcomes:
+//
+//   Local    (default) — this application, as it always has: its own
+//            PasswordResetCodes table, sent through WhatsApp or the log.
+//   SivaComm — the central messaging service. It generates, sends and
+//            verifies codes; this application still owns the user, the
+//            reset transaction and the password. See docs/PASSWORD_RESET.md.
+//
+// SivaComm mode with its section incomplete refuses to start, rather than
+// quietly falling back and leaving every reset to fail at the first click.
+var messagingMode = builder.Configuration["Messaging:Mode"] ?? "Local";
+builder.Services.Configure<SivayaanHMS.Data.Messaging.SivaCommOptions>(
+    builder.Configuration.GetSection(SivayaanHMS.Data.Messaging.SivaCommOptions.SectionName));
+
+if (string.Equals(messagingMode, "SivaComm", StringComparison.OrdinalIgnoreCase))
 {
-    // A typed client, so the handler is pooled rather than a new socket per
-    // message, and the timeout is ours rather than the 100-second default —
-    // a clinic waiting on a signup form should not wait that long for Meta.
-    builder.Services.AddHttpClient<SivayaanHMS.Data.Messaging.IMessageSender,
-                                   SivayaanHMS.Data.Messaging.WhatsAppCloudMessageSender>(
-        client => client.Timeout = TimeSpan.FromSeconds(15));
+    var sivaComm = builder.Configuration.GetSection(SivayaanHMS.Data.Messaging.SivaCommOptions.SectionName)
+        .Get<SivayaanHMS.Data.Messaging.SivaCommOptions>() ?? new();
+    if (!sivaComm.IsConfigured)
+        throw new InvalidOperationException(
+            "Messaging:Mode is SivaComm but the SivaComm section is incomplete. Set SivaComm:BaseUrl, ClientId, " +
+            "KeyId and Secret (Secret in appsettings.Production.json or SivaComm__Secret) — see docs/PASSWORD_RESET.md.");
+
+    // No HttpClient timeout of its own: SivaCommClient applies
+    // SivaComm:TimeoutSeconds per call and turns expiry into TEMPORARY_ERROR.
+    builder.Services.AddHttpClient<SivayaanHMS.Data.Messaging.SivaCommClient>(c => c.Timeout = Timeout.InfiniteTimeSpan);
+    builder.Services.AddTransient<SivayaanHMS.Data.Messaging.IOtpGateway, SivayaanHMS.Data.Messaging.SivaCommOtpGateway>();
+    builder.Services.AddTransient<SivayaanHMS.Data.Messaging.IMessageSender, SivayaanHMS.Data.Messaging.SivaCommMessageSender>();
+}
+else if (string.Equals(messagingMode, "Local", StringComparison.OrdinalIgnoreCase))
+{
+    if (whatsApp.IsConfigured)
+    {
+        // A typed client, so the handler is pooled rather than a new socket per
+        // message, and the timeout is ours rather than the 100-second default —
+        // a clinic waiting on a signup form should not wait that long for Meta.
+        builder.Services.AddHttpClient<SivayaanHMS.Data.Messaging.IMessageSender,
+                                       SivayaanHMS.Data.Messaging.WhatsAppCloudMessageSender>(
+            client => client.Timeout = TimeSpan.FromSeconds(15));
+    }
+    else
+    {
+        builder.Services.AddSingleton<SivayaanHMS.Data.Messaging.IMessageSender,
+                                      SivayaanHMS.Data.Messaging.LoggingMessageSender>();
+    }
+
+    builder.Services.AddScoped<SivayaanHMS.Data.Messaging.IOtpGateway, SivayaanHMS.Data.Messaging.LocalOtpGateway>();
 }
 else
 {
-    builder.Services.AddSingleton<SivayaanHMS.Data.Messaging.IMessageSender,
-                                  SivayaanHMS.Data.Messaging.LoggingMessageSender>();
+    throw new InvalidOperationException($"Messaging:Mode '{messagingMode}' is not Local or SivaComm.");
 }
+
+builder.Services.AddScoped<PasswordResetFlow>();
+
+// PasswordReset:Enabled — whether "Forgot password" is offered at all. Off,
+// users ask their clinic admin, as before OTP reset existed. See
+// PasswordResetOptions and docs/PASSWORD_RESET.md.
+builder.Services.Configure<PasswordResetOptions>(builder.Configuration.GetSection(PasswordResetOptions.SectionName));
 
 // ── Auth ─────────────────────────────────────────────────────────────────
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection(JwtOptions.SectionName));
@@ -239,8 +284,7 @@ var app = builder.Build();
 // Promised by the registration above: say it once, at startup, where it will
 // be seen — not at the first reset nobody receives.
 if (!app.Environment.IsDevelopment() &&
-    app.Services.GetRequiredService<SivayaanHMS.Data.Messaging.IMessageSender>()
-        is SivayaanHMS.Data.Messaging.LoggingMessageSender)
+    string.Equals(messagingMode, "Local", StringComparison.OrdinalIgnoreCase) && !whatsApp.IsConfigured)
 {
     app.Logger.LogWarning(
         "No WhatsApp provider is configured. Welcome messages and password-reset codes will be " +

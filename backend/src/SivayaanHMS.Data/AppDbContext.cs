@@ -90,6 +90,7 @@ public class AppDbContext : DbContext
     public DbSet<VendorProductCode> VendorProductCodes => Set<VendorProductCode>();
     public DbSet<StockAdjustment> StockAdjustments => Set<StockAdjustment>();
     public DbSet<PasswordResetCode> PasswordResetCodes => Set<PasswordResetCode>();
+    public DbSet<PasswordResetTransaction> PasswordResetTransactions => Set<PasswordResetTransaction>();
 
     /// <summary>The tenant registry itself — not tenant-scoped, since it is
     /// what tenant-scoping is scoped against. See Tenant's own class doc.</summary>
@@ -501,6 +502,18 @@ public class AppDbContext : DbContext
             // Every lookup is "the live codes for this user", and the sweep
             // that expires them reads the same rows.
             e.HasIndex(x => new { x.UserId, x.ExpiresOn });
+        });
+
+        b.Entity<PasswordResetTransaction>(e =>
+        {
+            // Every step after the first finds the row by the browser's token.
+            e.HasIndex(x => x.TokenHash).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.CreatedAt });
+            e.Property(x => x.TokenHash).HasMaxLength(64);
+            e.Property(x => x.Provider).HasMaxLength(16);
+            e.Property(x => x.ChallengeId).HasMaxLength(64);
+            e.Property(x => x.GrantHandle).HasMaxLength(512);
+            e.Property(x => x.Stage).HasConversion<string>().HasMaxLength(20);
         });
 
         b.Entity<User>(e =>

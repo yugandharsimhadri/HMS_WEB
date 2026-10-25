@@ -1453,6 +1453,69 @@ public class PasswordResetCode : BaseEntity
     public int Attempts { get; set; }
 }
 
+public enum PasswordResetStage
+{
+    /// <summary>A code was requested; waiting for the person to type it.</summary>
+    CodeSent,
+
+    /// <summary>The code was verified by the backend. Only now may the
+    /// new-password step be shown or accepted.</summary>
+    Verified,
+
+    /// <summary>The password was changed. Terminal.</summary>
+    PasswordChanged,
+
+    /// <summary>Ended without a change: attempts used up, expired, cancelled. Terminal.</summary>
+    Closed,
+}
+
+/// <summary>
+/// One run of "I forgot my password", owned entirely by this application.
+///
+/// The browser holds only an opaque reset token; this row holds everything
+/// else — which user, which OTP challenge, and whether the code has been
+/// verified. The new-password step is accepted only while this row says
+/// <see cref="PasswordResetStage.Verified"/>, so a browser cannot skip the
+/// code by calling the last endpoint directly.
+///
+/// In SivaComm mode the code itself lives in SivaComm and this row keeps the
+/// verification grant SivaComm returned, encrypted (<see cref="GrantHandle"/>),
+/// until it is consumed. The password itself never leaves this application.
+/// </summary>
+public class PasswordResetTransaction : BaseEntity
+{
+    public Guid UserId { get; set; }
+
+    /// <summary>SHA-256 of the browser's reset token. The token itself is never stored.</summary>
+    public string TokenHash { get; set; } = string.Empty;
+
+    /// <summary>"Local" or "SivaComm" — which OTP service issued the code, so a
+    /// mode switch mid-reset cannot send a verify to the wrong place.</summary>
+    public string Provider { get; set; } = string.Empty;
+
+    /// <summary>The OTP service's id for the challenge.</summary>
+    public string ChallengeId { get; set; } = string.Empty;
+
+    public PasswordResetStage Stage { get; set; }
+
+    /// <summary>
+    /// Wrong codes counted here only when there is no real challenge behind
+    /// this row — an unknown username, or a send that was refused. Such a row
+    /// must fail exactly the way a real one does (five tries, then locked),
+    /// or the difference would say which usernames exist.
+    /// </summary>
+    public int DecoyAttempts { get; set; }
+
+    /// <summary>Encrypted verification grant. Cleared once consumed.</summary>
+    public string? GrantHandle { get; set; }
+
+    /// <summary>The whole reset — code and new password — must finish by then.</summary>
+    public DateTime ExpiresOn { get; set; }
+
+    public DateTime? VerifiedOn { get; set; }
+    public DateTime? CompletedOn { get; set; }
+}
+
 /// <summary>
 /// A correction to what the shelf holds, and why.
 ///

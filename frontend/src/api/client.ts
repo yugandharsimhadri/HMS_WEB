@@ -32,9 +32,15 @@ export function setToken(token: string | null): void {
 export class ApiError extends Error {
   status: number;
 
-  constructor(message: string, status: number) {
+  /** The parsed JSON error body, when there was one — for the few screens
+   * that branch on more than the message (the password-reset steps read
+   * `status` and `remainingAttempts` from it). */
+  body?: unknown;
+
+  constructor(message: string, status: number, body?: unknown) {
     super(message);
     this.status = status;
+    this.body = body;
   }
 }
 
@@ -89,8 +95,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   if (!response.ok) {
     const text = await response.text();
     let message = response.statusText;
+    let body: unknown;
     try {
       const parsed = JSON.parse(text);
+      body = parsed;
       message = parsed.title ?? parsed.message ?? (text || message);
     } catch {
       if (text) message = text;
@@ -103,7 +111,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       onSessionExpired();
     }
 
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, body);
   }
 
   if (response.status === 204) return undefined as T;

@@ -14,7 +14,26 @@ public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
 
 public record ForgotPasswordRequest(string Username);
 
-public record ResetPasswordRequest(string Username, string Code, string NewPassword);
+/// <summary>
+/// Either the three-step shape — <paramref name="ResetToken"/> from
+/// forgot-password, after verify-reset-code said VERIFIED — or the original
+/// one-step shape (username + code), which is kept for a browser still
+/// running the previous build and only works in Local mode.
+/// </summary>
+public record ResetPasswordRequest(string? Username, string? Code, string NewPassword, string? ResetToken = null);
+
+public record VerifyResetCodeRequest(string ResetToken, string Code);
+
+public record ResendResetCodeRequest(string ResetToken);
+
+/// <summary>Every outcome of the verify and set-password steps, in one shape.
+/// <see cref="Status"/> is what the screen branches on; <see cref="Message"/> is
+/// what it shows.</summary>
+public record ResetStepResponse(string Status, string Message, int? RemainingAttempts = null);
+
+/// <param name="PasswordResetEnabled">PasswordReset:Enabled. When false the
+/// sign-in page hides "Forgot password" and the reset endpoints answer 403.</param>
+public record AuthOptionsResponse(bool PasswordResetEnabled);
 
 /// <summary>
 /// What the "send me a code" screen is told: one sentence, byte-for-byte the
@@ -27,7 +46,9 @@ public record ResetPasswordRequest(string Username, string Code, string NewPassw
 /// convenience of naming which phone to look at is not worth handing out a
 /// list of every account on the platform.
 /// </summary>
-public record ForgotPasswordResponse(string Message);
+/// <param name="ResetToken">Opaque, and issued for every request — a real
+/// reset or a decoy — so its presence says nothing either.</param>
+public record ForgotPasswordResponse(string Message, string? ResetToken = null);
 
 /// <summary><see cref="Role"/> tells the browser which application it just
 /// signed into: the support console for "EnterpriseAdmin", the clinic shell
@@ -51,9 +72,24 @@ public class AuthController(
     IClock clock,
     JwtTokenService tokens,
     PlatformAdminService platformAdmin,
-    IMessageSender messages,
+    PasswordResetFlow resetFlow,
+    IOtpGateway otpGateway,
+    Microsoft.Extensions.Options.IOptions<PasswordResetOptions> resetOptions,
     ILogger<AuthController> logger) : ControllerBase
 {
+    private const string ResetDisabled =
+        "Self-service password reset is turned off. Ask your clinic admin to reset your password.";
+
+    private bool ResetEnabled => resetOptions.Value.Enabled;
+
+    /// <summary>
+    /// What the sign-in screens need to know before anyone signs in — today,
+    /// only whether to offer "Forgot password". Anonymous, and the same for
+    /// every caller: it describes this deployment, not any account.
+    /// </summary>
+    [HttpGet("options")]
+    public ActionResult<AuthOptionsResponse> Options() => Ok(new AuthOptionsResponse(ResetEnabled));
+
     // Deliberately one message for every way this can fail. Telling an
     // anonymous caller "no such clinic" or "no such user" turns the login
     // page into a free directory of every clinic on the platform and every
@@ -164,6 +200,12 @@ public class AuthController(
     ///
     /// Nothing about the phone number comes back at all — not even masked.
     /// See ForgotPasswordResponse for why that changed.
+    ///
+    /// What does come back is a reset token, for every request alike: an
+    /// unknown username gets one backed by a decoy that fails the next step
+    /// the same way a real reset with a wrong code does. Which service sends
+    /// the code — this application's own table or SivaComm — is
+    /// PasswordResetFlow's business, chosen by Messaging:Mode.
     /// </summary>
     [HttpPost("forgot-password")]
     public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword(
@@ -172,62 +214,80 @@ public class AuthController(
         const string Always = "If that account exists and has a phone number on file, " +
                               "a code is on its way. It is valid for 10 minutes.";
 
+        // Refused before the username is even looked at, so the answer is
+        // the same for every caller and says nothing about any account.
+        if (!ResetEnabled) return StatusCode(StatusCodes.Status403Forbidden, ResetDisabled);
+
         var (tenant, user) = await ResolveAsync(request.Username, ct);
 
-        if (tenant is null || user is null)
-            return Ok(new ForgotPasswordResponse(Always));
-
-        if (!user.IsActive || string.IsNullOrWhiteSpace(user.Phone))
-            return Ok(new ForgotPasswordResponse(Always));
-
-        var factory = new TenantScopedDbContextFactory(dbOptions, tenant.Id);
-        var resets = new PasswordResetService(factory, clock);
-
-        var code = await resets.IssueAsync(user.Id, tenant.Id, ct);
-
-        // Null means the send cap was hit. Same answer: a caller who could
-        // tell the difference could use it to probe which accounts are busy.
-        if (code is null) return Ok(new ForgotPasswordResponse(Always));
-
-        var minutes = $"{PasswordResetService.Lifetime.TotalMinutes:0}";
-
-        var text = new OutboundMessage(
-            MessagePurpose.PasswordResetCode,
-            $"{tenant.ClinicName}: your Sivayaan HMS password reset code is {code}. " +
-            $"It expires in {minutes} minutes. " +
-            "If you did not ask for it, ignore this message and tell your clinic admin.",
-            // {{1}} clinic, {{2}} code, {{3}} minutes — the order the approved
-            // WhatsApp template declares. See docs/WHATSAPP_SETUP.md.
-            new[] { tenant.ClinicName, code, minutes });
-
+        string token;
         try
         {
-            await messages.SendAsync(user.Phone!, text, ct);
+            token = await resetFlow.StartAsync(tenant, user, ct);
         }
         catch (Exception ex)
         {
-            // Logged, never surfaced. A provider outage must not become a
-            // different response that tells a stranger the account is real.
-            logger.LogError(ex, "Could not send a password-reset code for {UserId}.", user.Id);
+            // Our own database, not the provider: a genuine outage, and one a
+            // stranger would see for any username alike.
+            logger.LogError(ex, "Could not start a password reset.");
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Password reset is unavailable right now. Try again shortly.");
         }
 
-        return Ok(new ForgotPasswordResponse(Always));
+        return Ok(new ForgotPasswordResponse(Always, token));
+    }
+
+    /// <summary>A fresh code for the same reset. Always the same answer — see
+    /// PasswordResetFlow.ResendAsync for why.</summary>
+    [HttpPost("resend-reset-code")]
+    public async Task<ActionResult<ForgotPasswordResponse>> ResendResetCode(ResendResetCodeRequest request, CancellationToken ct)
+    {
+        if (!ResetEnabled) return StatusCode(StatusCodes.Status403Forbidden, ResetDisabled);
+
+        await resetFlow.ResendAsync(request.ResetToken ?? "", ct);
+        return Ok(new ForgotPasswordResponse(
+            "If that account exists and has a phone number on file, a new code is on its way."));
     }
 
     /// <summary>
-    /// Step two: hand back the code and the new password.
+    /// Step two: check the code — and only the code. The new-password fields
+    /// appear on the page after this says VERIFIED, and the next step is
+    /// refused unless this application's own record says so; the browser
+    /// cannot skip here.
     ///
-    /// Unlike step one this one does say what went wrong, because by now the
-    /// caller has demonstrated they hold a code — and "wrong code" versus
-    /// "expired" versus "ask for a new one" is the difference between a
-    /// person retyping six digits and a person giving up. What it still never
-    /// says is whether the *account* exists: an unknown username is reported
-    /// exactly as a wrong code.
+    /// It does say what went wrong — wrong code, expired, too many attempts —
+    /// because that is the difference between retyping six digits and asking
+    /// again. A decoy reset answers in exactly the same words and counts.
+    /// </summary>
+    [HttpPost("verify-reset-code")]
+    public async Task<IActionResult> VerifyResetCode(VerifyResetCodeRequest request, CancellationToken ct)
+    {
+        // A reset started before the flag was turned off stops here too.
+        if (!ResetEnabled) return Disabled();
+
+        var result = await resetFlow.VerifyAsync(request.ResetToken ?? "", request.Code ?? "", ct);
+        return Step(result);
+    }
+
+    /// <summary>
+    /// Step three: the new password, for a reset whose code was verified.
+    ///
+    /// The one-step shape (username + code + password) is still accepted in
+    /// Local mode, so a browser holding the previous build keeps working
+    /// through a deploy; it reports what went wrong but never whether the
+    /// account exists, as before.
     /// </summary>
     [HttpPost("reset-password")]
     public async Task<IActionResult> ResetPassword(ResetPasswordRequest request, CancellationToken ct)
     {
+        if (!ResetEnabled) return Disabled();
+
+        if (!string.IsNullOrEmpty(request.ResetToken))
+            return Step(await resetFlow.CompleteAsync(request.ResetToken, request.NewPassword ?? "", ct));
+
         const string BadCode = "That code is not right, or it has expired. Ask for a new one.";
+
+        if (otpGateway.Name != LocalOtpGateway.ProviderName)
+            return BadRequest("This page is out of date. Reload it and request a new code.");
 
         if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
             return BadRequest("Choose a password of at least 8 characters.");
@@ -251,6 +311,51 @@ public class AuthController(
             _ => BadRequest(BadCode),
         };
     }
+
+    /// <summary>
+    /// A reset step's outcome as HTTP. 200 for success; 400 for something the
+    /// person can act on; 429 for slow down; 503 for "not you — try again",
+    /// which is what every timeout or outage behind this becomes. None of
+    /// them is ever a success the screen did not earn.
+    /// </summary>
+    private ObjectResult Step(ResetStepResult r)
+    {
+        var (code, message) = r.Status switch
+        {
+            ResetStepStatus.Verified => (200, "Code verified. Choose a new password."),
+            ResetStepStatus.PasswordChanged => (200, "Your password has been changed. Sign in with it now."),
+            ResetStepStatus.InvalidOtp => (400, "That code is not right. Check the message and try again."),
+            ResetStepStatus.Expired => (400, "That code has expired. Ask for a new one."),
+            ResetStepStatus.AttemptsExceeded => (400, "That code has been tried too many times. Start again to get a new one."),
+            ResetStepStatus.AlreadyUsed => (400, "This reset has already been used. Start again if you still need to."),
+            ResetStepStatus.Cancelled => (400, "This reset is no longer active. Start again to get a new code."),
+            ResetStepStatus.NotVerified => (400, "Verify the code from your phone first."),
+            ResetStepStatus.InvalidPassword => (400, "Choose a password of at least 8 characters."),
+            ResetStepStatus.RateLimited => (429, "Too many tries. Wait a minute and try again."),
+            _ => (503, "We could not check that right now. Your code may still be valid — try again in a moment."),
+        };
+
+        return StatusCode(code, new ResetStepResponse(StatusName(r.Status), message, r.RemainingAttempts));
+    }
+
+    private ObjectResult Disabled() =>
+        StatusCode(StatusCodes.Status403Forbidden, new ResetStepResponse("DISABLED", ResetDisabled));
+
+    private static string StatusName(ResetStepStatus s) => s switch
+    {
+        ResetStepStatus.CodeSent => "CODE_SENT",
+        ResetStepStatus.Verified => "VERIFIED",
+        ResetStepStatus.PasswordChanged => "PASSWORD_CHANGED",
+        ResetStepStatus.InvalidOtp => "INVALID_OTP",
+        ResetStepStatus.Expired => "EXPIRED",
+        ResetStepStatus.AttemptsExceeded => "ATTEMPTS_EXCEEDED",
+        ResetStepStatus.AlreadyUsed => "ALREADY_USED",
+        ResetStepStatus.Cancelled => "CANCELLED",
+        ResetStepStatus.RateLimited => "RATE_LIMITED",
+        ResetStepStatus.NotVerified => "NOT_VERIFIED",
+        ResetStepStatus.InvalidPassword => "INVALID_PASSWORD",
+        _ => "TEMPORARY_ERROR",
+    };
 
     /// <summary>
     /// Username to clinic and user, without a token and without trusting
