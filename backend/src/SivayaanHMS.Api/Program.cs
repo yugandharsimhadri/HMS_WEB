@@ -111,27 +111,28 @@ var whatsApp = builder.Configuration
     .GetSection(SivayaanHMS.Data.Messaging.WhatsAppOptions.SectionName)
     .Get<SivayaanHMS.Data.Messaging.WhatsAppOptions>() ?? new SivayaanHMS.Data.Messaging.WhatsAppOptions();
 
-// Messaging:Mode chooses who sends codes and welcomes:
+// SivaComm:Enabled is the one switch for OTP authentication through the
+// central messaging service:
 //
-//   Local    (default) — this application, as it always has: its own
-//            PasswordResetCodes table, sent through WhatsApp or the log.
-//   SivaComm — the central messaging service. It generates, sends and
-//            verifies codes; this application still owns the user, the
-//            reset transaction and the password. See docs/PASSWORD_RESET.md.
+//   true  — SivaComm generates, sends and verifies reset codes and sends the
+//           welcome message. This application still owns the user, the
+//           reset transaction and the password. See docs/PASSWORD_RESET.md.
+//   false (default) — the normal flow, as it always was: this application's
+//           own PasswordResetCodes table, sent through WhatsApp or the log.
 //
-// SivaComm mode with its section incomplete refuses to start, rather than
-// quietly falling back and leaving every reset to fail at the first click.
-var messagingMode = builder.Configuration["Messaging:Mode"] ?? "Local";
+// Enabled with the section incomplete refuses to start, rather than quietly
+// falling back and leaving every reset to fail at the first click.
 builder.Services.Configure<SivayaanHMS.Data.Messaging.SivaCommOptions>(
     builder.Configuration.GetSection(SivayaanHMS.Data.Messaging.SivaCommOptions.SectionName));
 
-if (string.Equals(messagingMode, "SivaComm", StringComparison.OrdinalIgnoreCase))
+var sivaComm = builder.Configuration.GetSection(SivayaanHMS.Data.Messaging.SivaCommOptions.SectionName)
+    .Get<SivayaanHMS.Data.Messaging.SivaCommOptions>() ?? new();
+
+if (sivaComm.Enabled)
 {
-    var sivaComm = builder.Configuration.GetSection(SivayaanHMS.Data.Messaging.SivaCommOptions.SectionName)
-        .Get<SivayaanHMS.Data.Messaging.SivaCommOptions>() ?? new();
     if (!sivaComm.IsConfigured)
         throw new InvalidOperationException(
-            "Messaging:Mode is SivaComm but the SivaComm section is incomplete. Set SivaComm:BaseUrl, ClientId, " +
+            "SivaComm:Enabled is true but the SivaComm section is incomplete. Set SivaComm:BaseUrl, ClientId, " +
             "KeyId and Secret (Secret in appsettings.Production.json or SivaComm__Secret) — see docs/PASSWORD_RESET.md.");
 
     // No HttpClient timeout of its own: SivaCommClient applies
@@ -140,7 +141,7 @@ if (string.Equals(messagingMode, "SivaComm", StringComparison.OrdinalIgnoreCase)
     builder.Services.AddTransient<SivayaanHMS.Data.Messaging.IOtpGateway, SivayaanHMS.Data.Messaging.SivaCommOtpGateway>();
     builder.Services.AddTransient<SivayaanHMS.Data.Messaging.IMessageSender, SivayaanHMS.Data.Messaging.SivaCommMessageSender>();
 }
-else if (string.Equals(messagingMode, "Local", StringComparison.OrdinalIgnoreCase))
+else
 {
     if (whatsApp.IsConfigured)
     {
@@ -158,10 +159,6 @@ else if (string.Equals(messagingMode, "Local", StringComparison.OrdinalIgnoreCas
     }
 
     builder.Services.AddScoped<SivayaanHMS.Data.Messaging.IOtpGateway, SivayaanHMS.Data.Messaging.LocalOtpGateway>();
-}
-else
-{
-    throw new InvalidOperationException($"Messaging:Mode '{messagingMode}' is not Local or SivaComm.");
 }
 
 builder.Services.AddScoped<PasswordResetFlow>();
@@ -284,7 +281,7 @@ var app = builder.Build();
 // Promised by the registration above: say it once, at startup, where it will
 // be seen — not at the first reset nobody receives.
 if (!app.Environment.IsDevelopment() &&
-    string.Equals(messagingMode, "Local", StringComparison.OrdinalIgnoreCase) && !whatsApp.IsConfigured)
+    !sivaComm.Enabled && !whatsApp.IsConfigured)
 {
     app.Logger.LogWarning(
         "No WhatsApp provider is configured. Welcome messages and password-reset codes will be " +

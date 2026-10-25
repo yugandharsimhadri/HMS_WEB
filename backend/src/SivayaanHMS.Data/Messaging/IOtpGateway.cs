@@ -39,7 +39,7 @@ public sealed record OtpVerifyResult(OtpStatus Status, int? RemainingAttempts = 
 /// Where reset codes come from and are checked. Two implementations:
 /// <see cref="LocalOtpGateway"/> (this application's own PasswordResetCodes
 /// table, as before) and <see cref="SivaCommOtpGateway"/> (the central
-/// service). Chosen once at startup by Messaging:Mode.
+/// service). Chosen once at startup by SivaComm:Enabled.
 ///
 /// Nothing here sets a password. That stays in PasswordResetFlow, in this
 /// application, against this application's own database.

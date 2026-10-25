@@ -11,6 +11,12 @@ public sealed class SivaCommOptions
 {
     public const string SectionName = "SivaComm";
 
+    /// <summary>
+    /// The switch. True: reset codes and welcome messages go through SivaComm.
+    /// False (default): the normal flow, entirely inside this application.
+    /// </summary>
+    public bool Enabled { get; set; }
+
     /// <summary>e.g. https://comm.sivayaan.example — server to server, never the browser.</summary>
     public string BaseUrl { get; set; } = "";
 

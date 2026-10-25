@@ -205,7 +205,7 @@ public class AuthController(
     /// unknown username gets one backed by a decoy that fails the next step
     /// the same way a real reset with a wrong code does. Which service sends
     /// the code — this application's own table or SivaComm — is
-    /// PasswordResetFlow's business, chosen by Messaging:Mode.
+    /// PasswordResetFlow's business, chosen by SivaComm:Enabled.
     /// </summary>
     [HttpPost("forgot-password")]
     public async Task<ActionResult<ForgotPasswordResponse>> ForgotPassword(

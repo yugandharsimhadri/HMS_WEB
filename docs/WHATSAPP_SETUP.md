@@ -8,7 +8,7 @@ The code is finished. What remains is an account, a number, and two templates
 Meta has to approve — which is days of waiting, not hours of work, so start it
 before you need it.
 
-> **This page is for `Messaging:Mode = Local`.** In `SivaComm` mode HMS does
+> **This page is for `SivaComm:Enabled = false` (the default).** With SivaComm enabled HMS does
 > not talk to Meta at all: the WhatsApp account, token, templates and webhook
 > are configured once in SivaComm (its `docs/WHATSAPP_SETUP.md`) and shared by
 > every application, and this file's `WhatsApp` section is unused. See
@@ -86,7 +86,7 @@ category, or about a template that looks promotional.
 > template rules put one-time codes in the dedicated **Authentication**
 > category (fixed wording, a copy-code button) and reject or re-categorise a
 > Utility template that carries a code. The Local sender here sends the
-> Utility shape above; if Meta refuses it, use SivaComm mode, whose sender
+> Utility shape above; if Meta refuses it, enable SivaComm, whose sender
 > already sends the Authentication shape (code as body parameter and button
 > parameter).
 
@@ -145,8 +145,8 @@ read the API log:
 
 ## What this does not do yet
 
-- **No delivery receipts (Local mode).** The app knows Meta accepted a
-  message, not that a phone received it. SivaComm mode has them: SivaComm
+- **No delivery receipts (SivaComm disabled).** The app knows Meta accepted a
+  message, not that a phone received it. With SivaComm enabled there are: SivaComm
   receives Meta's webhook and shows sent/delivered/read per message.
 - **No SMS fallback.** A number that has never used WhatsApp simply fails, and
   that person asks an admin. Adding SMS is another `IMessageSender`.

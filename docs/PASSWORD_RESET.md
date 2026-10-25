@@ -5,6 +5,10 @@ back: ask platform support. This adds the ordinary one — a code to the phone
 on the account — and the rule that makes it safe: **the code goes to the
 number already on file, never to a number somebody types in.**
 
+> The end-to-end picture — HMS_WEB and SivaComm together, sequence diagrams,
+> every state and status, and every configuration key on both sides — is in
+> SivaComm's `docs/GUIDE.md`. This page is HMS_WEB's half in depth.
+
 ---
 
 ## The shape
@@ -44,8 +48,8 @@ Every step answers in one shape, `{ status, message, remainingAttempts? }`:
 | `TEMPORARY_ERROR` | 503 | "try again in a moment" — **never** treated as success |
 
 The old one-step shape (`{ username, code, newPassword }`) is still accepted
-in Local mode, so a browser holding the previous build keeps working through
-a deploy. It is refused in SivaComm mode.
+when `SivaComm:Enabled` is false, so a browser holding the previous build keeps
+working through a deploy. It is refused when SivaComm is enabled.
 
 ---
 
@@ -118,37 +122,24 @@ Each rule closes one route, and none of them is optional:
 
 ---
 
-## Turning self-service reset on or off
+## The switch: `SivaComm:Enabled`
 
 ```json
-"PasswordReset": { "Enabled": true }
+"SivaComm": { "Enabled": true, "BaseUrl": "…", "ClientId": "hms-web", "KeyId": "…", "Secret": "…" }
 ```
 
-| `PasswordReset:Enabled` | What users get |
+One flag, read from the config files at startup:
+
+| `SivaComm:Enabled` | What happens |
 |---|---|
-| `true` (default) | "Forgot password?" on the sign-in page; a code to the phone on file, from whichever service `Messaging:Mode` names below |
-| `false` | No link — the sign-in page says "ask your clinic admin". Every reset endpoint answers **403** (`DISABLED`), including a reset already in progress when the flag was turned off. Passwords are reset by the clinic admin (Settings → Staff logins), and a clinic admin by platform support — the route that existed before OTP reset |
+| `false` (default) | **The normal flow.** This application generates and checks the code in its own `PasswordResetCodes` table and sends it (and the welcome message) itself — through WhatsApp if the `WhatsApp` section is filled in, otherwise to the log. Nothing in this deployment talks to SivaComm. |
+| `true` | **OTP authentication through SivaComm.** SivaComm generates, sends and verifies the code and sends the welcome message. This application still owns the user, the stored phone, the reset transaction and the password. `BaseUrl`, `ClientId`, `KeyId` and `Secret` are required — the API refuses to start without them rather than failing at the first reset somebody needs. |
 
-The browser learns the setting from `GET /api/auth/options` →
-`{ "passwordResetEnabled": true|false }`, anonymous and the same for every
-caller, so it describes the deployment and nothing about any account.
-`forgot-password` refuses before looking at the username, so turning it off
-cannot become an enumeration channel either.
+The rest of the flow — the user, the stored phone, the reset transaction, the
+password — is this application's either way, and the password never leaves it.
+The three-step screen is the same in both; only who checks the code differs.
 
-The flag only affects password reset. Welcome messages still go out through
-`Messaging:Mode` either way.
-
-Default `true` keeps the self-service reset existing deployments already
-have; set `false` in `appsettings.Production.json` (or
-`PasswordReset__Enabled=false`) and restart to withdraw it.
-
-## Two modes: Local and SivaComm
-
-When reset is enabled, `Messaging:Mode` chooses who handles the code. The rest of the flow — the
-user, the stored phone, the reset transaction, the password — is this
-application's in both modes, and the password never leaves it.
-
-| | **Local** (default) | **SivaComm** |
+| | **Enabled = false** | **Enabled = true** |
 |---|---|---|
 | Code generated, stored, checked | here, `PasswordResetCodes` | SivaComm (keyed HMAC, not stored) |
 | Sent through | `IMessageSender` → WhatsApp or the log | SivaComm's worker → WhatsApp |
@@ -156,11 +147,28 @@ application's in both modes, and the password never leaves it.
 | Delivery receipts, dashboard | no | yes — SivaComm's admin dashboard |
 | Configured in | the `WhatsApp` section | the `SivaComm` section |
 
-Local is exactly the behaviour this document described before, re-housed
-behind `IOtpGateway` (`LocalOtpGateway`) so the three-step screen works in
-both modes. Nothing changes for a deployment that does not opt in.
+Disabled is exactly the behaviour this document described before, re-housed
+behind `IOtpGateway` (`LocalOtpGateway`). Nothing changes for a deployment
+that does not opt in.
 
-### What SivaComm mode does on each step
+### A second, optional switch: `PasswordReset:Enabled`
+
+```json
+"PasswordReset": { "Enabled": true }
+```
+
+A kill switch for self-service reset as a whole, independent of who sends the
+code. `true` (the default) is the above. `false` hides the "Forgot password?"
+link ("ask your clinic admin") and makes every reset endpoint answer **403**
+(`DISABLED`), including a reset already in progress — the route that existed
+before OTP reset: the clinic admin resets staff (Settings → Staff logins), and
+platform support resets a clinic admin. The browser learns it from
+`GET /api/auth/options` → `{ "passwordResetEnabled": true|false }`, anonymous
+and the same for every caller, and `forgot-password` refuses before looking at
+the username, so it is not an enumeration channel. Leave it alone unless you
+want to withdraw self-service reset entirely.
+
+### What `SivaComm:Enabled = true` does on each step
 
 ```
 forgot-password  ─► PasswordResetFlow creates PasswordResetTransactions row (hms-<id>)
@@ -203,21 +211,20 @@ SivaComm's `docs/API.md` has the contract.
 2. In `appsettings.Production.json`:
 
    ```json
-   "Messaging": { "Mode": "SivaComm" },
-   "SivaComm": { "BaseUrl": "https://comm.example", "ClientId": "hms-web", "KeyId": "k…", "Secret": "…" }
+   "SivaComm": { "Enabled": true, "BaseUrl": "https://comm.example", "ClientId": "hms-web", "KeyId": "k…", "Secret": "…" }
    ```
 
-3. Migrate (adds `PasswordResetTransactions`) and restart. With Mode set and
-   the section incomplete the API refuses to start, rather than failing at
-   the first reset somebody needs.
+3. Migrate (adds `PasswordResetTransactions`) and restart. With `Enabled`
+   true and the section incomplete the API refuses to start, rather than
+   failing at the first reset somebody needs.
 
-Switching back is setting Mode to `Local`. A reset in flight at the moment
-of switching is closed (each row records which mode issued it) and the
+Switching back is setting `Enabled` to `false`. A reset in flight at the
+moment of switching is closed (each row records which flow issued it) and the
 person starts again.
 
 ---
 
-## Sending the messages (Local mode)
+## Sending the messages (`SivaComm:Enabled = false`)
 
 Nothing is sent yet. `IMessageSender` has one implementation,
 `LoggingMessageSender`, which writes the message to the API log — which is
