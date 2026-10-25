@@ -872,17 +872,22 @@ export type ReportKind =
 
 export type ReportAlign = 'Left' | 'Right' | 'Center';
 export type ReportFormat =
-  | 'Text' | 'Money' | 'Number' | 'Integer' | 'Date' | 'Time' | 'DateTime';
+  | 'Text' | 'Money' | 'Number' | 'Integer' | 'Date' | 'Time' | 'DateTime' | 'Percent' | 'Check';
+
+/** How the desktop's grid styles a column: the row's name (semibold), supporting detail
+ * (muted), a figure, or the amount asked for or paid (a semibold figure). */
+export type ReportTone = 'Text' | 'Name' | 'Muted' | 'Number' | 'Amount';
 
 export interface ReportColumn {
   header: string;
   align: ReportAlign;
   format: ReportFormat;
   width: number;
+  tone: ReportTone;
 }
 
 export interface ReportRow {
-  cells: (string | number | null)[];
+  cells: (string | number | boolean | null)[];
   emphasise: boolean;
   /** Why the row is emphasised, in words — so the reason does not depend on
    * seeing a colour. */
@@ -898,6 +903,7 @@ export interface DiagnosticsReportBill {
   billDate: string;
   patientName: string;
   patientNo: string;
+  tests: number;
   finalAmount: number;
   status: string;
 }

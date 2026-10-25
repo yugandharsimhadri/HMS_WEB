@@ -8,6 +8,7 @@ import type {
   ReportFormat,
   ReportKind,
   ReportTable,
+  ReportTone,
   PaymentMode,
 } from '../api/types';
 
@@ -23,19 +24,19 @@ interface Tab {
 }
 
 const TABS: Tab[] = [
-  { id: 'daybook', label: 'Day Book', kind: 'DayBook' },
-  { id: 'gst', label: 'GST Summary', kind: 'GstSummary' },
-  { id: 'opd', label: 'OPD Register', kind: 'OpdRegister' },
+  { id: 'daybook', label: 'Day book', kind: 'DayBook' },
+  { id: 'gst', label: 'GST summary', kind: 'GstSummary' },
+  { id: 'opd', label: 'OPD register', kind: 'OpdRegister' },
   // Grouped by doctor over a range — a day rarely says much about one
   // doctor's own load, so this sits with Collections and the GST summary
   // rather than the single-day OPD Register above it.
-  { id: 'opd-doctor', label: 'OPD by Doctor', kind: 'OpdByDoctor' },
-  { id: 'expiring', label: 'Expiring Soon', kind: 'ExpiringSoon' },
-  { id: 'partpacks', label: 'Part Packs', kind: 'None', path: '/api/reports/part-packs' },
-  { id: 'reconcile', label: 'Stock to Reconcile', kind: 'None', path: '/api/reports/to-reconcile' },
-  { id: 'lowstock', label: 'Low Stock', kind: 'LowStock' },
+  { id: 'opd-doctor', label: 'OPD by doctor', kind: 'OpdByDoctor' },
+  { id: 'expiring', label: 'Expiring soon', kind: 'ExpiringSoon' },
+  { id: 'partpacks', label: 'Part packs', kind: 'None', path: '/api/reports/part-packs' },
+  { id: 'reconcile', label: 'Stock to reconcile', kind: 'None', path: '/api/reports/to-reconcile' },
+  { id: 'lowstock', label: 'Low stock', kind: 'LowStock' },
   { id: 'stock', label: 'Stock Register', kind: 'StockRegister' },
-  { id: 'h1', label: 'Schedule H1', kind: 'ScheduleH1' },
+  { id: 'h1', label: 'Schedule H1 register', kind: 'ScheduleH1' },
   // Money in, from every module, grouped by how it was paid — the till and
   // the bank statement are checked against this one.
   { id: 'collections', label: 'Collections', kind: 'Collections' },
@@ -75,7 +76,7 @@ const today = () => localDate(new Date());
 
 /** Formats a cell the same way the PDF does, so the screen and the export
  * read alike. */
-function formatCell(value: string | number | null, format: ReportFormat): string {
+function formatCell(value: string | number | boolean | null, format: ReportFormat): string {
   if (value === null || value === undefined || value === '') return '—';
 
   switch (format) {
@@ -85,6 +86,8 @@ function formatCell(value: string | number | null, format: ReportFormat): string
       return Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     case 'Integer':
       return Number(value).toLocaleString('en-IN');
+    case 'Percent':
+      return `${Number(value).toFixed(1)}%`;
     case 'Date':
       return new Date(String(value)).toLocaleDateString();
     case 'Time':
@@ -95,6 +98,28 @@ function formatCell(value: string | number | null, format: ReportFormat): string
       return String(value);
   }
 }
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const two = (n: number) => String(n).padStart(2, '0');
+
+/** HH:mm, the desktop's TIME column. */
+const timeOf = (iso: string) => { const d = new Date(iso); return `${two(d.getHours())}:${two(d.getMinutes())}`; };
+
+/** dd MMM yy, the desktop's DATE column on the diagnostics tab. */
+const dateOf = (iso: string) => {
+  const d = new Date(iso);
+  return `${two(d.getDate())} ${MONTHS[d.getMonth()]} ${String(d.getFullYear()).slice(2)}`;
+};
+
+/** The desktop's cell styles: the name carries the weight, detail is quiet, an amount is semibold. */
+const TONE_CLASS: Record<ReportTone, string | undefined> = {
+  Text: undefined,
+  Name: 'cell-name',
+  Muted: 'cell-muted',
+  Number: 'cell-number',
+  Amount: 'cell-amount',
+};
+
 
 export function ReportsPage() {
   const [tab, setTab] = useState<Tab>(TABS[0]);
@@ -154,7 +179,6 @@ export function ReportsPage() {
         // whichever report was on screen should read as "leaving that
         // report" immediately, not only once the new one has arrived.
         setTable(null);
-        setSummary(null);
         const result = await api.get<DiagnosticsReport>(`/api/reports/diagnostics?${query()}`);
         if (!isCurrent()) return;
         setDiagnostics(result);
@@ -167,15 +191,6 @@ export function ReportsPage() {
       if (!isCurrent()) return;
       setTable(result);
 
-      // The cards belong to the day book alone — they are not rows of any
-      // other report.
-      if (t.kind === 'DayBook') {
-        const dayBookSummary = await api.get<DayBookSummary>(`/api/reports/day-book/summary?date=${date}`);
-        if (!isCurrent()) return;
-        setSummary(dayBookSummary);
-      } else {
-        setSummary(null);
-      }
     } catch (err) {
       if (!isCurrent()) return;
       setError(err instanceof ApiError ? err.message : 'Could not load the report.');
@@ -183,9 +198,20 @@ export function ReportsPage() {
     } finally {
       if (isCurrent()) setBusy(false);
     }
-  }, [query, date]);
+  }, [query]);
+
+  // The cards above the tabs belong to the Date picker, not to whichever report is open - the
+  // desktop shows them on every tab.
+  const loadSummary = useCallback(async () => {
+    try {
+      setSummary(await api.get<DayBookSummary>(`/api/reports/day-book/summary?date=${date}`));
+    } catch {
+      setSummary(null);
+    }
+  }, [date]);
 
   useEffect(() => { void load(tab); }, [tab, load]);
+  useEffect(() => { void loadSummary(); }, [loadSummary]);
 
   const findBill = async () => {
     setError(null);
@@ -281,7 +307,7 @@ export function ReportsPage() {
 
   // Registered after the actions they call, so no binding refers to a
   // function declared further down the file.
-  useHotkey('f9', 'Refresh this report', G, () => { void load(tab); });
+  useHotkey('f9', 'Refresh this report', G, () => { void load(tab); void loadSummary(); });
   useHotkey('f7', 'Export to Excel', G, () => { void exportAs('excel'); });
   useHotkey('f8', 'Export to PDF', G, () => { void exportAs('pdf'); });
 
@@ -300,7 +326,7 @@ export function ReportsPage() {
           )}
           <button type="button" disabled={!canExportPdf} onClick={() => void exportAs('pdf')}>Export PDF</button>
           <button type="button" disabled={!canExportExcel} onClick={() => void exportAs('excel')}>Export Excel</button>
-          <button type="button" className="ghost" disabled={busy} onClick={() => void load(tab)}>Refresh</button>
+          <button type="button" className="ghost" disabled={busy} onClick={() => { void load(tab); void loadSummary(); }}>Refresh</button>
         </div>
       </div>
 
@@ -409,28 +435,26 @@ export function ReportsPage() {
       {summary && (
         <div className="kpi-row">
           <div className="kpi">
-            <span className="kpi-label">Collected (pharmacy)</span>
-            <span className="kpi-value">₹{summary.totalCollected.toFixed(2)}</span>
-            <span className="kpi-delta">
-              cash ₹{summary.cashTotal.toFixed(2)} · UPI ₹{summary.upiTotal.toFixed(2)}
-            </span>
+            <span className="kpi-label">Pharmacy sales</span>
+            <span className="kpi-value">{formatCell(summary.totalCollected, 'Money')}</span>
           </div>
           <div className="kpi">
-            <span className="kpi-label">GST in that</span>
-            <span className="kpi-value">₹{(summary.cgstTotal + summary.sgstTotal).toFixed(2)}</span>
-            <span className="kpi-delta">on ₹{summary.taxableTotal.toFixed(2)} taxable</span>
+            <span className="kpi-label">Cash</span>
+            <span className="kpi-value">{formatCell(summary.cashTotal, 'Money')}</span>
           </div>
-          {/* Beside pharmacy revenue, never inside it — a consultation fee is
-              not a taxable supply of goods. */}
+          <div className="kpi">
+            <span className="kpi-label">UPI</span>
+            <span className="kpi-value">{formatCell(summary.upiTotal, 'Money')}</span>
+          </div>
+          {/* Beside pharmacy sales, never inside them - a consultation fee is not a taxable
+              supply of goods. */}
           <div className="kpi">
             <span className="kpi-label">Consultation fees</span>
-            <span className="kpi-value">₹{summary.consultationTotal.toFixed(2)}</span>
-            <span className="kpi-delta">counted separately from pharmacy</span>
+            <span className="kpi-value">{formatCell(summary.consultationTotal, 'Money')}</span>
           </div>
           <div className="kpi">
-            <span className="kpi-label">Patients seen</span>
+            <span className="kpi-label">OPD visits</span>
             <span className="kpi-value">{summary.visitCount}</span>
-            <span className="kpi-delta">excluding cancellations</span>
           </div>
         </div>
       )}
@@ -442,23 +466,23 @@ export function ReportsPage() {
         <>
           <div className="kpi-row">
             <div className="kpi">
-              <span className="kpi-label">Diagnostics today</span>
-              <span className="kpi-value">₹{diagnostics.todayTotal.toFixed(2)}</span>
-              <span className="kpi-delta">{diagnostics.todaysBills.length} bill(s)</span>
+              <span className="kpi-label">Total</span>
+              <span className="kpi-value">{formatCell(diagnostics.todayTotal, 'Number')}</span>
             </div>
           </div>
 
           <section className="card">
             <h2>Today&rsquo;s diagnostic bills</h2>
             <table>
-              <thead><tr><th>Time</th><th>Bill No</th><th>Patient</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>TIME</th><th>BILL NO</th><th>PATIENT</th><th style={{ textAlign: 'right' }}>TESTS</th><th style={{ textAlign: 'right' }}>AMOUNT</th><th>STATUS</th><th></th></tr></thead>
               <tbody>
                 {diagnostics.todaysBills.map((b) => (
                   <tr key={b.id}>
-                    <td>{new Date(b.billDate).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
-                    <td>{b.billNo}</td>
-                    <td>{b.patientName}<div className="hint">{b.patientNo}</div></td>
-                    <td>₹{b.finalAmount.toFixed(2)}</td>
+                    <td className="cell-muted">{timeOf(b.billDate)}</td>
+                    <td className="cell-name">{b.billNo}</td>
+                    <td>{b.patientName}</td>
+                    <td style={{ textAlign: 'right' }}>{b.tests}</td>
+                    <td className="cell-amount" style={{ textAlign: 'right' }}>{formatCell(b.finalAmount, 'Number')}</td>
                     <td><span className="badge">{b.status}</span></td>
                     <td className="row-actions">
                       <button
@@ -471,7 +495,7 @@ export function ReportsPage() {
                     </td>
                   </tr>
                 ))}
-                {diagnostics.todaysBills.length === 0 && <tr><td colSpan={6}>Nothing billed today.</td></tr>}
+                {diagnostics.todaysBills.length === 0 && <tr><td colSpan={7}>No records found for the selected date.</td></tr>}
               </tbody>
             </table>
           </section>
@@ -480,13 +504,13 @@ export function ReportsPage() {
             <section className="card">
               <h2>Revenue by day</h2>
               <table>
-                <thead><tr><th>Date</th><th>Bills</th><th>Revenue</th></tr></thead>
+                <thead><tr><th>DATE</th><th style={{ textAlign: 'right' }}>BILLS</th><th style={{ textAlign: 'right' }}>REVENUE</th></tr></thead>
                 <tbody>
                   {diagnostics.revenue.map((r) => (
                     <tr key={r.day}>
-                      <td>{new Date(r.day).toLocaleDateString()}</td>
-                      <td>{r.bills}</td>
-                      <td>₹{r.amount.toFixed(2)}</td>
+                      <td className="cell-muted">{dateOf(r.day)}</td>
+                      <td style={{ textAlign: 'right' }}>{r.bills}</td>
+                      <td className="cell-amount" style={{ textAlign: 'right' }}>{formatCell(r.amount, 'Number')}</td>
                     </tr>
                   ))}
                   {diagnostics.revenue.length === 0 && <tr><td colSpan={3}>Nothing in this range.</td></tr>}
@@ -497,13 +521,13 @@ export function ReportsPage() {
             <section className="card">
               <h2>Most ordered tests</h2>
               <table>
-                <thead><tr><th>Test</th><th>Times ordered</th><th>Revenue</th></tr></thead>
+                <thead><tr><th>TEST</th><th style={{ textAlign: 'right' }}>TIMES ORDERED</th><th style={{ textAlign: 'right' }}>REVENUE</th></tr></thead>
                 <tbody>
                   {diagnostics.topTests.map((t) => (
                     <tr key={t.test}>
-                      <td>{t.test}</td>
-                      <td>{t.times}</td>
-                      <td>₹{t.amount.toFixed(2)}</td>
+                      <td className="cell-name">{t.test}</td>
+                      <td style={{ textAlign: 'right' }}>{t.times}</td>
+                      <td className="cell-amount" style={{ textAlign: 'right' }}>{formatCell(t.amount, 'Number')}</td>
                     </tr>
                   ))}
                   {diagnostics.topTests.length === 0 && <tr><td colSpan={3}>Nothing in this range.</td></tr>}
@@ -539,8 +563,14 @@ export function ReportsPage() {
                     ].filter(Boolean).join(' ') || undefined}
                   >
                     {table.columns.map((c, j) => (
-                      <td key={c.header} style={{ textAlign: c.align === 'Right' ? 'right' : c.align === 'Center' ? 'center' : 'left' }}>
-                        {formatCell(row.cells[j] ?? null, c.format)}
+                      <td
+                        key={c.header}
+                        className={TONE_CLASS[c.tone]}
+                        style={{ textAlign: c.align === 'Right' ? 'right' : c.align === 'Center' ? 'center' : 'left' }}
+                      >
+                        {c.format === 'Check'
+                          ? <input type="checkbox" checked={row.cells[j] === true} disabled aria-label={c.header} />
+                          : formatCell(row.cells[j] ?? null, c.format)}
                       </td>
                     ))}
                   </tr>
@@ -552,12 +582,12 @@ export function ReportsPage() {
             </table>
 
             {table.totals.length > 0 && (
-              <div className="totals">
+              <div className="report-totals">
                 {table.totals.map((t) => (
-                  <div key={t.label}>
-                    <span>{t.label}</span>
-                    <span>{formatCell(t.value, t.format)}</span>
-                  </div>
+                  <span key={t.label}>
+                    <span className="report-totals-label">{t.label}: </span>
+                    <strong>{formatCell(t.value, t.format)}</strong>
+                  </span>
                 ))}
               </div>
             )}

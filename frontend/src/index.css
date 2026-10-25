@@ -1545,3 +1545,28 @@ button.pick.selected { background: var(--c-accent-weak); color: var(--c-accent);
   .card { overflow-x: auto; }
   table { min-width: max-content; }
 }
+
+/* ── Report grids ───────────────────────────────────────────────────────────
+   The desktop's four cell styles (Theme.xaml GridName / GridMuted / GridNumber /
+   GridAmount): the column that says which row this is carries the weight,
+   supporting detail is quiet, figures line up, and the amount asked for or paid
+   is semibold. */
+td.cell-name { font-weight: 600; }
+td.cell-muted { color: var(--c-text-3); }
+td.cell-number, td.cell-amount { font-variant-numeric: tabular-nums; }
+td.cell-amount { font-weight: 600; }
+
+/* The desktop's totals line: one row under the grid, right-aligned, "Label: value". */
+.report-totals {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 16px;
+  margin-top: 6px;
+  padding: 10px 8px 2px;
+  border-top: 1px solid var(--c-line-strong);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.report-totals-label { color: var(--c-text-3); }
+.report-totals strong { font-weight: 600; }
