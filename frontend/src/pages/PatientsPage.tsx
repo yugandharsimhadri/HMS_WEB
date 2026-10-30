@@ -134,7 +134,7 @@ export function PatientsPage() {
                     {p.name}
                     {p.allergies && <div className="hint">Allergies: {p.allergies}</div>}
                   </td>
-                  <td>{p.age}{p.gender.charAt(0)}</td>
+                  <td>{p.ageText} {p.gender.charAt(0)}</td>
                   <td>{p.phone}</td>
                 </tr>
               ))}

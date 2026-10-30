@@ -346,7 +346,7 @@ export function PediatricsPage() {
           <div className="counter-selected">
             <strong>{patient.name}</strong>
             <span className="hint">
-              {' · '}{patient.patientNo}{' · '}{patient.age}{patient.gender.charAt(0)}
+              {' · '}{patient.patientNo}{' · '}{patient.ageText} {patient.gender.charAt(0)}
               {patient.dateOfBirth
                 ? ` · DOB ${new Date(patient.dateOfBirth).toLocaleDateString()}`
                 : ' · no date of birth on file'}

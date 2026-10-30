@@ -39,7 +39,7 @@ export function GrowthChart({ patient, history, metric }: Props) {
         const days = (new Date(on).getTime() - dob.getTime()) / 86_400_000;
         return Math.max(0, days / DAYS_PER_MONTH);
       }
-      return (patient.age ?? 0) * 12;
+      return (patient.age ?? 0) * 12 + (patient.ageMonths ?? 0);
     };
 
     const valueOf = (g: GrowthMeasurement): number | null => {

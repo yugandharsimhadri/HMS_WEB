@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
 import type { Doctor, Gender, Patient, Visit } from '../api/types';
 import { useModalBehaviour } from '../shell/useModalBehaviour';
-import { ageFromDob } from './PatientEditorDialog';
+import { agePartsFromDob, parseMonths } from './PatientEditorDialog';
 
 /** Digits and phone punctuation only, and enough of them to be a number —
  * the desktop's OpdService.LooksLikePhone, which decides whether a search
@@ -32,6 +32,7 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
   const [newAge, setNewAge] = useState('');
+  const [newMonths, setNewMonths] = useState('');
   const [newDob, setNewDob] = useState('');
   const [newGender, setNewGender] = useState<Gender>('Male');
 
@@ -58,7 +59,10 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
   }, [doctorId, doctors]);
 
   useEffect(() => {
-    if (newDob) setNewAge(String(ageFromDob(newDob)));
+    if (!newDob) return;
+    const parts = agePartsFromDob(newDob);
+    setNewAge(String(parts.years));
+    setNewMonths(parts.months > 0 ? String(parts.months) : '');
   }, [newDob]);
 
   const onFind = async (e: FormEvent) => {
@@ -127,7 +131,8 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
         patient = await api.post<Patient>('/api/patients', {
           name: newName.trim(),
           phone: newPhone.trim(),
-          age: newDob ? ageFromDob(newDob) : Number(newAge) || 0,
+          age: newDob ? agePartsFromDob(newDob).years : Number(newAge) || 0,
+          ageMonths: newDob ? agePartsFromDob(newDob).months : parseMonths(newMonths),
           dateOfBirth: newDob || null,
           gender: newGender,
         });
@@ -167,6 +172,7 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
     setNewName('');
     setNewPhone('');
     setNewAge('');
+    setNewMonths('');
     setNewDob('');
     setComplaint('');
     setTime(new Date().toTimeString().slice(0, 5));
@@ -236,7 +242,7 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
                     >
                       <strong>{p.name}</strong>
                       <span className="hint">
-                        {' '}· {p.patientNo} · {p.age}
+                        {' '}· {p.patientNo} · {`${p.ageText} `}
                         {p.gender.charAt(0)} · {p.phone || 'no phone'}
                       </span>
                     </button>
@@ -264,6 +270,16 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
                     min="0"
                     value={newAge}
                     onChange={(e) => setNewAge(e.target.value)}
+                    disabled={!newAgeIsEditable}
+                  />
+                  {/* Optional - for infants and small children. */}
+                  <input
+                    placeholder="Months (optional)"
+                    type="number"
+                    min="0"
+                    max="11"
+                    value={newMonths}
+                    onChange={(e) => setNewMonths(e.target.value)}
                     disabled={!newAgeIsEditable}
                   />
                   <select value={newGender} onChange={(e) => setNewGender(e.target.value as Gender)}>

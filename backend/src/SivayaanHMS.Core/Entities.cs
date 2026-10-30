@@ -52,6 +52,15 @@ public class Patient : BaseEntity
     /// tiles, receipts, search results) keeps working unchanged.</summary>
     public int Age { get; set; }
 
+    /// <summary>Months over the whole years, 0-11. Optional, and mostly for infants and small
+    /// children, for whom "1 year" can mean twelve months or twenty-three. Zero when not given;
+    /// computed with <see cref="Age"/> when a date of birth is on file.</summary>
+    public int AgeMonths { get; set; }
+
+    /// <summary>The age as it is printed and shown: "4Y 6M", "4Y", or "6M" for a baby under a
+    /// year. Never stored - it is <see cref="Age"/> and <see cref="AgeMonths"/> read together.</summary>
+    public string AgeText => FormatAge(Age, AgeMonths);
+
     /// <summary>Optional; when given, Age is calculated from it rather than
     /// typed. One of DateOfBirth or Age is required, not both.</summary>
     public DateTime? DateOfBirth { get; set; }
@@ -67,7 +76,13 @@ public class Patient : BaseEntity
 
     public ICollection<Visit> Visits { get; set; } = [];
 
-    public string Display => $"{Name} ({Age}{Gender.ToString()[0]}) · {Phone}";
+    public string Display => $"{Name} ({AgeText} {Gender.ToString()[0]}) · {Phone}";
+
+    public static string FormatAge(int years, int months)
+        => years > 0 && months > 0 ? $"{years}Y {months}M"
+         : years > 0 ? $"{years}Y"
+         : months > 0 ? $"{months}M"
+         : "0Y";
 
     /// <summary>Whole years between a date of birth and today.</summary>
     public static int AgeFromDob(DateTime dob)
@@ -76,6 +91,16 @@ public class Patient : BaseEntity
         var age = today.Year - dob.Year;
         if (dob.Date > today.AddYears(-age)) age--;
         return Math.Max(0, age);
+    }
+
+    /// <summary>Whole years and the months over them, between a date of birth and today.</summary>
+    public static (int Years, int Months) AgePartsFromDob(DateTime dob)
+    {
+        var today = DateTime.Today;
+        var months = (today.Year - dob.Year) * 12 + today.Month - dob.Month;
+        if (today.Day < dob.Day) months--;
+        months = Math.Max(0, months);
+        return (months / 12, months % 12);
     }
 }
 
@@ -157,7 +182,7 @@ public class Visit : BaseEntity
 
     public string PatientLine => Patient is null
         ? ""
-        : $"{Patient.Age}{Patient.Gender.ToString()[0]} · {ScheduledOn:HH:mm}";
+        : $"{Patient.AgeText} {Patient.Gender.ToString()[0]} · {ScheduledOn:HH:mm}";
 
     public string FeeBadge => FeePaid ? "Fee paid" : "Fee due";
 

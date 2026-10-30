@@ -96,7 +96,7 @@ export function CollectFeeDialog({ visit, onClose, onCollected }: Props) {
         <form className="overlay-body" onSubmit={onSubmit}>
           {/* Who is being seen and by whom: the check before money changes hands. */}
           <p className="hint">
-            {visit.patient.age}
+            {`${visit.patient.ageText} `}
             {visit.patient.gender.charAt(0)} · booked {scheduled.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
             {' '}· {visit.doctor.name}
           </p>

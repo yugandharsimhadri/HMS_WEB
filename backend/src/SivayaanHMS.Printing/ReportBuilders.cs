@@ -174,7 +174,7 @@ public static class ReportBuilders
 
         // Only a paid visit has a receipt to reprint.
         var screenRows = visits.Select(v => new ReportRow(
-            [v.VisitNo, v.ScheduledOn.ToString("HH:mm"), v.Patient.Name, v.Patient.Age.ToString(),
+            [v.VisitNo, v.ScheduledOn.ToString("HH:mm"), v.Patient.Name, v.Patient.AgeText,
              v.Patient.Gender.ToString(), v.Doctor.Name, v.Status.ToString(), N2(v.Fee), v.FeePaid],
             Id: v.FeePaid ? v.Id : null)).ToList();
 
@@ -183,16 +183,16 @@ public static class ReportBuilders
              Left("DOCTOR", 1.6), Right("FEE"), Left("PAID", 0.8)],
             visits.Select(v => new ReportRow(
                 [v.VisitNo, v.ScheduledOn.ToString("HH:mm"), v.Patient.Name,
-                 $"{v.Patient.Age}/{v.Patient.Gender.ToString()[0]}", v.Doctor.Name, N2(v.Fee),
+                 $"{v.Patient.AgeText}/{v.Patient.Gender.ToString()[0]}", v.Doctor.Name, N2(v.Fee),
                  v.FeePaid ? "Yes" : "No"])).ToList(),
             [Count("Total OPD visits", seen), new("Total consultation fees", collected)]);
 
         var excel = new ReportTable(ReportKind.OpdRegister, title, label,
             [Typed("Visit No", ReportFormat.Text), Typed("Date", ReportFormat.Date), Typed("Time", ReportFormat.Time),
-             Typed("Patient", ReportFormat.Text), Typed("Age", ReportFormat.Integer), Typed("Gender", ReportFormat.Text),
+             Typed("Patient", ReportFormat.Text), Typed("Age", ReportFormat.Text), Typed("Gender", ReportFormat.Text),
              Typed("Doctor", ReportFormat.Text), Typed("Fee", ReportFormat.Money, sum: true), Typed("Paid", ReportFormat.Text)],
             visits.Select(v => new ReportRow(
-                [v.VisitNo, v.ScheduledOn, v.ScheduledOn, v.Patient.Name, v.Patient.Age,
+                [v.VisitNo, v.ScheduledOn, v.ScheduledOn, v.Patient.Name, v.Patient.AgeText,
                  v.Patient.Gender.ToString(), v.Doctor.Name, v.Fee, v.FeePaid ? "Yes" : "No"])).ToList(),
             [Count("Total OPD visits", seen), new("Total consultation fees", collected)]);
 

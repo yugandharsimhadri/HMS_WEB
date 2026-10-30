@@ -46,7 +46,7 @@ public static class PrescriptionDocument
             ("Time", $"{visit.ScheduledOn:hh\\:mm tt}")));
         grid.Rows.Add(IdentityRow(SizeDelta,
             ("Patient", visit.Patient.Name),
-            ("Age / Sex", $"{visit.Patient.Age} / {visit.Patient.Gender}")));
+            ("Age / Sex", $"{visit.Patient.AgeText} / {visit.Patient.Gender}")));
         grid.Rows.Add(IdentityRow(SizeDelta,
             ("Doctor", visit.Doctor.Name),
             ("Speciality", visit.Doctor.Speciality ?? ""),

@@ -133,7 +133,7 @@ export function CommandPalette({
       out.push({
         key: `pat:${p.id}`,
         label: p.name,
-        sub: `${p.patientNo} · ${p.age}${p.gender.charAt(0)}${p.phone ? ` · ${p.phone}` : ''}`,
+        sub: `${p.patientNo} · ${p.ageText} ${p.gender.charAt(0)}${p.phone ? ` · ${p.phone}` : ''}`,
         group: 'Patients',
         run: () => navigate(`/patients?focus=${p.id}`),
       });

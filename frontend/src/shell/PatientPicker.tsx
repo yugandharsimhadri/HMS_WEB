@@ -17,7 +17,7 @@ import { useHotkey } from './hotkeys';
 
 const defaultLabel = (p: Patient): ReactNode => (
   <>
-    {p.name} · {p.patientNo} · {p.age}
+    {p.name} · {p.patientNo} · {`${p.ageText} `}
     {p.gender.charAt(0)}
     {p.phone && ` · ${p.phone}`}
   </>

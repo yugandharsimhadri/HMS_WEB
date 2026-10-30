@@ -304,7 +304,7 @@ export function OpdQueuePage() {
         <div>
           <strong>{visit.patient.name}</strong>
           <div className="hint">
-            {visit.patient.age}
+            {`${visit.patient.ageText} `}
             {visit.patient.gender.charAt(0)} ·{' '}
             {new Date(visit.scheduledOn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} ·{' '}
             {visit.doctor.name}
@@ -338,7 +338,7 @@ export function OpdQueuePage() {
             <td>{v.tokenNo}</td>
             <td>
               {v.patient.name}
-              <span className="hint"> · {v.patient.age}{v.patient.gender.charAt(0)}</span>
+              <span className="hint"> · {v.patient.ageText} {v.patient.gender.charAt(0)}</span>
             </td>
             <td>{new Date(v.scheduledOn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
             <td>{v.doctor.name}</td>

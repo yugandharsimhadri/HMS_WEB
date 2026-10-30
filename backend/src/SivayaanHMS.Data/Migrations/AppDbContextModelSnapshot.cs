@@ -1854,6 +1854,9 @@ namespace SivayaanHMS.Data.Migrations
                     b.Property<int>("Age")
                         .HasColumnType("integer");
 
+                    b.Property<int>("AgeMonths")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Allergies")
                         .HasColumnType("text");
 

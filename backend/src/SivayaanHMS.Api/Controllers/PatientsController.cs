@@ -19,7 +19,7 @@ namespace SivayaanHMS.Api.Controllers;
 public record SavePatientRequest(
     Guid? Id, string Name, string? Phone, int Age, DateTime? DateOfBirth,
     string? BloodGroup, string? GuardianName, Gender Gender,
-    string? Address, string? Allergies);
+    string? Address, string? Allergies, int AgeMonths = 0);
 
 /// <summary>
 /// OPD patient register: search, the visit history behind each patient, and
@@ -61,7 +61,12 @@ public class PatientsController(OpdService opd, IDbContextFactory<AppDbContext> 
         // a walk-in does not — the desk has a queue and the child's exact age
         // can be filled in later. The desktop draws the line in the same
         // place, and moving it would make quick booking impossible.
-        var age = request.DateOfBirth is { } dob ? Patient.AgeFromDob(dob) : request.Age;
+        if (request.AgeMonths is < 0 or > 11)
+            return BadRequest("Months must be between 0 and 11.");
+
+        var (age, months) = request.DateOfBirth is { } dob
+            ? Patient.AgePartsFromDob(dob)
+            : (request.Age, request.AgeMonths);
 
         await using var db = await factory.CreateDbContextAsync();
 
@@ -75,6 +80,7 @@ public class PatientsController(OpdService opd, IDbContextFactory<AppDbContext> 
         patient.Name = request.Name.Trim();
         patient.Phone = request.Phone?.Trim() ?? "";
         patient.Age = age;
+        patient.AgeMonths = months;
         patient.DateOfBirth = request.DateOfBirth;
         patient.BloodGroup = NullIfBlank(request.BloodGroup);
         // A guardian only means anything for a minor; keeping one on an adult

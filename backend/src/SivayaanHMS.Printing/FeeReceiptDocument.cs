@@ -54,7 +54,7 @@ public static class FeeReceiptDocument
 
         grid.Rows.Add(IdentityRow(SizeDelta,
             ("Patient", visit.Patient.Name),
-            ("Age / Sex", $"{visit.Patient.Age} / {visit.Patient.Gender}"),
+            ("Age / Sex", $"{visit.Patient.AgeText} / {visit.Patient.Gender}"),
             ("Doctor", visit.Doctor.Name),
             ("Reg. No", visit.Doctor.RegistrationNo ?? "—")));
 

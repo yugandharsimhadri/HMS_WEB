@@ -62,8 +62,8 @@ public class ReportParityTests
         Assert.Equal(["VISIT NO", "TIME", "PATIENT", "AGE/GENDER", "DOCTOR", "FEE", "PAID"], Headers(t.ForPdf));
         Assert.Equal(["Visit No", "Date", "Time", "Patient", "Age", "Gender", "Doctor", "Fee", "Paid"], Headers(t.ForExcel));
 
-        // The PDF folds age and the first letter of the gender into one cell.
-        Assert.Equal("4/F", t.ForPdf.Rows[0].Cells[3]);
+        // The PDF folds age (years and months) and the first letter of the gender into one cell.
+        Assert.Equal("4Y/F", t.ForPdf.Rows[0].Cells[3]);
         // The grid's PAID is a tick box, not the word.
         Assert.Equal(ReportFormat.Check, t.Columns[^1].Format);
         Assert.Equal(true, t.Rows[0].Cells[^1]);

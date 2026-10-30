@@ -249,7 +249,12 @@ export interface Patient {
   name: string;
   phone: string;
   gender: Gender;
+  /** Whole years. */
   age: number;
+  /** Months over the whole years, 0-11; 0 when not given. */
+  ageMonths: number;
+  /** "4Y 6M", "4Y", or "6M" for a baby under a year - as printed. */
+  ageText: string;
   dateOfBirth: string | null;
   bloodGroup: string | null;
   guardianName: string | null;

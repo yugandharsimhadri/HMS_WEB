@@ -449,7 +449,7 @@ export function AppointmentsPage() {
             {patient ? (
               <div className="counter-selected">
                 <strong>{patient.name}</strong>
-                <span className="hint"> · {patient.age}{patient.gender.charAt(0)}{patient.phone && ` · ${patient.phone}`}</span>
+                <span className="hint"> · {patient.ageText} {patient.gender.charAt(0)}{patient.phone && ` · ${patient.phone}`}</span>
                 <button type="button" className="ghost" onClick={() => { setPatient(null); resetSearch(); }}>
                   Change patient
                 </button>
@@ -464,7 +464,7 @@ export function AppointmentsPage() {
                 onNewPatient={() => setAddingPatient(true)}
                 label={(p) => (
                   <>
-                    {p.name} · {p.age}{p.gender.charAt(0)}{p.phone && ` · ${p.phone}`}
+                    {p.name} · {p.ageText} {p.gender.charAt(0)}{p.phone && ` · ${p.phone}`}
                   </>
                 )}
               />

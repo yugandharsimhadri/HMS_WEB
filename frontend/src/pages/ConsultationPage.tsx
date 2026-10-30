@@ -401,7 +401,7 @@ export function ConsultationPage() {
         <div>
           <h1>Consultation</h1>
           <p className="hint">
-            Token {visit.tokenNo} · {visit.patient.name} · {visit.patient.age}
+            Token {visit.tokenNo} · {visit.patient.name} · {`${visit.patient.ageText} `}
             {visit.patient.gender.charAt(0)} · {visit.doctor.name}
           </p>
         </div>

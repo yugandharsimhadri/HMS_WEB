@@ -285,7 +285,7 @@ export function DentistPage() {
         {patient ? (
           <div className="counter-selected">
             <strong>{patient.name}</strong>
-            <span className="hint"> · {patient.patientNo} · {patient.age}{patient.gender.charAt(0)}</span>
+            <span className="hint"> · {patient.patientNo} · {patient.ageText} {patient.gender.charAt(0)}</span>
             <button type="button" className="ghost" onClick={changePatient}>Change patient</button>
           </div>
         ) : (

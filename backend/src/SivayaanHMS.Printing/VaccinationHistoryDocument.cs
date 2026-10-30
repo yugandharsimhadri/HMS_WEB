@@ -18,7 +18,7 @@ public static class VaccinationHistoryDocument
         head.Rows.Add(IdentityRow(
             ("Patient", patient.Name),
             ("Patient No", patient.PatientNo),
-            ("Age", $"{patient.Age} yrs")));
+            ("Age", patient.AgeText)));
         head.Rows.Add(IdentityRow(
             ("Gender", patient.Gender.ToString()),
             ("Guardian", patient.GuardianName ?? "-"),
