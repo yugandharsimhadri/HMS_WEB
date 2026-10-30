@@ -19,17 +19,43 @@ public record PlatformClinic(
 
 public record SetLicenseRequest(DateTime? ExpiresOn);
 
+/// <summary>How many rows of one kind a clinic has, how many arrived inside the
+/// window, and when the last one did. A count and a date — never a row.</summary>
+public record UsageCount(int Total, int Recent, DateTime? LastAt);
+
+/// <summary>
+/// Whether a clinic is using the product, in four words a support agent can act on:
+/// <c>Active</c> — records entered inside the window;
+/// <c>NotStarted</c> — has never entered a single record, signed in or not;
+/// <c>SigningInOnly</c> — has used it before, signed in inside the window, entered nothing;
+/// <c>Dormant</c> — has used it before, nothing at all inside the window.
+/// </summary>
+public enum UsageStatus { Active, SigningInOnly, Dormant, NotStarted }
+
+public record PlatformClinicUsage(
+    Guid TenantId, string Slug, string ClinicName, DateTime CreatedAt, bool IsActive,
+    DateTime? LicenseExpiresOn, string LicenseStatus,
+    int Users, DateTime? LastSignIn, DateTime? LastActivity, int RecordsTotal, int RecordsRecent,
+    UsageStatus Status,
+    UsageCount Patients, UsageCount Visits, UsageCount Appointments, UsageCount PharmacyBills,
+    UsageCount DiagnosticBills, UsageCount LabOrders, UsageCount ProcedureBills, UsageCount DentalCases,
+    UsageCount Vaccinations);
+
+public record PlatformUsage(DateTime Since, int Days, List<PlatformClinicUsage> Clinics);
+
 public record ResetPasswordResponse(string Username, string TemporaryPassword);
 
 /// <summary>
 /// The support console — the only thing EnterpriseAdmin can reach.
 ///
-/// Two jobs, both of which need somebody outside a clinic: putting a locked-
-/// out clinic owner back in, and moving a licence date. Nothing here reads a
-/// patient, a visit, a bill or a prescription, and there is deliberately no
-/// route that could — support staff have no business inside a clinic's
-/// records, and a console that *could* show them would eventually be asked
-/// to.
+/// Three jobs, all of which need somebody outside a clinic: putting a locked-
+/// out clinic owner back in, moving a licence date, and seeing which clinics
+/// are actually using what they registered for. Nothing here reads a patient,
+/// a visit, a bill or a prescription, and there is deliberately no route that
+/// could — support staff have no business inside a clinic's records, and a
+/// console that *could* show them would eventually be asked to. The usage
+/// view is counts and dates, grouped in the database: no row's contents ever
+/// leave it.
 ///
 /// Cross-tenant reads use IgnoreQueryFilters because this is the one caller
 /// in the system that legitimately spans tenants; note that everything it
@@ -147,6 +173,87 @@ public class PlatformController(
             tenant.Id, tenant.Slug, tenant.ClinicName, tenant.CreatedAt, tenant.IsActive,
             tenant.LicenseExpiresOn, days, status, []));
     }
+
+    /// <summary>
+    /// How much each clinic is using the product: records entered in total and
+    /// inside the last <paramref name="days"/> days, per kind, plus the last
+    /// sign-in. For spotting the clinics that registered and stopped — or never
+    /// started — before their licence comes up for renewal.
+    /// </summary>
+    [HttpGet("usage")]
+    public async Task<ActionResult<PlatformUsage>> Usage([FromQuery] int days = 30)
+    {
+        days = Math.Clamp(days, 1, 365);
+        var today = clock.Now.Date;
+        var since = today.AddDays(-(days - 1));
+
+        await using var db = Db(Guid.Empty);
+
+        var tenants = await db.Tenants.AsNoTracking().OrderBy(t => t.ClinicName).ToListAsync();
+
+        // One grouped query per kind; a DbContext runs one query at a time, so in sequence.
+        var patients = await TallyAsync(db.Patients, since);
+        var visits = await TallyAsync(db.Visits, since);
+        var appointments = await TallyAsync(db.Appointments, since);
+        var sales = await TallyAsync(db.Sales, since);
+        var diagnostics = await TallyAsync(db.DiagnosticBills, since);
+        var lab = await TallyAsync(db.LabOrders, since);
+        var procedures = await TallyAsync(db.ProcedureBills, since);
+        var dental = await TallyAsync(db.DentalCases, since);
+        var vaccinations = await TallyAsync(db.VaccinationRecords, since);
+
+        var users = await db.Users.AsNoTracking().IgnoreQueryFilters()
+            .Where(u => !u.IsDeleted)
+            .GroupBy(u => u.TenantId)
+            .Select(g => new { TenantId = g.Key, Count = g.Count(), LastSignIn = g.Max(u => u.LastLoginOn) })
+            .ToDictionaryAsync(x => x.TenantId);
+
+        var none = new UsageCount(0, 0, null);
+        UsageCount Of(Dictionary<Guid, Tally> tallies, Guid tenant)
+            => tallies.TryGetValue(tenant, out var t) ? new UsageCount(t.Total, t.Recent, t.LastAt) : none;
+
+        var result = tenants.Select(t =>
+        {
+            UsageCount[] kinds =
+            [
+                Of(patients, t.Id), Of(visits, t.Id), Of(appointments, t.Id), Of(sales, t.Id),
+                Of(diagnostics, t.Id), Of(lab, t.Id), Of(procedures, t.Id), Of(dental, t.Id), Of(vaccinations, t.Id),
+            ];
+
+            var total = kinds.Sum(k => k.Total);
+            var recent = kinds.Sum(k => k.Recent);
+            var lastActivity = kinds.Max(k => k.LastAt);
+            var userInfo = users.GetValueOrDefault(t.Id);
+            var lastSignIn = userInfo?.LastSignIn;
+
+            // Never having entered a record outranks signing in: a clinic that logs in to
+            // look around and leaves is exactly the one this view exists to find.
+            var status = recent > 0 ? UsageStatus.Active
+                : total == 0 ? UsageStatus.NotStarted
+                : lastSignIn >= since ? UsageStatus.SigningInOnly
+                : UsageStatus.Dormant;
+
+            var (licence, _) = LicenseRules.Describe(t.LicenseExpiresOn, today);
+
+            return new PlatformClinicUsage(
+                t.Id, t.Slug, t.ClinicName, t.CreatedAt, t.IsActive, t.LicenseExpiresOn, licence,
+                userInfo?.Count ?? 0, lastSignIn, lastActivity, total, recent, status,
+                kinds[0], kinds[1], kinds[2], kinds[3], kinds[4], kinds[5], kinds[6], kinds[7], kinds[8]);
+        }).ToList();
+
+        return Ok(new PlatformUsage(since, days, result));
+    }
+
+    private sealed record Tally(Guid TenantId, int Total, int Recent, DateTime? LastAt);
+
+    /// <summary>Counts per clinic, in the database. IgnoreQueryFilters because this spans
+    /// clinics; deleted rows are left out, as a clinic would leave them out itself.</summary>
+    private static Task<Dictionary<Guid, Tally>> TallyAsync<T>(IQueryable<T> rows, DateTime since) where T : BaseEntity
+        => rows.AsNoTracking().IgnoreQueryFilters()
+            .Where(r => !r.IsDeleted)
+            .GroupBy(r => r.TenantId)
+            .Select(g => new Tally(g.Key, g.Count(), g.Count(r => r.CreatedAt >= since), g.Max(r => (DateTime?)r.CreatedAt)))
+            .ToDictionaryAsync(t => t.TenantId);
 
     private AppDbContext Db(Guid tenantId)
         => new TenantScopedDbContextFactory(dbOptions, tenantId).CreateDbContext();

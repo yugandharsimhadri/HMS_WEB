@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api, ApiError } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
 import type { PlatformAdminAccount, PlatformClinic, ResetPasswordResponse } from '../api/types';
+import { PlatformUsagePanel } from './PlatformUsagePanel';
 
 /** Empty string is what a cleared date input gives back, and it means "no
  * expiry" — distinct from a date that simply has not loaded yet. */
@@ -29,6 +30,7 @@ export function PlatformConsolePage() {
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState<'usage' | 'clinics'>('usage');
 
   const load = useCallback(async () => {
     try {
@@ -107,8 +109,8 @@ export function PlatformConsolePage() {
         <div>
           <h1>Sivayaan HMS · Platform support</h1>
           <p className="hint">
-            {clinics.length} registered clinic(s). Signed in as {session?.username}. This console can reset a
-            clinic admin's password and move a licence date — it cannot open a clinic or read its records.
+            {clinics.length} registered clinic(s). Signed in as {session?.username}. This console shows how much each clinic
+            is using, resets a clinic admin's password and moves a licence date — it cannot open a clinic or read its records.
           </p>
         </div>
         <div className="inline-form">
@@ -122,6 +124,18 @@ export function PlatformConsolePage() {
         </div>
       </header>
 
+      <div className="tabs">
+        <button type="button" className={view === 'usage' ? 'tab active' : 'tab'} onClick={() => setView('usage')}>
+          Usage
+        </button>
+        <button type="button" className={view === 'clinics' ? 'tab active' : 'tab'} onClick={() => setView('clinics')}>
+          Clinics &amp; licences
+        </button>
+      </div>
+
+      {view === 'usage' && <PlatformUsagePanel />}
+
+      {view === 'clinics' && (<>
       {error && <p className="auth-error">{error}</p>}
       {status && <p className="hint status-line">{status}</p>}
 
@@ -215,6 +229,7 @@ export function PlatformConsolePage() {
           </tbody>
         </table>
       </section>
+      </>)}
     </div>
   );
 }

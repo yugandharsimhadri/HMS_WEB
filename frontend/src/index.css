@@ -1344,7 +1344,7 @@ button.pick.selected { background: var(--c-accent-weak); color: var(--c-accent);
 .bill-footer { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
 
 /* Platform console */
-.platform-page { padding: 22px; max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--gap); }
+.platform-page { padding: 22px; max-width: 1440px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--gap); }
 .platform-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .platform-head h1 { margin: 0; }
 .platform-head .hint { margin: 0; }
@@ -1570,3 +1570,15 @@ td.cell-amount { font-weight: 600; }
 }
 .report-totals-label { color: var(--c-text-3); }
 .report-totals strong { font-weight: 600; }
+
+/* ── Platform usage ─────────────────────────────────────────────────────────
+   Which clinics are using what they registered for. The status reads in words
+   and colour both; the +n under a count is what arrived inside the window. */
+.badge.usage-active { background: var(--c-ok-weak); color: var(--c-ok); }
+.badge.usage-signinginonly { background: var(--c-info-weak); color: var(--c-info); }
+.badge.usage-dormant { background: var(--c-warn-weak); color: var(--c-warn); }
+.badge.usage-notstarted { background: var(--c-crit-weak); color: var(--c-crit); }
+.usage-recent { font-size: 11px; font-weight: 600; color: var(--c-ok); }
+.usage-note { margin: 10px 2px 0; }
+button.kpi.kpi-selected { border-color: var(--c-accent); box-shadow: var(--ring); }
+td.usage-clinic { min-width: 200px; }

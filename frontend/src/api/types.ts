@@ -193,6 +193,47 @@ export interface PlatformClinic {
   admins: PlatformAdminAccount[];
 }
 
+/** A count and a date for one kind of record at one clinic — never the records. */
+export interface UsageCount {
+  total: number;
+  /** Entered inside the selected window. */
+  recent: number;
+  lastAt: string | null;
+}
+
+export type UsageStatus = 'Active' | 'SigningInOnly' | 'Dormant' | 'NotStarted';
+
+export interface PlatformClinicUsage {
+  tenantId: string;
+  slug: string;
+  clinicName: string;
+  createdAt: string;
+  isActive: boolean;
+  licenseExpiresOn: string | null;
+  licenseStatus: LicenseStatus;
+  users: number;
+  lastSignIn: string | null;
+  lastActivity: string | null;
+  recordsTotal: number;
+  recordsRecent: number;
+  status: UsageStatus;
+  patients: UsageCount;
+  visits: UsageCount;
+  appointments: UsageCount;
+  pharmacyBills: UsageCount;
+  diagnosticBills: UsageCount;
+  labOrders: UsageCount;
+  procedureBills: UsageCount;
+  dentalCases: UsageCount;
+  vaccinations: UsageCount;
+}
+
+export interface PlatformUsage {
+  since: string;
+  days: number;
+  clinics: PlatformClinicUsage[];
+}
+
 export interface ResetPasswordResponse {
   username: string;
   /** Shown once and never retrievable again — it is stored hashed the
