@@ -1,5 +1,7 @@
 import { useGeneralSettings } from '../settings/SettingsContext';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { IpMastersPanel } from '../inpatient/IpMastersPanel';
 import { api, ApiError } from '../api/client';
 import type {
   AnesthesiaTypeMaster, DentalPackageMaster, DentalReplacementMaster,
@@ -19,7 +21,8 @@ import { useHotkey } from '../shell/hotkeys';
 type TabId =
   | 'vaccines' | 'procedures'
   | 'dental-packages' | 'dental-replacements' | 'anesthesia'
-  | 'lab-analytes' | 'lab-reports' | 'lab-packages';
+  | 'lab-analytes' | 'lab-reports' | 'lab-packages'
+  | 'ip';
 
 const DEPARTMENTS: ProcedureDepartment[] = ['General', 'Pediatrics', 'Dentist'];
 
@@ -38,7 +41,8 @@ const DEPARTMENTS: ProcedureDepartment[] = ['General', 'Pediatrics', 'Dentist'];
  */
 export function MastersPage() {
   const general = useGeneralSettings();
-  const [tab, setTab] = useState<TabId>('procedures');
+  const [params] = useSearchParams();
+  const [tab, setTab] = useState<TabId>(params.get('tab')?.startsWith('ip') ? 'ip' : 'procedures');
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +92,7 @@ export function MastersPage() {
         { id: 'lab-packages', label: 'Lab packages', group: 'Lab' },
       );
     }
+    if (general?.inpatientEnabled) list.push({ id: 'ip', label: 'In-patient', group: 'IP' });
     return list;
   }, [general]);
 
@@ -143,6 +148,7 @@ export function MastersPage() {
 
   const newLabel = {
     'vaccines': '+ New vaccine',
+    'ip': '',
     'procedures': '+ New procedure',
     'dental-packages': '+ New package',
     'dental-replacements': '+ New replacement',
@@ -202,7 +208,7 @@ export function MastersPage() {
             Nothing here changes a bill already raised.
           </p>
         </div>
-        <div className="inline-form">
+        {tab !== 'ip' && <div className="inline-form">
           {tab !== 'anesthesia' && (
             <input ref={searchRef} placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
           )}
@@ -212,7 +218,7 @@ export function MastersPage() {
             </button>
           )}
           <button type="button" className="primary" onClick={() => setEditing(null)}>{newLabel}</button>
-        </div>
+        </div>}
       </div>
 
       <nav className="tabs">
@@ -231,7 +237,9 @@ export function MastersPage() {
       {error && <p className="auth-error">{error}</p>}
       {status && <p className="hint status-line">{status}</p>}
 
-      <section className="card">
+      {tab === 'ip' && <IpMastersPanel />}
+
+      {tab !== 'ip' && <section className="card">
         {tab === 'vaccines' && (
           <table>
             <thead>
@@ -398,7 +406,7 @@ export function MastersPage() {
             </tbody>
           </table>
         )}
-      </section>
+      </section>}
 
       {editing !== undefined && tab === 'vaccines' && (
         <VaccineEditorDialog

@@ -704,6 +704,7 @@ const MODULE_TOGGLES: { key: keyof GeneralSettings; label: string; description: 
   { key: 'pediatricsEnabled', label: 'Pediatrics', description: 'Vaccines and growth chart' },
   { key: 'dentistEnabled', label: 'Dentist', description: 'Cases, sittings and payments' },
   { key: 'pathologyLabEnabled', label: 'Pathology Lab', description: 'Analyte-level lab reports' },
+  { key: 'inpatientEnabled', label: 'In-patients', description: 'Admissions, beds, IP bill and discharge' },
 ];
 
 function ModulesTab() {
@@ -752,8 +753,32 @@ function ModulesTab() {
         </label>
       ))}
 
+      {general.inpatientEnabled && (
+        <fieldset className="ip-rules">
+          <legend>In-patient billing</legend>
+          <label>Bed days
+            <select value={general.ipBedDayRule} onChange={(e) => setGeneral({ ...general, ipBedDayRule: e.target.value as GeneralSettings['ipBedDayRule'] })}>
+              <option value="MidnightCount">One day per midnight (same-day stay = 1 day)</option>
+              <option value="TwentyFourHours">24-hour blocks from admission time</option>
+            </select>
+          </label>
+          {general.ipBedDayRule === 'TwentyFourHours' && (
+            <label>Grace hours
+              <input type="number" min="0" max="12" value={general.ipGraceHours}
+                     onChange={(e) => setGeneral({ ...general, ipGraceHours: Number(e.target.value) || 0 })} />
+            </label>
+          )}
+          <label className="checkbox-label">
+            <input type="checkbox" checked={general.ipAllowDischargeWithDues}
+                   onChange={() => setGeneral({ ...general, ipAllowDischargeWithDues: !general.ipAllowDischargeWithDues })} />
+            <span>Allow discharge with a balance due <span className="hint">(insurance cases often leave before the insurer pays)</span></span>
+          </label>
+          <p className="hint">A day spent in two beds is charged at the higher rate.</p>
+        </fieldset>
+      )}
 
       {error && <p className="auth-error">{error}</p>}
+
       <div className="settings-actions">
         <button type="submit">Save</button>
         <SavedNotice shown={saved} />

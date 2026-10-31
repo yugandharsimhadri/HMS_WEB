@@ -86,6 +86,15 @@ export const IconLab = (p: P) => (
   </svg>
 );
 
+export const IconBed = (p: P) => (
+  <svg {...box} {...p}>
+    <path d="M3 18V6" />
+    <path d="M3 14h18v4" />
+    <path d="M21 14v-2a3 3 0 0 0-3-3h-7v5" />
+    <circle cx="7" cy="11" r="2" />
+  </svg>
+);
+
 export const IconPharmacy = (p: P) => (
   <svg {...box} {...p}>
     <rect x="2.6" y="7.4" width="18.8" height="13.2" rx="2.2" />

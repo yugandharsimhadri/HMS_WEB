@@ -23,6 +23,7 @@ public class PrintController(
     OpdService opd, PharmacyService pharmacy, SettingsService settings,
     DiagnosticsService diagnostics, PediatricsService pediatrics, ProcedureBillsService procedureBills,
     DentistService dentist, PathologyLabService lab,
+    InpatientService ip,
     IDbContextFactory<AppDbContext> factory) : ControllerBase
 {
     /// <summary>
@@ -177,6 +178,49 @@ public class PrintController(
         var theme = await settings.GetDocumentThemeAsync();
 
         return Inline(PharmacyInvoiceDocument.Generate(sale, profile, theme, reprint), $"bill-{sale.BillNo}.pdf");
+    }
+
+    // ── In-patient ─────────────────────────────────────────────────────────
+
+    [HttpGet("ip/{admissionId:guid}/slip")]
+    public async Task<IActionResult> AdmissionSlip(Guid admissionId)
+    {
+        var a = await ip.GetAdmissionAsync(admissionId);
+        if (a is null) return NotFound();
+        var (clinic, theme) = (await settings.GetClinicAsync(), await settings.GetDocumentThemeAsync());
+        return Inline(IpDocuments.AdmissionSlip(a, a.Payments, clinic, theme), $"admission-{a.IpNo}.pdf");
+    }
+
+    /// <summary>The interim bill while there is no final bill, the final bill once there is.</summary>
+    [HttpGet("ip/{admissionId:guid}/bill")]
+    public async Task<IActionResult> IpBill(Guid admissionId)
+    {
+        var a = await ip.GetAdmissionAsync(admissionId);
+        if (a is null) return NotFound();
+        var bill = await ip.GetBillAsync(admissionId);
+        var (clinic, theme) = (await settings.GetClinicAsync(), await settings.GetDocumentThemeAsync());
+        return Inline(IpDocuments.Bill(a, bill, a.Payments, clinic, theme), $"{(bill.IsFinal ? bill.BillNo : "interim-" + a.IpNo)}.pdf");
+    }
+
+    [HttpGet("ip/{admissionId:guid}/summary")]
+    public async Task<IActionResult> DischargeSummary(Guid admissionId)
+    {
+        var a = await ip.GetAdmissionAsync(admissionId);
+        if (a is null) return NotFound();
+        var summary = await ip.GetSummaryAsync(admissionId);
+        if (summary is null) return BadRequest("Save the discharge summary before printing it.");
+        var (clinic, theme) = (await settings.GetClinicAsync(), await settings.GetDocumentThemeAsync());
+        return Inline(IpDocuments.Summary(a, summary, clinic, theme), $"discharge-summary-{a.IpNo}.pdf");
+    }
+
+    [HttpGet("ip/{admissionId:guid}/receipt/{paymentId:guid}")]
+    public async Task<IActionResult> IpReceipt(Guid admissionId, Guid paymentId)
+    {
+        var a = await ip.GetAdmissionAsync(admissionId);
+        var payment = a?.Payments.FirstOrDefault(p => p.Id == paymentId);
+        if (a is null || payment is null) return NotFound();
+        var (clinic, theme) = (await settings.GetClinicAsync(), await settings.GetDocumentThemeAsync());
+        return Inline(IpDocuments.Receipt(a, payment, clinic, theme), $"{payment.ReceiptNo}.pdf");
     }
 
     private FileContentResult Inline(byte[] pdf, string fileName)

@@ -1582,3 +1582,97 @@ td.cell-amount { font-weight: 600; }
 .usage-note { margin: 10px 2px 0; }
 button.kpi.kpi-selected { border-color: var(--c-accent); box-shadow: var(--ring); }
 td.usage-clinic { min-width: 200px; }
+
+/* ── In-patients ────────────────────────────────────────────────────────────
+   Plain on purpose: these screens are typed into all day. Labels sit above
+   their fields, forms read left to right in the order the desk asks, and the
+   only colour is state - free, occupied, cleaning, due, refund. */
+.ip-form { display: flex; flex-direction: column; gap: 14px; }
+.ip-form fieldset { border: 0; border-top: 1px solid var(--c-line); margin: 0; padding: 10px 0 0; min-width: 0; }
+.ip-form legend { padding: 0 8px 0 0; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--c-text-3); }
+.ip-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px 14px; align-items: end; }
+.ip-grid > label, .ip-form > label, .ip-summary > label, .ip-add > label { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ip-grid .ip-span { grid-column: span 2; }
+.ip-grid .checkbox-label, .ip-add .checkbox-label { flex-direction: row; align-items: center; gap: 8px; }
+.ip-picked { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; }
+
+/* One-line entry rows: type, Tab, type, Enter. */
+.ip-add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px; padding-bottom: 12px; border-bottom: 1px solid var(--c-line); margin-bottom: 4px; }
+.ip-add > label { flex: 0 1 170px; }
+.ip-add .ip-add-name { flex: 2 1 240px; }
+.ip-add .ip-add-num { flex: 0 1 100px; }
+.ip-add .ip-add-date { flex: 0 1 150px; }
+.ip-add.ip-editing { background: var(--c-surface-2); padding: 10px; border-radius: var(--r-md); }
+.ip-masters { display: flex; flex-direction: column; gap: var(--gap); }
+.ip-rules { border: 1px solid var(--c-line); border-radius: var(--r-md); padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.ip-rules legend { font-weight: 700; font-size: 12.5px; padding: 0 4px; }
+.ip-rules > label { display: flex; flex-direction: column; gap: 4px; max-width: 420px; }
+.ip-rules > .checkbox-label { flex-direction: row; max-width: none; }
+
+/* Bed board */
+.ip-ward { display: flex; flex-direction: column; gap: 8px; }
+.ip-ward-title { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--c-text-3); margin: 6px 0 0; }
+.ip-beds { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ip-bed {
+  display: flex; flex-direction: column; gap: 2px; align-items: stretch; text-align: left;
+  padding: 9px 11px; min-height: 92px; height: auto;
+  background: var(--c-surface); border: 1px solid var(--c-line); border-left: 4px solid var(--c-line-strong);
+  border-radius: var(--r-md); font-size: 12.5px; color: var(--c-text);
+}
+button.ip-bed { cursor: pointer; font-weight: 400; justify-content: flex-start; }
+button.ip-bed:hover { border-color: var(--c-accent); background: var(--c-surface); }
+.ip-bed-no { font-family: ui-monospace, Consolas, monospace; font-weight: 700; font-size: 13px; }
+.ip-bed-who { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ip-bed-meta { color: var(--c-text-3); font-size: 11.5px; }
+.ip-bed-state { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.ip-bed-flag { align-self: flex-start; margin-top: 2px; font-size: 10.5px; font-weight: 700; color: var(--c-warn); background: var(--c-warn-weak); border-radius: 999px; padding: 1px 7px; }
+.ip-bed-actions { display: flex; gap: 6px; margin-top: auto; padding-top: 4px; }
+.ip-bed-actions button { height: 26px; padding: 0 9px; font-size: 11.5px; }
+.ip-bed-occupied { border-left-color: var(--c-accent); }
+.ip-bed-available { border-left-color: var(--c-ok); }
+.ip-bed-available .ip-bed-state { color: var(--c-ok); }
+.ip-bed-cleaning { border-left-color: var(--c-warn); }
+.ip-bed-cleaning .ip-bed-state { color: var(--c-warn); }
+.ip-bed-blocked { border-left-color: var(--c-text-3); background: var(--c-surface-2); }
+.ip-bed-blocked .ip-bed-state { color: var(--c-text-3); text-transform: none; letter-spacing: 0; font-weight: 600; }
+
+/* The IP file */
+.ip-back { padding: 0; height: auto; margin-bottom: 2px; font-size: 12.5px; }
+.ip-strip, .ip-money {
+  display: flex; flex-wrap: wrap; gap: 8px 26px; padding: 10px 14px;
+  background: var(--c-surface); border: 1px solid var(--c-line); border-radius: var(--r-lg);
+}
+.ip-strip > div, .ip-money > div { display: flex; flex-direction: column; min-width: 0; }
+.ip-strip small, .ip-money small { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--c-text-3); }
+.ip-strip b { font-size: 13.5px; font-weight: 600; }
+.ip-money { background: var(--c-surface-2); }
+.ip-money b { font-size: 18px; font-variant-numeric: tabular-nums; }
+.ip-due, .ip-due b { color: var(--c-crit); }
+.ip-credit, .ip-credit b { color: var(--c-ok); }
+.ip-status-admitted { background: var(--c-accent-weak); color: var(--c-accent); }
+.ip-status-discharged { background: var(--c-ok-weak); color: var(--c-ok); }
+.ip-status-cancelled { background: var(--c-surface-3); color: var(--c-text-3); }
+.ip-lines .ip-group td { background: var(--c-surface-2); font-weight: 700; font-size: 11.5px; letter-spacing: .03em; }
+.ip-lines tfoot td, .ip-totals .ip-total td { font-weight: 700; border-top: 1px solid var(--c-line-strong); }
+.ip-lines .num, .ip-totals .num, table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.ip-x { width: 34px; text-align: right; }
+.ip-x button { height: 24px; padding: 0 8px; }
+.ip-totals { max-width: 460px; }
+.ip-totals td { padding: 5px 8px; }
+.ip-discharge { display: flex; flex-direction: column; gap: var(--gap); }
+.ip-summary { display: flex; flex-direction: column; gap: 10px; }
+.ip-summary h2, .ip-discharge h2 { display: flex; align-items: center; gap: 8px; }
+.ip-insurance { border-top: 1px dashed var(--c-line-strong); padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.ip-note-form { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.ip-note-form textarea { width: 100%; }
+.ip-notes { display: flex; flex-direction: column; gap: 10px; }
+.ip-note { border-left: 3px solid var(--c-line-strong); padding: 2px 0 2px 12px; display: flex; flex-direction: column; gap: 2px; }
+.ip-note p { margin: 0; white-space: pre-wrap; }
+.ip-note small { color: var(--c-text-3); }
+tr.clickable { cursor: pointer; }
+tr.clickable:hover td { background: var(--c-surface-2); }
+
+@media (max-width: 640px) {
+  .ip-grid .ip-span { grid-column: auto; }
+  .ip-money b { font-size: 16px; }
+}

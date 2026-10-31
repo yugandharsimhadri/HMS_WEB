@@ -333,6 +333,10 @@ export interface GeneralSettings {
   pediatricsEnabled: boolean;
   dentistEnabled: boolean;
   pathologyLabEnabled: boolean;
+  inpatientEnabled: boolean;
+  ipBedDayRule: BedDayRule;
+  ipGraceHours: number;
+  ipAllowDischargeWithDues: boolean;
 }
 
 export type DrugSchedule = 'None' | 'H' | 'H1' | 'X';
@@ -1012,4 +1016,226 @@ export interface CatalogueEntry {
   strength: string | null;
   /** The leading number in `strength`, which the server sorts by. */
   strengthValue: number | null;
+}
+
+// ── In-patient ─────────────────────────────────────────────────────────────
+
+export type BedStatus = 'Available' | 'Occupied' | 'Cleaning' | 'Blocked';
+export type AdmissionStatus = 'Admitted' | 'Discharged' | 'Cancelled';
+export type DischargeType = 'Normal' | 'Dama' | 'Lama' | 'Referred' | 'Death';
+export type PayerType = 'Self' | 'Insurance';
+export type BedDayRule = 'MidnightCount' | 'TwentyFourHours';
+export type IpChargeCategory =
+  | 'Room' | 'Nursing' | 'DoctorVisit' | 'Procedure' | 'Investigation' | 'Medicine' | 'Other';
+export type IpPaymentKind = 'Advance' | 'Settlement' | 'Refund' | 'Insurance';
+export type IpBillStatus = 'Final' | 'Cancelled';
+
+export interface RoomType {
+  id: string;
+  name: string;
+  dailyRent: number;
+  nursingPerDay: number;
+  gstPercent: number;
+  active: boolean;
+}
+
+export interface Bed {
+  id: string;
+  bedNo: string;
+  ward: string;
+  roomTypeId: string;
+  roomType: RoomType | null;
+  status: BedStatus;
+  note: string | null;
+  active: boolean;
+  sortOrder: number;
+}
+
+export interface IpService {
+  id: string;
+  name: string;
+  category: IpChargeCategory;
+  rate: number;
+  active: boolean;
+}
+
+export interface BedBoardItem {
+  bedId: string;
+  bedNo: string;
+  ward: string;
+  roomType: string;
+  dailyRent: number;
+  status: BedStatus;
+  note: string | null;
+  admissionId: string | null;
+  ipNo: string | null;
+  patientName: string | null;
+  patientAge: string | null;
+  gender: string | null;
+  admittedOn: string | null;
+  hasFinalBill: boolean;
+}
+
+export interface AdmissionRow {
+  id: string;
+  ipNo: string;
+  patientName: string;
+  patientNo: string;
+  age: string;
+  gender: string;
+  doctorName: string;
+  bedNo: string;
+  ward: string;
+  admittedOn: string;
+  dischargedOn: string | null;
+  status: AdmissionStatus;
+  payerType: PayerType;
+  balance: number;
+  hasFinalBill: boolean;
+}
+
+export interface BedStay {
+  id: string;
+  bedId: string;
+  bedNo: string;
+  roomTypeName: string;
+  dailyRent: number;
+  nursingPerDay: number;
+  from: string;
+  to: string | null;
+}
+
+export interface IpCharge {
+  id: string;
+  chargeDate: string;
+  ipServiceId: string | null;
+  category: IpChargeCategory;
+  description: string;
+  doctorId: string | null;
+  quantity: number;
+  rate: number;
+  amount: number;
+}
+
+export interface IpPayment {
+  id: string;
+  receiptNo: string;
+  paidOn: string;
+  kind: IpPaymentKind;
+  amount: number;
+  mode: PaymentMode | null;
+  reference: string | null;
+  remarks: string | null;
+}
+
+export interface Admission {
+  id: string;
+  ipNo: string;
+  patientId: string;
+  patient: Patient;
+  doctorId: string;
+  doctor: Doctor;
+  visitId: string | null;
+  admittedOn: string;
+  reason: string | null;
+  attendantName: string | null;
+  attendantRelation: string | null;
+  attendantPhone: string | null;
+  payerType: PayerType;
+  insurerName: string | null;
+  policyNo: string | null;
+  isMlc: boolean;
+  status: AdmissionStatus;
+  dischargedOn: string | null;
+  dischargeType: DischargeType | null;
+  bedId: string;
+  bed: Bed;
+  stays: BedStay[];
+  charges: IpCharge[];
+  payments: IpPayment[];
+}
+
+export interface IpBillLineView {
+  category: IpChargeCategory;
+  chargeDate: string | null;
+  description: string;
+  quantity: number;
+  rate: number;
+  amount: number;
+  gstPercent: number;
+  chargeId: string | null;
+}
+
+export interface IpMoney {
+  gross: number;
+  gst: number;
+  discount: number;
+  net: number;
+  insuranceAdjustment: number;
+  advances: number;
+  settlements: number;
+  insurance: number;
+  refunds: number;
+  paid: number;
+  /** Positive: still owed. Negative: due back to the patient. */
+  balance: number;
+}
+
+export interface IpBillView {
+  isFinal: boolean;
+  billId: string | null;
+  billNo: string | null;
+  upTo: string;
+  bedDays: number;
+  lines: IpBillLineView[];
+  money: IpMoney;
+}
+
+export interface IpBill {
+  id: string;
+  billNo: string;
+  billedOn: string;
+  billedUpTo: string;
+  bedDays: number;
+  gross: number;
+  gst: number;
+  discount: number;
+  discountReason: string | null;
+  net: number;
+  insuranceAdjustment: number;
+  status: IpBillStatus;
+  cancelledOn: string | null;
+  cancelReason: string | null;
+}
+
+export interface IpNote {
+  id: string;
+  writtenOn: string;
+  author: string;
+  text: string;
+  temperatureF: number | null;
+  pulse: number | null;
+  bloodPressure: string | null;
+  spo2: number | null;
+  respiratoryRate: number | null;
+}
+
+export interface DischargeSummary {
+  finalDiagnosis: string | null;
+  courseInHospital: string | null;
+  treatment: string | null;
+  conditionAtDischarge: string | null;
+  medicines: string | null;
+  advice: string | null;
+  followUpOn: string | null;
+  doctorName: string | null;
+}
+
+export interface AdmissionDetail {
+  admission: Admission;
+  bill: IpBillView;
+  bills: IpBill[];
+  notes: IpNote[];
+  summary: DischargeSummary | null;
+  canDiscount: boolean;
 }

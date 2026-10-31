@@ -7,7 +7,7 @@ import { ShortcutSheet } from '../shell/ShortcutSheet';
 import { ANYWHERE, describeCombo, useHotkey } from '../shell/hotkeys';
 import {
   IconCalendar, IconDashboard, IconDensity, IconDentist, IconDiagnostics, IconHelp,
-  IconInventory, IconKey, IconLab, IconMedicines, IconMoon, IconPatients, IconPediatrics,
+  IconInventory, IconKey, IconLab, IconBed, IconMedicines, IconMoon, IconPatients, IconPediatrics,
   IconMasters, IconPharmacy, IconQueue, IconReports, IconSearch, IconSettings, IconSignOut,
   IconSun,
 } from '../shell/icons';
@@ -92,6 +92,7 @@ export function AppShell() {
       { to: '/pediatrics', label: 'Pediatrics', group: 'Go to', icon: IconPediatrics, show: on(general?.pediatricsEnabled), end: false, keywords: 'growth vaccination child' },
       { to: '/dentist', label: 'Dentist', group: 'Go to', icon: IconDentist, show: on(general?.dentistEnabled), end: false, keywords: 'dental sitting' },
       { to: '/lab', label: 'Pathology Lab', group: 'Go to', icon: IconLab, show: on(general?.pathologyLabEnabled), end: false, keywords: 'analyte report order' },
+      { to: '/ip', label: 'In-patients', group: 'Go to', icon: IconBed, show: on(general?.inpatientEnabled), end: false, keywords: 'admission bed ward ipd discharge' },
       { sep: true as const, show: general?.pharmacyEnabled !== false },
       { to: '/pharmacy', label: 'Pharmacy', group: 'Go to', icon: IconPharmacy, show: general?.pharmacyEnabled !== false, end: false, keywords: 'counter sale bill' },
       { to: '/medicines', label: 'Medicines', group: 'Go to', icon: IconMedicines, show: general?.pharmacyEnabled !== false, end: false, keywords: 'product drug' },

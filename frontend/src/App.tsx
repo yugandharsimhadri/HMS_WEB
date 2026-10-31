@@ -32,6 +32,8 @@ const DiagnosticsPage = lazy(() => import('./pages/DiagnosticsPage').then((m) =>
 const PediatricsPage = lazy(() => import('./pages/PediatricsPage').then((m) => ({ default: m.PediatricsPage })));
 const DentistPage = lazy(() => import('./pages/DentistPage').then((m) => ({ default: m.DentistPage })));
 const PathologyLabPage = lazy(() => import('./pages/PathologyLabPage').then((m) => ({ default: m.PathologyLabPage })));
+const InpatientPage = lazy(() => import('./pages/InpatientPage').then((m) => ({ default: m.InpatientPage })));
+const AdmissionPage = lazy(() => import('./pages/AdmissionPage').then((m) => ({ default: m.AdmissionPage })));
 const DashboardPage = lazy(() => import('./pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
 const ReportsPage = lazy(() => import('./pages/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const PlatformConsolePage = lazy(() => import('./pages/PlatformConsolePage').then((m) => ({ default: m.PlatformConsolePage })));
@@ -159,6 +161,8 @@ function AppRoutes() {
           <Route path="pediatrics" element={<PediatricsPage />} />
           <Route path="dentist" element={<DentistPage />} />
           <Route path="lab" element={<PathologyLabPage />} />
+          <Route path="ip" element={<InpatientPage />} />
+          <Route path="ip/:id" element={<AdmissionPage />} />
           <Route path="dashboard" element={<DashboardPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="pharmacy" element={<PharmacyCounterPage />} />
