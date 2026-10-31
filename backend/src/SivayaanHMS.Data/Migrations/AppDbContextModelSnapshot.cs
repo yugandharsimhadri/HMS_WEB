@@ -22,6 +22,109 @@ namespace SivayaanHMS.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("SivayaanHMS.Core.Admission", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AdmittedOn")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("AttendantName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AttendantPhone")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AttendantRelation")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("BedId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int?>("DischargeType")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("DischargedOn")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid>("DoctorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("InsurerName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("IpNo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsMlc")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("PatientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("PayerType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("PolicyNo")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("VisitId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdmittedOn");
+
+                    b.HasIndex("BedId");
+
+                    b.HasIndex("DischargedOn");
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("PatientId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VisitId");
+
+                    b.HasIndex("TenantId", "IpNo")
+                        .IsUnique();
+
+                    b.ToTable("Admissions");
+                });
+
             modelBuilder.Entity("SivayaanHMS.Core.AnesthesiaTypeMaster", b =>
                 {
                     b.Property<Guid>("Id")
@@ -236,6 +339,139 @@ namespace SivayaanHMS.Data.Migrations
                     b.HasIndex("ProductId", "BatchNo");
 
                     b.ToTable("Batches");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.Bed", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("BedNo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("RoomTypeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Ward")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoomTypeId");
+
+                    b.HasIndex("TenantId", "BedNo")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("Beds");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.BedStay", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BedId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BedNo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("DailyRent")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<DateTime>("From")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<decimal>("GstPercent")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("NursingPerDay")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<string>("RoomTypeName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("To")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdmissionId");
+
+                    b.HasIndex("BedId");
+
+                    b.ToTable("BedStays");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.Counter", b =>
@@ -910,6 +1146,71 @@ namespace SivayaanHMS.Data.Migrations
                     b.ToTable("DiagnosticTests");
                 });
 
+            modelBuilder.Entity("SivayaanHMS.Core.DischargeSummary", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Advice")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ConditionAtDischarge")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CourseInHospital")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DoctorName")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FinalDiagnosis")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("FollowUpOn")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Medicines")
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Treatment")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdmissionId")
+                        .IsUnique()
+                        .HasFilter("\"IsDeleted\" = false");
+
+                    b.ToTable("DischargeSummaries");
+                });
+
             modelBuilder.Entity("SivayaanHMS.Core.Doctor", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1150,6 +1451,421 @@ namespace SivayaanHMS.Data.Migrations
                         .IsUnique();
 
                     b.ToTable("ImportProfiles");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpBill", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("BedDays")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("BillNo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("BilledOn")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("BilledUpTo")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("CancelReason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CancelledOn")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Discount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<string>("DiscountReason")
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Gross")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<decimal>("Gst")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<decimal>("InsuranceAdjustment")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("Net")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdmissionId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_IpBills_OneFinalPerAdmission")
+                        .HasFilter("\"Status\" = 1 AND \"IsDeleted\" = false");
+
+                    b.HasIndex("BilledOn");
+
+                    b.HasIndex("TenantId", "BillNo")
+                        .IsUnique();
+
+                    b.ToTable("IpBills");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpBillLine", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<Guid>("BillId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ChargeDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("GstPercent")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("numeric(10,2)");
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<int>("Sort")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillId");
+
+                    b.ToTable("IpBillLines");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpCharge", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("ChargeDate")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("DoctorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("IpServiceId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdmissionId");
+
+                    b.HasIndex("ChargeDate");
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("IpServiceId");
+
+                    b.ToTable("IpCharges");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpNote", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Author")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("BloodPressure")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("Pulse")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("RespiratoryRate")
+                        .HasColumnType("integer");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<int?>("Spo2")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal?>("TemperatureF")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Text")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("WrittenOn")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdmissionId", "WrittenOn");
+
+                    b.ToTable("IpNotes");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AdmissionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("Mode")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("PaidOn")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("ReceiptNo")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reference")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdmissionId");
+
+                    b.HasIndex("PaidOn");
+
+                    b.HasIndex("TenantId", "ReceiptNo")
+                        .IsUnique();
+
+                    b.ToTable("IpPayments");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpService", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("Rate")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("IpServices");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabAnalyte", b =>
@@ -2400,6 +3116,61 @@ namespace SivayaanHMS.Data.Migrations
                     b.ToTable("ReminderLogs");
                 });
 
+            modelBuilder.Entity("SivayaanHMS.Core.RoomType", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("Active")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("DailyRent")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<decimal>("GstPercent")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal>("NursingPerDay")
+                        .HasPrecision(12, 2)
+                        .HasColumnType("numeric(12,2)");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<Guid?>("UpdatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("RoomTypes");
+                });
+
             modelBuilder.Entity("SivayaanHMS.Core.Sale", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3328,6 +4099,38 @@ namespace SivayaanHMS.Data.Migrations
                     b.ToTable("VisitDiagnosticRequests");
                 });
 
+            modelBuilder.Entity("SivayaanHMS.Core.Admission", b =>
+                {
+                    b.HasOne("SivayaanHMS.Core.Bed", "Bed")
+                        .WithMany()
+                        .HasForeignKey("BedId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SivayaanHMS.Core.Doctor", "Doctor")
+                        .WithMany()
+                        .HasForeignKey("DoctorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SivayaanHMS.Core.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("SivayaanHMS.Core.Visit", null)
+                        .WithMany()
+                        .HasForeignKey("VisitId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Bed");
+
+                    b.Navigation("Doctor");
+
+                    b.Navigation("Patient");
+                });
+
             modelBuilder.Entity("SivayaanHMS.Core.Appointment", b =>
                 {
                     b.HasOne("SivayaanHMS.Core.Doctor", "Doctor")
@@ -3361,6 +4164,34 @@ namespace SivayaanHMS.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.Bed", b =>
+                {
+                    b.HasOne("SivayaanHMS.Core.RoomType", "RoomType")
+                        .WithMany()
+                        .HasForeignKey("RoomTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("RoomType");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.BedStay", b =>
+                {
+                    b.HasOne("SivayaanHMS.Core.Admission", null)
+                        .WithMany("Stays")
+                        .HasForeignKey("AdmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SivayaanHMS.Core.Bed", "Bed")
+                        .WithMany()
+                        .HasForeignKey("BedId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Bed");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.DentalCase", b =>
@@ -3507,6 +4338,54 @@ namespace SivayaanHMS.Data.Migrations
                         .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("Patient");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpBill", b =>
+                {
+                    b.HasOne("SivayaanHMS.Core.Admission", "Admission")
+                        .WithMany()
+                        .HasForeignKey("AdmissionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Admission");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpBillLine", b =>
+                {
+                    b.HasOne("SivayaanHMS.Core.IpBill", null)
+                        .WithMany("Lines")
+                        .HasForeignKey("BillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpCharge", b =>
+                {
+                    b.HasOne("SivayaanHMS.Core.Admission", null)
+                        .WithMany("Charges")
+                        .HasForeignKey("AdmissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("SivayaanHMS.Core.Doctor", null)
+                        .WithMany()
+                        .HasForeignKey("DoctorId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("SivayaanHMS.Core.IpService", null)
+                        .WithMany()
+                        .HasForeignKey("IpServiceId")
+                        .OnDelete(DeleteBehavior.SetNull);
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpPayment", b =>
+                {
+                    b.HasOne("SivayaanHMS.Core.Admission", null)
+                        .WithMany("Payments")
+                        .HasForeignKey("AdmissionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabAnalyteReferenceRange", b =>
@@ -3836,6 +4715,15 @@ namespace SivayaanHMS.Data.Migrations
                     b.Navigation("Visit");
                 });
 
+            modelBuilder.Entity("SivayaanHMS.Core.Admission", b =>
+                {
+                    b.Navigation("Charges");
+
+                    b.Navigation("Payments");
+
+                    b.Navigation("Stays");
+                });
+
             modelBuilder.Entity("SivayaanHMS.Core.DentalCase", b =>
                 {
                     b.Navigation("Payments");
@@ -3848,6 +4736,11 @@ namespace SivayaanHMS.Data.Migrations
             modelBuilder.Entity("SivayaanHMS.Core.DiagnosticBill", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("SivayaanHMS.Core.IpBill", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("SivayaanHMS.Core.LabOrder", b =>

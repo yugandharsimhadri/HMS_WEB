@@ -96,6 +96,7 @@ builder.Services.AddScoped<DentistService>();
 builder.Services.AddScoped<DiagnosticsService>();
 builder.Services.AddScoped<PathologyLabService>();
 builder.Services.AddScoped<ProcedureBillsService>();
+builder.Services.AddScoped<InpatientService>();
 builder.Services.AddScoped<DataHealthService>();
 builder.Services.AddScoped<SivayaanHMS.Data.Import.PurchaseImportService>();
 

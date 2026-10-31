@@ -260,6 +260,20 @@ public class GeneralSettings
     /// stays a flat named-test billing module for ad-hoc or sent-out work.</summary>
     public bool PathologyLabEnabled { get; set; }
 
+    /// <summary>Off by default. Admissions, the bed board, the running IP bill,
+    /// advances, final bill and discharge.</summary>
+    public bool InpatientEnabled { get; set; }
+
+    /// <summary>How IP bed days are counted. Midnight count unless the clinic chooses otherwise.</summary>
+    public BedDayRule IpBedDayRule { get; set; } = BedDayRule.MidnightCount;
+
+    /// <summary>For 24-hour blocks: hours past a whole day that are not charged as another day.</summary>
+    public int IpGraceHours { get; set; } = 2;
+
+    /// <summary>Whether a patient may be discharged with part of the bill unpaid - it then shows on the IP dues report.
+    /// On by default: insurance cases routinely leave before the insurer pays.</summary>
+    public bool IpAllowDischargeWithDues { get; set; } = true;
+
 
     /// <summary>
     /// Whether at least one clinical module — OPD, Pharmacy, or any of the
@@ -270,7 +284,7 @@ public class GeneralSettings
     /// </summary>
     public bool AnyModuleEnabled =>
         OpdEnabled || PharmacyEnabled || DiagnosticsEnabled || AppointmentsEnabled
-        || PediatricsEnabled || DentistEnabled || PathologyLabEnabled;
+        || PediatricsEnabled || DentistEnabled || PathologyLabEnabled || InpatientEnabled;
 }
 
 public enum QueueLayout
@@ -354,6 +368,10 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
     private const string KeyPediatricsEnabled = "features.pediatrics.enabled";
     private const string KeyDentistEnabled = "features.dentist.enabled";
     private const string KeyPathologyLabEnabled = "features.pathologylab.enabled";
+    private const string KeyInpatientEnabled = "features.inpatient.enabled";
+    private const string KeyIpBedDayRule = "inpatient.beddayrule";
+    private const string KeyIpGraceHours = "inpatient.gracehours";
+    private const string KeyIpAllowDischargeWithDues = "inpatient.dischargewithdues";
 
     public async Task<ClinicProfile> GetClinicAsync()
     {
@@ -513,7 +531,11 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
             AppointmentsEnabled = Bool(map, KeyAppointmentsEnabled),
             PediatricsEnabled = Bool(map, KeyPediatricsEnabled),
             DentistEnabled = Bool(map, KeyDentistEnabled),
-            PathologyLabEnabled = Bool(map, KeyPathologyLabEnabled)
+            PathologyLabEnabled = Bool(map, KeyPathologyLabEnabled),
+            InpatientEnabled = Bool(map, KeyInpatientEnabled),
+            IpBedDayRule = Enum.TryParse<BedDayRule>(Get(map, KeyIpBedDayRule, ""), out var rule) ? rule : fallback.IpBedDayRule,
+            IpGraceHours = int.TryParse(Get(map, KeyIpGraceHours, ""), out var grace) ? Math.Clamp(grace, 0, 12) : fallback.IpGraceHours,
+            IpAllowDischargeWithDues = BoolDefault(map, KeyIpAllowDischargeWithDues, true)
         };
     }
 
@@ -540,6 +562,10 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
         await SetAsync(db, KeyPediatricsEnabled, settings.PediatricsEnabled.ToString());
         await SetAsync(db, KeyDentistEnabled, settings.DentistEnabled.ToString());
         await SetAsync(db, KeyPathologyLabEnabled, settings.PathologyLabEnabled.ToString());
+        await SetAsync(db, KeyInpatientEnabled, settings.InpatientEnabled.ToString());
+        await SetAsync(db, KeyIpBedDayRule, settings.IpBedDayRule.ToString());
+        await SetAsync(db, KeyIpGraceHours, Math.Clamp(settings.IpGraceHours, 0, 12).ToString());
+        await SetAsync(db, KeyIpAllowDischargeWithDues, settings.IpAllowDischargeWithDues.ToString());
 
         await db.SaveChangesAsync();
     }

@@ -41,6 +41,12 @@ public static class NumberService
     public const string ProcedureBill = "ProcedureBill";
     public const string DentalPayment = "DentalPayment";
     public const string LabOrder = "LabOrder";
+    public const string Admission = "Admission";
+    public const string IpBill = "IpBill";
+    public const string IpAdvance = "IpAdvance";
+    public const string IpSettlement = "IpSettlement";
+    public const string IpRefund = "IpRefund";
+    public const string IpInsurance = "IpInsurance";
 
     /// <summary>
     /// Allocates and returns the next number for <paramref name="name"/>
@@ -121,6 +127,12 @@ public static class NumberService
         ProcedureBill => "PRC",
         DentalPayment => "DPR",
         LabOrder => "LAB",
+        Admission => "IP",
+        IpBill => "IPB",
+        IpAdvance => "ADV",
+        IpSettlement => "SET",
+        IpRefund => "RF",
+        IpInsurance => "INS",
         _ => "DOC"
     };
 }

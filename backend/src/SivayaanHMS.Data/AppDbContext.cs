@@ -92,6 +92,19 @@ public class AppDbContext : DbContext
     public DbSet<PasswordResetCode> PasswordResetCodes => Set<PasswordResetCode>();
     public DbSet<PasswordResetTransaction> PasswordResetTransactions => Set<PasswordResetTransaction>();
 
+    // In-patient
+    public DbSet<RoomType> RoomTypes => Set<RoomType>();
+    public DbSet<Bed> Beds => Set<Bed>();
+    public DbSet<IpService> IpServices => Set<IpService>();
+    public DbSet<Admission> Admissions => Set<Admission>();
+    public DbSet<BedStay> BedStays => Set<BedStay>();
+    public DbSet<IpCharge> IpCharges => Set<IpCharge>();
+    public DbSet<IpPayment> IpPayments => Set<IpPayment>();
+    public DbSet<IpBill> IpBills => Set<IpBill>();
+    public DbSet<IpBillLine> IpBillLines => Set<IpBillLine>();
+    public DbSet<IpNote> IpNotes => Set<IpNote>();
+    public DbSet<DischargeSummary> DischargeSummaries => Set<DischargeSummary>();
+
     /// <summary>The tenant registry itself — not tenant-scoped, since it is
     /// what tenant-scoping is scoped against. See Tenant's own class doc.</summary>
     public DbSet<Tenant> Tenants => Set<Tenant>();
@@ -355,6 +368,83 @@ public class AppDbContext : DbContext
             e.HasOne(x => x.Patient).WithMany()
                 .HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Cascade);
         });
+
+        // ── In-patient ──────────────────────────────────────────────────
+        b.Entity<RoomType>(e => e.HasIndex(x => x.Name));
+
+        b.Entity<Bed>(e =>
+        {
+            e.HasIndex(x => new { x.TenantId, x.BedNo }).IsUnique().HasFilter("\"IsDeleted\" = false");
+            e.HasOne(x => x.RoomType).WithMany()
+                .HasForeignKey(x => x.RoomTypeId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<IpService>(e => e.HasIndex(x => x.Name));
+
+        b.Entity<Admission>(e =>
+        {
+            e.HasIndex(x => new { x.TenantId, x.IpNo }).IsUnique();
+            e.HasIndex(x => x.AdmittedOn);
+            e.HasIndex(x => x.DischargedOn);
+            e.HasIndex(x => x.Status);
+            e.HasOne(x => x.Patient).WithMany()
+                .HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Doctor).WithMany()
+                .HasForeignKey(x => x.DoctorId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne(x => x.Bed).WithMany()
+                .HasForeignKey(x => x.BedId).OnDelete(DeleteBehavior.Restrict);
+            e.HasOne<Visit>().WithMany()
+                .HasForeignKey(x => x.VisitId).OnDelete(DeleteBehavior.SetNull);
+            e.HasMany(x => x.Stays).WithOne()
+                .HasForeignKey(s => s.AdmissionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Charges).WithOne()
+                .HasForeignKey(c => c.AdmissionId).OnDelete(DeleteBehavior.Cascade);
+            e.HasMany(x => x.Payments).WithOne()
+                .HasForeignKey(p => p.AdmissionId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<BedStay>(e =>
+        {
+            e.HasOne(x => x.Bed).WithMany()
+                .HasForeignKey(x => x.BedId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        b.Entity<IpCharge>(e =>
+        {
+            e.HasIndex(x => x.ChargeDate);
+            e.HasOne<IpService>().WithMany()
+                .HasForeignKey(x => x.IpServiceId).OnDelete(DeleteBehavior.SetNull);
+            e.HasOne<Doctor>().WithMany()
+                .HasForeignKey(x => x.DoctorId).OnDelete(DeleteBehavior.SetNull);
+        });
+
+        b.Entity<IpPayment>(e =>
+        {
+            e.HasIndex(x => new { x.TenantId, x.ReceiptNo }).IsUnique();
+            // The Collections report reads money by the day it arrived.
+            e.HasIndex(x => x.PaidOn);
+        });
+
+        b.Entity<IpBill>(e =>
+        {
+            e.HasIndex(x => new { x.TenantId, x.BillNo }).IsUnique();
+            e.HasIndex(x => x.BilledOn);
+            e.HasOne(x => x.Admission).WithMany()
+                .HasForeignKey(x => x.AdmissionId).OnDelete(DeleteBehavior.Restrict);
+            e.HasMany(x => x.Lines).WithOne()
+                .HasForeignKey(l => l.BillId).OnDelete(DeleteBehavior.Cascade);
+            // At most one live bill per admission; cancelled ones are kept beside it.
+            e.HasIndex(x => x.AdmissionId).IsUnique()
+                .HasFilter("\"Status\" = 1 AND \"IsDeleted\" = false")
+                .HasDatabaseName("IX_IpBills_OneFinalPerAdmission");
+            e.Property(x => x.Status).HasConversion<int>();
+        });
+
+        b.Entity<IpBillLine>(e => e.Property(x => x.Quantity).HasPrecision(10, 2));
+
+        b.Entity<IpNote>(e => e.HasIndex(x => new { x.AdmissionId, x.WrittenOn }));
+
+        b.Entity<DischargeSummary>(e => e.HasIndex(x => x.AdmissionId).IsUnique().HasFilter("\"IsDeleted\" = false"));
 
         b.Entity<Procedure>(e => e.HasIndex(x => new { x.Department, x.Name }));
 
