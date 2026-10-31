@@ -36,6 +36,7 @@ public class ReportsController(
     ProcedureBillsService procedures,
     PathologyLabService lab,
     DentistService dentist,
+    InpatientService inpatient,
     SettingsService settings) : ControllerBase
 {
     // ── The report itself ──────────────────────────────────────────────────
@@ -225,7 +226,7 @@ public class ReportsController(
     /// be reprinted. <paramref name="Source"/> says which kind it is, and the
     /// screen maps that to the matching print route.</summary>
     private sealed record Collection(
-        DateTime TakenOn, PaymentMode Mode, string Source, string Reference,
+        DateTime TakenOn, PaymentMode? Mode, string Source, string Reference,
         string Who, decimal Amount, string? TransactionNo, Guid DocumentId);
 
     /// <summary>
@@ -281,6 +282,15 @@ public class ReportsController(
                 p.PaidOn, p.PaymentMode, "Dentist", p.ReceiptNo,
                 p.DentalCase?.PatientName ?? "", p.Amount, p.TransactionNo, p.Id));
 
+        // In-patient money: advances and settlements as they arrive, a refund as money
+        // going back out, and an insurer's payment with no counter mode of its own.
+        foreach (var p in await inpatient.GetPaymentsAsync(from, to))
+            taken.Add(new Collection(
+                p.Payment.PaidOn, p.Payment.Mode, "In-patient", p.Payment.ReceiptNo,
+                p.PatientName,
+                p.Payment.Kind == IpPaymentKind.Refund ? -p.Payment.Amount : p.Payment.Amount,
+                p.Payment.Reference, p.Payment.Id));
+
         // Totals are computed before the filter, so a report narrowed to UPI
         // still says what share of the whole that was. A UPI figure with
         // nothing to compare it against is half an answer.
@@ -290,7 +300,7 @@ public class ReportsController(
             .OrderBy(t => t.TakenOn)
             .ToList();
 
-        static string ModeName(PaymentMode each) => each == PaymentMode.Upi ? "UPI" : each.ToString();
+        static string ModeName(PaymentMode? each) => each switch { PaymentMode.Upi => "UPI", null => "Insurance", _ => each.ToString()! };
 
         var totals = new List<ReportTotal>
         {
@@ -304,6 +314,8 @@ public class ReportsController(
         {
             foreach (var each in Enum.GetValues<PaymentMode>())
                 totals.Add(new(ModeName(each), taken.Where(t => t.Mode == each).Sum(t => t.Amount)));
+            if (taken.Any(t => t.Mode is null))
+                totals.Add(new(ModeName(null), taken.Where(t => t.Mode is null).Sum(t => t.Amount)));
         }
         else if (everything > 0)
         {
@@ -319,7 +331,7 @@ public class ReportsController(
                 Typed("Amount", ReportFormat.Money, sum: true),
             ],
             rows.Select(t => new ReportRow(
-                [t.TakenOn, t.Mode.ToString(), t.Source, t.Reference, t.Who, t.TransactionNo ?? "", t.Amount],
+                [t.TakenOn, ModeName(t.Mode), t.Source, t.Reference, t.Who, t.TransactionNo ?? "", t.Amount],
                 Id: t.DocumentId))
                 .ToList(),
             totals));

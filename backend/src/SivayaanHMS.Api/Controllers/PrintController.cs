@@ -213,6 +213,15 @@ public class PrintController(
         return Inline(IpDocuments.Summary(a, summary, clinic, theme), $"discharge-summary-{a.IpNo}.pdf");
     }
 
+    /// <summary>The same receipt by payment alone - what a Collections row carries.</summary>
+    [HttpGet("ip-receipt/{paymentId:guid}")]
+    public async Task<IActionResult> IpReceiptById(Guid paymentId)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var admissionId = await db.IpPayments.AsNoTracking().Where(p => p.Id == paymentId).Select(p => (Guid?)p.AdmissionId).FirstOrDefaultAsync();
+        return admissionId is { } id ? await IpReceipt(id, paymentId) : NotFound();
+    }
+
     [HttpGet("ip/{admissionId:guid}/receipt/{paymentId:guid}")]
     public async Task<IActionResult> IpReceipt(Guid admissionId, Guid paymentId)
     {

@@ -27,6 +27,7 @@ export function InpatientPage() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   const [to, setTo] = useState(todayInput());
+  const [duesOnly, setDuesOnly] = useState(false);
 
   const [admitting, setAdmitting] = useState<{ bedId?: string | null; patient?: Patient | null; doctorId?: string | null; visitId?: string | null; reason?: string | null } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -164,6 +165,7 @@ export function InpatientPage() {
                 <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
                 <label>To</label>
                 <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+                <label className="checkbox-label"><input type="checkbox" checked={duesOnly} onChange={() => setDuesOnly(!duesOnly)} /><span>Only with balance due</span></label>
               </>
             )}
           </div>
@@ -176,7 +178,7 @@ export function InpatientPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {rows.filter((r) => !duesOnly || view !== 'discharged' || r.balance > 0).map((r) => (
                 <tr key={r.id} className="clickable" onClick={() => navigate(`/ip/${r.id}`)}>
                   <td className="mono">{r.ipNo}</td>
                   <td><strong>{r.patientName}</strong> <span className="hint">{r.age} {r.gender.charAt(0)} · {r.patientNo}</span>

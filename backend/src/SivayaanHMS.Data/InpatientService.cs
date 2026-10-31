@@ -44,6 +44,8 @@ public record FinalBillRequest(DateTime DischargeOn, decimal Discount, string? D
 
 public record DischargeRequest(DischargeType DischargeType);
 
+public record IpPaymentRow(IpPayment Payment, string PatientName);
+
 public record AddNoteRequest(
     string Text, string? Author, decimal? TemperatureF, int? Pulse, string? BloodPressure, int? Spo2, int? RespiratoryRate);
 
@@ -572,6 +574,21 @@ public class InpatientService(IDbContextFactory<AppDbContext> factory, SettingsS
         db.IpPayments.Add(payment);
         await db.SaveChangesAsync();
         return payment;
+    }
+
+    /// <summary>IP money that moved in a date range, for the Collections report.</summary>
+    public async Task<List<IpPaymentRow>> GetPaymentsAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+
+        return await db.IpPayments.AsNoTracking()
+            .Where(p => p.PaidOn >= start && p.PaidOn < end)
+            .Join(db.Admissions, p => p.AdmissionId, a => a.Id, (p, a) => new { p, a.Patient.Name })
+            .OrderBy(x => x.p.PaidOn)
+            .Select(x => new IpPaymentRow(x.p, x.Name))
+            .ToListAsync();
     }
 
     // ── The bill ───────────────────────────────────────────────────────────

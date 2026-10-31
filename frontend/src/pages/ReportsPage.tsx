@@ -59,6 +59,7 @@ const COLLECTION_ROUTES: Record<string, string> = {
   'Procedures': 'procedure-bill',
   'Pathology Lab': 'lab-report',
   'Dentist': 'dental-receipt',
+  'In-patient': 'ip-receipt',
 };
 
 /** Undefined is "all modes", which keeps the per-mode split in the totals. */

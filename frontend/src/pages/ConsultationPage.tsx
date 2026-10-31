@@ -52,6 +52,7 @@ export function ConsultationPage() {
   // whether the test box offers the catalogue or takes free text, and the
   // provider already knows.
   const diagnosticsEnabled = useGeneralSettings()?.diagnosticsEnabled ?? false;
+  const inpatientEnabled = useGeneralSettings()?.inpatientEnabled ?? false;
 
   const [complaint, setComplaint] = useState('');
   const [diagnosis, setDiagnosis] = useState('');
@@ -409,6 +410,11 @@ export function ConsultationPage() {
           <button type="button" className="primary" onClick={save} disabled={saving}>Save</button>
           <button type="button" onClick={complete} disabled={saving}>Complete</button>
           <button type="button" className="ghost" onClick={print}>Save &amp; print</button>
+          {inpatientEnabled && (
+            <button type="button" className="ghost" onClick={() => navigate(`/ip?${new URLSearchParams({
+              admit: '1', patientNo: visit.patient.patientNo, doctor: visit.doctorId, visit: visit.id, reason: diagnosis.trim(),
+            })}`)}>Admit</button>
+          )}
           <button type="button" className="ghost" onClick={close}>Close</button>
         </div>
       </div>
