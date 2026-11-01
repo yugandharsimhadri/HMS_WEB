@@ -37,8 +37,14 @@ public static class MessagingLog
         "SivayaanHMS.Messaging",
     ];
 
+    // Each file has its own switch, both on by default: Logging:File:Enabled
+    // and Logging:Messages:Enabled. Off means the file is not written at all;
+    // the paths stay in the config for turning it back on with a restart.
+
     public static string? MessagesLogPath(IConfiguration config, IHostEnvironment env)
     {
+        if (!config.GetValue("Logging:Messages:Enabled", true)) return null;
+
         var explicitPath = config["Logging:Messages:PathFormat"];
         if (!string.IsNullOrWhiteSpace(explicitPath)) return explicitPath;
         if (env.IsDevelopment()) return null; // the console shows everything
@@ -48,11 +54,20 @@ public static class MessagingLog
         return Path.Combine(folder ?? "logs", "messages-{Date}.log");
     }
 
+    /// <summary>Logging:File:PathFormat, unless Logging:File:Enabled is false.</summary>
+    public static string? MainLogPath(IConfiguration config) =>
+        config.GetValue("Logging:File:Enabled", true) && !string.IsNullOrWhiteSpace(config["Logging:File:PathFormat"])
+            ? config["Logging:File:PathFormat"]
+            : null;
+
+    private static string Describe(string? path, IConfiguration config, string section) =>
+        path ?? (config.GetValue($"Logging:{section}:Enabled", true) ? "(none)" : $"OFF (Logging:{section}:Enabled = false)");
+
     public static void AddFiles(WebApplicationBuilder builder)
     {
         var config = builder.Configuration;
 
-        if (!string.IsNullOrWhiteSpace(config["Logging:File:PathFormat"]))
+        if (MainLogPath(config) is not null)
             builder.Logging.AddFile(config.GetSection("Logging:File"));
 
         var path = MessagesLogPath(config, builder.Environment);
@@ -103,10 +118,12 @@ public static class MessagingLog
             "  Forgot password: {Reset:l}\n" +
             "  Reset codes    : {Codes:l}\n" +
             "  Welcome        : {Welcome:l}\n" +
+            "  Main log       : {MainLog:l}\n" +
             "  Messages log   : {MessagesLog:l}",
             env.EnvironmentName, Process.GetCurrentProcess().StartTime, string.Join(", ", files),
             reset.Enabled ? "offered" : "OFF (PasswordReset:Enabled = false): users ask their clinic admin",
             reset.Enabled ? codes : "-", welcome,
-            MessagesLogPath(config, env) ?? "(none: console only)");
+            Describe(MainLogPath(config), config, "File"),
+            Describe(MessagesLogPath(config, env), config, "Messages"));
     }
 }

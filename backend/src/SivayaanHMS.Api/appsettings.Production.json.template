@@ -62,8 +62,12 @@
       "IIS: the application pool must be allowed to write there, once:",
       "  icacls <site folder>\\logs /grant \"IIS AppPool\\<pool name>:(OI)(CI)M\"",
       "Messages:PathFormat moves it. File:PathFormat adds a main log too (optional), e.g.",
-      "  \"File\": { \"PathFormat\": \"C:\\\\Server\\\\hms\\\\logs\\\\hms-{Date}.log\", \"LogLevel\": { \"Default\": \"Warning\" } }"
-    ]
+      "  \"File\": { \"Enabled\": true, \"PathFormat\": \"C:\\\\Server\\\\hms\\\\logs\\\\hms-{Date}.log\", \"LogLevel\": { \"Default\": \"Warning\" } }",
+      "On/off: Messages:Enabled and File:Enabled (true by default). false = that file is not written; restart (recycle the app pool) to apply."
+    ],
+    "Messages": {
+      "Enabled": true
+    }
   },
 
   "SivaCom": {

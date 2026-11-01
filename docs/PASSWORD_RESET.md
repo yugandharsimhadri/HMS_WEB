@@ -300,6 +300,10 @@ line per *Forgot password* request and per call to SivaCom or WhatsApp. No
 code, password, grant or secret is written; phone numbers show their last
 four digits only. The browser's answer is the same whatever the log says.
 
+On/off: `Logging:Messages:Enabled` (and `Logging:File:Enabled` for the
+optional main log), both `true` by default. Set `false` and recycle the
+application pool to stop writing that file.
+
 Under IIS the application pool must be allowed to write to that folder, once:
 
 ```powershell
