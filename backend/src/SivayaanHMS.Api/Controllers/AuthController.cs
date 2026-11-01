@@ -271,6 +271,10 @@ public class AuthController(
 
         var (tenant, user) = await ResolveAsync(request.Username, ct);
 
+        // Logging only — the answer below is unchanged on every path.
+        if (ResetLogText.WhyNoCode(tenant, user) is { } why)
+            logger.LogWarning("Password reset requested (classic): NO code sent - {Reason:l}.", why);
+
         if (tenant is null || user is null)
             return Ok(new ForgotPasswordResponse(Always));
 
@@ -284,7 +288,14 @@ public class AuthController(
 
         // Null means the send cap was hit. Same answer: a caller who could
         // tell the difference could use it to probe which accounts are busy.
-        if (code is null) return Ok(new ForgotPasswordResponse(Always));
+        if (code is null)
+        {
+            logger.LogWarning("Password reset requested (classic): NO code sent - user {UserId} ({Clinic:l}) hit the send limit.", user.Id, tenant.Slug);
+            return Ok(new ForgotPasswordResponse(Always));
+        }
+
+        logger.LogInformation("Password reset requested (classic): user {UserId} ({Clinic:l}), sending code to {Phone:l}.",
+            user.Id, tenant.Slug, ResetLogText.Mask(user.Phone));
 
         var minutes = $"{PasswordResetService.Lifetime.TotalMinutes:0}";
 

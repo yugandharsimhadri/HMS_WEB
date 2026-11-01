@@ -54,6 +54,18 @@
     "Enabled": true
   },
 
+  "Logging": {
+    "//": [
+      "messages-<date>.log is written on every server without any setting here: every Forgot password",
+      "request (and why no code went out, if none did), every call to SivaCom or WhatsApp and its answer,",
+      "and a startup block saying how codes are sent. Default folder: logs beside the application.",
+      "IIS: the application pool must be allowed to write there, once:",
+      "  icacls <site folder>\\logs /grant \"IIS AppPool\\<pool name>:(OI)(CI)M\"",
+      "Messages:PathFormat moves it. File:PathFormat adds a main log too (optional), e.g.",
+      "  \"File\": { \"PathFormat\": \"C:\\\\Server\\\\hms\\\\logs\\\\hms-{Date}.log\", \"LogLevel\": { \"Default\": \"Warning\" } }"
+    ]
+  },
+
   "SivaCom": {
     "//": [
       "The OTP switch. Full guide: docs/PASSWORD_RESET.md.",

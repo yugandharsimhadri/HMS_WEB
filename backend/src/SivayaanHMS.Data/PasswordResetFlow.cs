@@ -95,7 +95,14 @@ public sealed class PasswordResetFlow(
         db.PasswordResetTransactions.Add(txn);
         await db.SaveChangesAsync(ct);
 
-        if (!real) return token;
+        if (!real)
+        {
+            logger.LogWarning("Password reset requested ({Provider:l}): NO code sent - {Reason:l}.", gateway.Name, ResetLogText.WhyNoCode(tenant, user));
+            return token;
+        }
+
+        logger.LogInformation("Password reset requested ({Provider:l}): user {UserId} ({Clinic:l}), code to {Phone:l}, transaction {TransactionId}.",
+            gateway.Name, user!.Id, tenant!.Slug, ResetLogText.Mask(user.Phone), txn.Id);
 
         try
         {
@@ -104,6 +111,7 @@ public sealed class PasswordResetFlow(
             {
                 txn.ChallengeId = sent.ChallengeId;
                 await db.SaveChangesAsync(ct);
+                logger.LogInformation("Reset code for user {UserId} queued by {Provider:l}: challenge {ChallengeId}.", user.Id, gateway.Name, sent.ChallengeId);
             }
             else
             {

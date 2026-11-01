@@ -291,6 +291,34 @@ template with the telecom regulator — which is why `MessagePurpose` and
 
 ---
 
+## Logs: why did somebody not get a code?
+
+Every server writes `logs\messages-<date>.log` beside the application (or
+where `Logging:Messages:PathFormat` says), whatever the other log settings.
+It holds only messaging: a startup block saying how codes are sent, then one
+line per *Forgot password* request and per call to SivaCom or WhatsApp. No
+code, password, grant or secret is written; phone numbers show their last
+four digits only. The browser's answer is the same whatever the log says.
+
+Under IIS the application pool must be allowed to write to that folder, once:
+
+```powershell
+New-Item -ItemType Directory -Force <site folder>\logs | Out-Null
+icacls <site folder>\logs /grant "IIS AppPool\<pool name>:(OI)(CI)M"
+```
+
+| Line | Meaning |
+|---|---|
+| `HMS messaging at startup … Reset codes : through SivaCom at … / straight to WhatsApp / NOT SENT …` | how this server sends codes, and which config files it read (with when each was saved) |
+| `Password reset requested (…): NO code sent - no clinic matches / no such username / inactive / has no phone number on file` | nothing was sent, and why |
+| `Password reset requested (…): user … code to ******4929` | a code was asked for |
+| `SivaCom POST …/otp/challenges -> 202 QUEUED … challenge … [correlation …]` | SivaCom accepted it; SivaCom's own messages log has the same correlation id and follows it to WhatsApp |
+| `SivaCom … -> 401 …` | SivaCom refused the signature; its log names the reason |
+| `Could not reach SivaCom: … No connection could be made …` | SivaCom is down or `SivaCom:BaseUrl` is wrong |
+| `WhatsApp refused a … message (400) …` / `WhatsApp accepted …` | classic mode (`SivaCom:Enabled` false), straight to Meta |
+
+---
+
 ## Known gaps
 
 - **Staff accounts without a number still ask an Admin.** Settings → Staff

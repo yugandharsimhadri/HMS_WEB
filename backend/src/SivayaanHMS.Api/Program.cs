@@ -20,6 +20,11 @@ var builder = WebApplication.CreateBuilder(args);
 // nobody set.
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
+// Log files: the main log when Logging:File:PathFormat is set, and the
+// messages log (every reset request and every SivaCom/WhatsApp call) on any
+// server. IIS keeps no logs of its own for us. See MessagingLog.
+SivayaanHMS.Api.MessagingLog.AddFiles(builder);
+
 // ── Database ─────────────────────────────────────────────────────────────
 // Everything about the database comes from the Database section of
 // appsettings — host, port, name, role, password, SSL, pool sizes, timeouts
@@ -278,6 +283,8 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+SivayaanHMS.Api.MessagingLog.WriteStartup(app, sivaCom, whatsApp);
 
 // Promised by the registration above: say it once, at startup, where it will
 // be seen — not at the first reset nobody receives.

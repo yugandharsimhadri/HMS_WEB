@@ -92,17 +92,28 @@ public sealed class SivaComClient(HttpClient http, IOptions<SivaComOptions> opti
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
         timeout.CancelAfter(TimeSpan.FromSeconds(_options.TimeoutSeconds));
 
+        // Every call is one line in the messages log: where it went, what came
+        // back, how long it took, and SivaCom's correlation id — the same id
+        // is in SivaCom's own messages log, so the two read side by side.
+        var url = request.RequestUri!.GetLeftPart(UriPartial.Path);
+        var started = System.Diagnostics.Stopwatch.StartNew();
+
         try
         {
             using var response = await http.SendAsync(request, timeout.Token);
             var text = await response.Content.ReadAsStringAsync(timeout.Token);
             var status = (int)response.StatusCode;
+            var ms = started.ElapsedMilliseconds;
 
             if (status == 401)
             {
                 // Our key is wrong, revoked, or our clock is off. Loud, because
                 // every reset fails until somebody fixes configuration.
-                logger.LogError("SivaCom refused this application's signature (401). Check SivaCom:ClientId/KeyId/Secret and the server clock.");
+                logger.LogError(
+                    "SivaCom {Method:l} {Url:l} -> 401 in {Ms} ms: SivaCom refused this application's signature (client {ClientId:l}, key {KeyId:l}). " +
+                    "Compare SivaCom:ClientId/KeyId/Secret here with the hms-web entry in SivaCom's Applications, check both servers' clocks, " +
+                    "and that both are builds from after the SivaCom rename. SivaCom's messages log says which.",
+                    method.Method, url, ms, _options.ClientId, _options.KeyId);
                 return new(status, "TEMPORARY_ERROR", Empty);
             }
 
@@ -110,25 +121,44 @@ public sealed class SivaComClient(HttpClient http, IOptions<SivaComOptions> opti
             try { parsed = JsonDocument.Parse(text).RootElement.Clone(); }
             catch (JsonException)
             {
-                logger.LogError("SivaCom returned {Status} with a body that is not JSON.", status);
+                logger.LogError("SivaCom {Method:l} {Url:l} -> {Status} in {Ms} ms with a body that is not JSON: is SivaCom:BaseUrl really SivaCom?",
+                    method.Method, url, status, ms);
                 return new(status, "TEMPORARY_ERROR", Empty);
             }
 
-            var word = parsed.ValueKind == JsonValueKind.Object && parsed.TryGetProperty("status", out var s) ? s.GetString() : null;
+            var word = Text(parsed, "status");
+            var message = Text(parsed, "message");
+            var correlation = Text(parsed, "correlationId") ?? "-";
+
             if (status >= 500 || word is null)
             {
-                logger.LogWarning("SivaCom answered {Status} {Word} for {Path}.", status, word ?? "(none)", path);
+                logger.LogWarning("SivaCom {Method:l} {Url:l} -> {Status} {Word:l} in {Ms} ms{Message:l} [correlation {Correlation:l}]",
+                    method.Method, url, status, word ?? "(none)", ms, message is null ? "" : " - " + message, correlation);
                 return new(status, "TEMPORARY_ERROR", parsed);
             }
+
+            logger.Log(status < 300 ? LogLevel.Information : LogLevel.Warning,
+                "SivaCom {Method:l} {Url:l} -> {Status} {Word:l} in {Ms} ms{Ids:l}{Message:l} [correlation {Correlation:l}]",
+                method.Method, url, status, word, ms,
+                string.Concat(Text(parsed, "challengeId") is { } c ? " challenge " + c : "", Text(parsed, "messageId") is { } m ? " message " + m : ""),
+                message is null || status < 300 ? "" : " - " + message, correlation);
 
             return new(status, word, parsed);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException && !ct.IsCancellationRequested)
         {
-            logger.LogWarning("Could not reach SivaCom for {Path}: {Error}.", path, ex.GetType().Name);
+            // The reason ("No connection could be made…", a DNS failure) says
+            // whether SivaCom is down, the URL is wrong or a firewall is in
+            // the way. It names hosts, never the user.
+            logger.LogError("Could not reach SivaCom: {Method:l} {Url:l} failed after {Ms} ms: {Error:l}. Is the SivaComApi service running, and is SivaCom:BaseUrl right?",
+                method.Method, url, started.ElapsedMilliseconds,
+                ex is HttpRequestException ? ex.Message : $"no answer within SivaCom:TimeoutSeconds ({_options.TimeoutSeconds} s)");
             return new(0, "TEMPORARY_ERROR", Empty);
         }
     }
+
+    private static string? Text(JsonElement e, string name) =>
+        e.ValueKind == JsonValueKind.Object && e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
     public Task<SivaComResponse> PostAsync(string path, object body, CancellationToken ct, string? idempotencyKey = null) =>
         SendAsync(HttpMethod.Post, path, body, idempotencyKey, ct);
