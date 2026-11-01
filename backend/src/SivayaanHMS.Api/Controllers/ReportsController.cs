@@ -13,7 +13,7 @@ namespace SivayaanHMS.Api.Controllers;
 public record DayBookSummary(
     decimal TotalCollected, decimal CashTotal, decimal UpiTotal,
     decimal TaxableTotal, decimal CgstTotal, decimal SgstTotal, decimal NetTotal,
-    decimal ConsultationTotal, int VisitCount);
+    decimal ConsultationTotal, int VisitCount, decimal OnIpBills = 0);
 
 /// <summary>
 /// The clinic's own working reports: a day book, a GST summary, an OPD
@@ -49,21 +49,23 @@ public class ReportsController(
         [FromQuery] bool includeZeroStock = false,
         [FromQuery] string? search = null,
         [FromQuery] PaymentMode? mode = null)
-        => Ok(await BuildAsync(kind, date ?? DateTime.Today, from ?? DateTime.Today, to ?? DateTime.Today,
+        => Ok(await BuildAsync(kind, date ?? DateTime.Today, from ?? date ?? DateTime.Today, to ?? date ?? DateTime.Today,
                                expiringDays, includeZeroStock, search, mode));
 
     /// <summary>The cards above the day book. Separate from the table because
     /// they are not rows of it — and because the OPD figure deliberately sits
     /// beside pharmacy revenue rather than inside it.</summary>
     [HttpGet("day-book/summary")]
-    public async Task<ActionResult<DayBookSummary>> DayBookSummaryFor([FromQuery] DateTime? date)
+    public async Task<ActionResult<DayBookSummary>> DayBookSummaryFor([FromQuery] DateTime? date, [FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
-        var on = date ?? DateTime.Today;
+        var (start, end) = Ordered(from ?? date ?? DateTime.Today, to ?? date ?? DateTime.Today);
 
-        var completed = (await pharmacy.GetSalesAsync(on))
+        var sales = (await pharmacy.GetSalesAsync(start, end))
             .Where(s => s.Status == SaleStatus.Completed)
             .ToList();
-        var visits = await opd.GetVisitsAsync(on);
+        // A bill put on an IP bill took no money at the counter.
+        var completed = sales.Where(s => s.AdmissionId is null).ToList();
+        var visits = await opd.GetVisitsAsync(start, end);
 
         var collected = completed.Sum(s => s.NetAmount);
 
@@ -76,7 +78,8 @@ public class ReportsController(
             completed.Sum(s => s.SgstAmount),
             collected,
             visits.Where(v => v.FeePaid).Sum(v => v.Fee),
-            visits.Count(v => v.Status != VisitStatus.Cancelled)));
+            visits.Count(v => v.Status != VisitStatus.Cancelled),
+            sales.Where(s => s.AdmissionId is not null).Sum(s => s.NetAmount)));
     }
 
     /// <summary>
@@ -115,8 +118,8 @@ public class ReportsController(
             return BadRequest("PDF export is not available for the Stock Register — use Export Excel instead.");
 
         var d = date ?? DateTime.Today;
-        var f = from ?? DateTime.Today;
-        var t = to ?? DateTime.Today;
+        var f = from ?? d;
+        var t = to ?? d;
 
         var table = await BuildAsync(kind, d, f, t, expiringDays, includeZeroStock, search, mode);
         if (table.Rows.Count == 0) return BadRequest("No data available to export.");
@@ -136,8 +139,8 @@ public class ReportsController(
         [FromQuery] PaymentMode? mode = null)
     {
         var d = date ?? DateTime.Today;
-        var f = from ?? DateTime.Today;
-        var t = to ?? DateTime.Today;
+        var f = from ?? d;
+        var t = to ?? d;
 
         var table = await BuildAsync(kind, d, f, t, expiringDays, includeZeroStock, search, mode);
         if (table.Rows.Count == 0) return BadRequest("No data available to export.");
@@ -156,16 +159,28 @@ public class ReportsController(
     {
         // A backwards range is a slip, not an error worth refusing — the
         // desktop quietly swaps the ends, and so does this.
-        var (start, end) = from <= to ? (from, to) : (to, from);
+        var (start, end) = Ordered(from, to);
+        var multiDay = start.Date != end.Date;
 
         var label = ReportNaming.DateLabel(kind, date, start, end);
         var title = ReportNaming.Title(kind);
 
+        if (kind is ReportKind.IpCensus or ReportKind.IpRegister or ReportKind.IpBills or ReportKind.IpDues or ReportKind.BedOccupancy
+            && !(await settings.GetGeneralAsync()).InpatientEnabled)
+            return new ReportTable(kind, title, "The In-patients module is switched off.", [], [], []);
+
         return kind switch
         {
-            ReportKind.DayBook => DayBook(await pharmacy.GetSalesAsync(date), title, label),
+            ReportKind.DayBook => DayBook(await pharmacy.GetSalesAsync(start, end), title, label, multiDay),
             ReportKind.GstSummary => GstSummary(await pharmacy.GetGstTotalsAsync(start, end), title, label),
-            ReportKind.OpdRegister => OpdRegister(await opd.GetVisitsAsync(date), title, label),
+            ReportKind.OpdRegister => OpdRegister(
+                multiDay ? await opd.GetRegisterVisitsAsync(start, end) : await opd.GetVisitsAsync(start),
+                title, label, multiDay),
+            ReportKind.IpCensus => IpCensus(await inpatient.GetCensusAsync(), title, label),
+            ReportKind.IpRegister => IpRegister(await inpatient.GetRegisterAsync(start, end), title, label),
+            ReportKind.IpBills => IpBills(await inpatient.GetFinalBillsAsync(start, end), title, label),
+            ReportKind.IpDues => IpDues(await inpatient.GetDuesAsync(), title, label),
+            ReportKind.BedOccupancy => BedOccupancy(await inpatient.GetOccupancyAsync(start, end), title, label),
             ReportKind.ExpiringSoon => ExpiringSoon(await pharmacy.GetExpiringAsync(expiringDays), expiringDays, title, label),
             ReportKind.LowStock => LowStock(await pharmacy.GetLowStockAsync(), title, label),
             ReportKind.StockRegister => StockRegister(await pharmacy.GetAllBatchesAsync(includeZeroStock), search, title, label),
@@ -218,6 +233,169 @@ public class ReportsController(
             ]));
     }
 
+    private static (DateTime Start, DateTime End) Ordered(DateTime from, DateTime to)
+        => from <= to ? (from, to) : (to, from);
+
+    // ── In-patients ────────────────────────────────────────────────────────
+    //
+    // Built typed once, like OPD by Doctor, and read as text for the screen and the
+    // PDF. Each row carries the admission, so the screen can open the IP file.
+
+    private static ReportTable IpCensus(List<CensusRow> census, string title, string label)
+    {
+        var now = DateTime.Now;
+        var rows = census.Select(c =>
+        {
+            var a = c.Admission;
+            var m = c.Bill.Money;
+            return new ReportRow(
+                [a.IpNo, a.Patient.Name, $"{a.Patient.AgeText}/{a.Patient.Gender.ToString()[0]}", $"{a.Bed.BedNo} · {a.Bed.Ward}",
+                 a.Doctor.Name, a.AdmittedOn, Math.Max(1, (now.Date - a.AdmittedOn.Date).Days + 1),
+                 Payer(a), m.Net, m.Paid, m.Balance],
+                Emphasise: m.Balance > 0 && m.Paid == 0, Id: a.Id);
+        }).ToList();
+
+        return Triple(new ReportTable(ReportKind.IpCensus, title, label,
+            [
+                Typed("IP No", ReportFormat.Text), Typed("Patient", ReportFormat.Text), Typed("Age/Sex", ReportFormat.Text),
+                Typed("Bed", ReportFormat.Text), Typed("Doctor", ReportFormat.Text), Typed("Admitted", ReportFormat.DateTime),
+                Typed("Day", ReportFormat.Integer), Typed("Payer", ReportFormat.Text),
+                Typed("Bill so far", ReportFormat.Money, sum: true), Typed("Paid", ReportFormat.Money, sum: true),
+                Typed("Balance", ReportFormat.Money, sum: true),
+            ],
+            rows,
+            [
+                Count("Patients in", census.Count),
+                new("Bills so far", census.Sum(c => c.Bill.Money.Net)),
+                new("Paid", census.Sum(c => c.Bill.Money.Paid)),
+                new("Balance", census.Sum(c => c.Bill.Money.Balance)),
+            ]));
+    }
+
+    private static ReportTable IpRegister(List<Admission> admissions, string title, string label)
+    {
+        var rows = admissions.Select(a => new ReportRow(
+            [a.IpNo, a.Patient.Name, $"{a.Patient.AgeText}/{a.Patient.Gender.ToString()[0]}", a.Patient.Phone ?? "",
+             a.Doctor.Name, a.Bed.BedNo, a.AdmittedOn, a.DischargedOn,
+             Math.Max(1, ((a.DischargedOn ?? DateTime.Now).Date - a.AdmittedOn.Date).Days),
+             a.Reason ?? "", a.Status == AdmissionStatus.Discharged ? DischargeName(a.DischargeType) : "Admitted", Payer(a)],
+            Id: a.Id)).ToList();
+
+        var discharged = admissions.Where(a => a.DischargedOn is not null).ToList();
+
+        return Triple(new ReportTable(ReportKind.IpRegister, title, label,
+            [
+                Typed("IP No", ReportFormat.Text), Typed("Patient", ReportFormat.Text), Typed("Age/Sex", ReportFormat.Text),
+                Typed("Phone", ReportFormat.Text), Typed("Doctor", ReportFormat.Text), Typed("Bed", ReportFormat.Text),
+                Typed("Admitted", ReportFormat.DateTime), Typed("Discharged", ReportFormat.DateTime),
+                Typed("Days", ReportFormat.Integer), Typed("Reason", ReportFormat.Text), Typed("Outcome", ReportFormat.Text),
+                Typed("Payer", ReportFormat.Text),
+            ],
+            rows,
+            [
+                Count("Admissions", admissions.Count),
+                Count("Discharges", discharged.Count),
+                new("Average stay (days)", discharged.Count == 0 ? 0m
+                    : Math.Round((decimal)discharged.Average(a => Math.Max(1, (a.DischargedOn!.Value.Date - a.AdmittedOn.Date).Days)), 1),
+                    ReportFormat.Number),
+            ]));
+    }
+
+    private static ReportTable IpBills(List<IpBillReportRow> bills, string title, string label)
+    {
+        decimal Cat(IpBillReportRow r, params IpChargeCategory[] cats) => cats.Sum(c => r.ByCategory.GetValueOrDefault(c));
+
+        var rows = bills.Select(r =>
+        {
+            var b = r.Bill;
+            return new ReportRow(
+                [b.BillNo, b.BilledOn, r.Admission.IpNo, r.Admission.Patient.Name, r.Admission.Doctor.Name, Payer(r.Admission),
+                 Cat(r, IpChargeCategory.Room, IpChargeCategory.Nursing), Cat(r, IpChargeCategory.DoctorVisit),
+                 Cat(r, IpChargeCategory.Procedure), Cat(r, IpChargeCategory.Investigation), Cat(r, IpChargeCategory.Medicine),
+                 Cat(r, IpChargeCategory.Other), b.Gst, b.Discount, b.Net, b.InsuranceAdjustment, r.Paid,
+                 b.Net - b.InsuranceAdjustment - r.Paid],
+                Id: r.Admission.Id);
+        }).ToList();
+
+        return Triple(new ReportTable(ReportKind.IpBills, title, label,
+            [
+                Typed("Bill No", ReportFormat.Text), Typed("Billed", ReportFormat.DateTime), Typed("IP No", ReportFormat.Text),
+                Typed("Patient", ReportFormat.Text), Typed("Doctor", ReportFormat.Text), Typed("Payer", ReportFormat.Text),
+                Typed("Room & nursing", ReportFormat.Money, sum: true), Typed("Doctor visits", ReportFormat.Money, sum: true),
+                Typed("Procedures", ReportFormat.Money, sum: true), Typed("Investigations", ReportFormat.Money, sum: true),
+                Typed("Medicines", ReportFormat.Money, sum: true), Typed("Other", ReportFormat.Money, sum: true),
+                Typed("GST", ReportFormat.Money, sum: true), Typed("Discount", ReportFormat.Money, sum: true),
+                Typed("Net", ReportFormat.Money, sum: true), Typed("Ins. adj.", ReportFormat.Money, sum: true),
+                Typed("Paid", ReportFormat.Money, sum: true), Typed("Balance", ReportFormat.Money, sum: true),
+            ],
+            rows,
+            [
+                Count("Bills", bills.Count),
+                new("Billed", bills.Sum(r => r.Bill.Net)),
+                new("Discounts", bills.Sum(r => r.Bill.Discount)),
+                new("Insurance adjustments", bills.Sum(r => r.Bill.InsuranceAdjustment)),
+                new("Paid", bills.Sum(r => r.Paid)),
+            ]));
+    }
+
+    private static ReportTable IpDues(List<IpDueRow> dues, string title, string label)
+    {
+        var today = DateTime.Today;
+        var rows = dues.Select(d => new ReportRow(
+            [d.Admission.IpNo, d.Admission.Patient.Name, d.Admission.Patient.Phone ?? "", d.Admission.AttendantPhone ?? "",
+             d.Admission.DischargedOn, (today - d.Admission.DischargedOn!.Value.Date).Days, Payer(d.Admission),
+             d.Bill.BillNo, d.Bill.Net, d.Bill.InsuranceAdjustment, d.Paid, d.Balance],
+            Id: d.Admission.Id)).ToList();
+
+        return Triple(new ReportTable(ReportKind.IpDues, title, label,
+            [
+                Typed("IP No", ReportFormat.Text), Typed("Patient", ReportFormat.Text), Typed("Phone", ReportFormat.Text),
+                Typed("Attendant phone", ReportFormat.Text), Typed("Discharged", ReportFormat.DateTime),
+                Typed("Days since", ReportFormat.Integer), Typed("Payer", ReportFormat.Text), Typed("Bill No", ReportFormat.Text),
+                Typed("Net bill", ReportFormat.Money, sum: true), Typed("Ins. adj.", ReportFormat.Money, sum: true),
+                Typed("Paid", ReportFormat.Money, sum: true), Typed("Due", ReportFormat.Money, sum: true),
+            ],
+            rows,
+            [Count("Patients owing", dues.Count), new("Total due", dues.Sum(d => d.Balance))]));
+    }
+
+    private static ReportTable BedOccupancy(List<OccupancyRow> wards, string title, string label)
+    {
+        static decimal Percent(int used, int available) => available == 0 ? 0 : Math.Round(used * 100m / available, 1);
+
+        var rows = wards.Select(w => new ReportRow(
+            [w.Ward, w.Beds, w.BedDaysAvailable, w.BedDaysUsed, Percent(w.BedDaysUsed, w.BedDaysAvailable), w.Admissions]))
+            .ToList();
+
+        var available = wards.Sum(w => w.BedDaysAvailable);
+        var used = wards.Sum(w => w.BedDaysUsed);
+
+        return Triple(new ReportTable(ReportKind.BedOccupancy, title, label,
+            [
+                Typed("Ward", ReportFormat.Text), Typed("Beds", ReportFormat.Integer, sum: true),
+                Typed("Bed-days available", ReportFormat.Integer, sum: true), Typed("Bed-days used", ReportFormat.Integer, sum: true),
+                Typed("Occupancy %", ReportFormat.Number), Typed("Admissions", ReportFormat.Integer, sum: true),
+            ],
+            rows,
+            [
+                Count("Beds", wards.Sum(w => w.Beds)),
+                new("Occupancy %", Percent(used, available), ReportFormat.Number),
+                Count("Admissions", wards.Sum(w => w.Admissions)),
+            ]));
+    }
+
+    private static string Payer(Admission a)
+        => a.PayerType == PayerType.Insurance ? $"Insurance{(a.InsurerName is { } n ? $" · {n}" : "")}" : "Self";
+
+    private static string DischargeName(DischargeType? type) => type switch
+    {
+        DischargeType.Dama => "DAMA",
+        DischargeType.Lama => "LAMA",
+        DischargeType.Referred => "Referred",
+        DischargeType.Death => "Death",
+        _ => "Discharged"
+    };
+
     // ── Collections ────────────────────────────────────────────────────────
 
     /// <summary>One receipt, wherever in the clinic the money came from.</summary>
@@ -256,23 +434,24 @@ public class ReportsController(
                 v.FeePaidOn!.Value, v.FeePaymentMode ?? PaymentMode.Cash, "Consultation",
                 v.FeeReceiptNo ?? "", v.Patient?.Name ?? "", v.Fee, v.FeeTransactionNo, v.Id));
 
-        // Cancelled and returned bills took no money, so they are not takings.
-        foreach (var s in (await pharmacy.GetSalesAsync(from, to)).Where(s => s.Status == SaleStatus.Completed))
+        // Cancelled and returned bills took no money, so they are not takings - and nor
+        // did a bill put on an IP bill: its money arrives later as an IP payment, below.
+        foreach (var s in (await pharmacy.GetSalesAsync(from, to)).Where(s => s.Status == SaleStatus.Completed && s.AdmissionId is null))
             taken.Add(new Collection(
                 s.BillDate, s.PaymentMode, "Pharmacy", s.BillNo,
                 s.CustomerName, s.NetAmount, s.TransactionNo, s.Id));
 
-        foreach (var b in await diagnostics.SearchBillsAsync(from, to))
+        foreach (var b in (await diagnostics.SearchBillsAsync(from, to)).Where(b => b.AdmissionId is null))
             taken.Add(new Collection(
                 b.BillDate, b.PaymentMode, "Diagnostics", b.BillNo,
                 b.PatientName, b.FinalAmount, b.TransactionNo, b.Id));
 
-        foreach (var b in await procedures.SearchBillsAsync(from, to))
+        foreach (var b in (await procedures.SearchBillsAsync(from, to)).Where(b => b.AdmissionId is null))
             taken.Add(new Collection(
                 b.BillDate, b.PaymentMode, "Procedures", b.BillNo,
                 b.PatientName, b.FinalAmount, b.TransactionNo, b.Id));
 
-        foreach (var o in await lab.SearchOrdersAsync(from, to))
+        foreach (var o in (await lab.SearchOrdersAsync(from, to)).Where(o => o.AdmissionId is null))
             taken.Add(new Collection(
                 o.OrderDate, o.PaymentMode, "Pathology Lab", o.OrderNo,
                 o.PatientName, o.FinalAmount, o.TransactionNo, o.Id));
@@ -390,9 +569,9 @@ public class ReportsController(
     // ── Diagnostics ────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Today's bills off the Date picker; revenue-by-day and the most
-    /// frequently ordered tests off the From/To range — the same split the
-    /// day book and the GST summary already use.
+    /// The bills, revenue by day and the most frequently ordered tests, all
+    /// over the From/To range. (The field names still say "today" from when the
+    /// bill list followed a single date.)
     /// </summary>
     [HttpGet("diagnostics")]
     public async Task<ActionResult<object>> DiagnosticsReport(
@@ -401,16 +580,15 @@ public class ReportsController(
         if (!(await settings.GetGeneralAsync()).DiagnosticsEnabled)
             return BadRequest("The Diagnostics module is switched off.");
 
-        var on = date ?? DateTime.Today;
-        var f = from ?? DateTime.Today;
-        var t = to ?? DateTime.Today;
-        var (start, end) = f <= t ? (f, t) : (t, f);
+        var f = from ?? date ?? DateTime.Today;
+        var t = to ?? date ?? DateTime.Today;
+        var (start, end) = Ordered(f, t);
 
         // Today's bills are a list and are read as one. The other two are
         // aggregates and are summed in the database — grouping a year of
         // bills and items here meant loading all of them to produce a few
         // dozen rows.
-        var todays = (await diagnostics.SearchBillsAsync(on, on)).OrderByDescending(b => b.BillDate).ToList();
+        var todays = (await diagnostics.SearchBillsAsync(start, end)).OrderByDescending(b => b.BillDate).ToList();
         var revenue = await diagnostics.GetRevenueByDayAsync(start, end);
         var topTests = await diagnostics.GetTopTestsAsync(start, end);
 

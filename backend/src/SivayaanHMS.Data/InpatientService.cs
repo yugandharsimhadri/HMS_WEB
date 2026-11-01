@@ -3,11 +3,34 @@ using SivayaanHMS.Core;
 
 namespace SivayaanHMS.Data;
 
-/// <summary>A bill line as the screens and prints show it - running or final.</summary>
+/// <summary>A bill line as the screens and prints show it - running or final.
+/// <paramref name="Source"/> names the counter a linked bill came from (Pharmacy, Diagnostics,
+/// Lab, Procedures) and <paramref name="SourceId"/> is that bill, so it can be opened or reprinted.</summary>
 public record IpBillLineView(
     IpChargeCategory Category, DateTime? ChargeDate, string Description,
     decimal Quantity, decimal Rate, decimal Amount, decimal GstPercent,
-    Guid? ChargeId);
+    Guid? ChargeId, string? Source = null, Guid? SourceId = null);
+
+/// <summary>The admission a counter can charge a bill to, if the patient is in.</summary>
+public record ActiveAdmission(Guid Id, string IpNo, string BedNo, string Ward, bool HasFinalBill);
+
+/// <summary>An admission as the patient's history lists it.</summary>
+public record PatientAdmission(
+    Guid Id, string IpNo, DateTime AdmittedOn, DateTime? DischargedOn, AdmissionStatus Status,
+    string DoctorName, string BedNo, string? Reason, decimal Net, decimal Balance);
+
+/// <summary>One currently admitted patient and their bill so far, for the census.</summary>
+public record CensusRow(Admission Admission, IpBillView Bill);
+
+/// <summary>One final IP bill, with its lines summed by category and what has been paid on the admission.</summary>
+public record IpBillReportRow(
+    IpBill Bill, Admission Admission, Dictionary<IpChargeCategory, decimal> ByCategory, decimal Paid);
+
+/// <summary>A discharged patient who still owes.</summary>
+public record IpDueRow(Admission Admission, IpBill Bill, decimal Paid, decimal Balance);
+
+/// <summary>Bed use for one ward over a date range.</summary>
+public record OccupancyRow(string Ward, int Beds, int BedDaysAvailable, int BedDaysUsed, int Admissions);
 
 /// <summary>
 /// The money on an admission at a glance. <see cref="Balance"/> is positive when
@@ -59,7 +82,7 @@ public record BedBoardItem(
 public record AdmissionRow(
     Guid Id, string IpNo, string PatientName, string PatientNo, string Age, string Gender,
     string DoctorName, string BedNo, string Ward, DateTime AdmittedOn, DateTime? DischargedOn,
-    AdmissionStatus Status, PayerType PayerType, decimal Balance, bool HasFinalBill);
+    AdmissionStatus Status, PayerType PayerType, decimal Balance, bool HasFinalBill, Guid PatientId);
 
 /// <summary>
 /// The in-patient module: masters, admissions, beds, charges, payments, notes,
@@ -272,7 +295,7 @@ public class InpatientService(IDbContextFactory<AppDbContext> factory, SettingsS
             rows.Add(new AdmissionRow(
                 a.Id, a.IpNo, a.Patient.Name, a.Patient.PatientNo, a.Patient.AgeText, a.Patient.Gender.ToString(),
                 a.Doctor.Name, a.Bed.BedNo, a.Bed.Ward, a.AdmittedOn, a.DischargedOn, a.Status, a.PayerType,
-                bill.Money.Balance, bill.IsFinal));
+                bill.Money.Balance, bill.IsFinal, a.PatientId));
         }
 
         return rows;
@@ -447,6 +470,8 @@ public class InpatientService(IDbContextFactory<AppDbContext> factory, SettingsS
             throw new InvalidOperationException("This admission has charges. Remove them first, or discharge the patient.");
         if (await db.IpPayments.AnyAsync(p => p.AdmissionId == a.Id))
             throw new InvalidOperationException("Money has been taken on this admission. Refund it and discharge instead.");
+        if ((await LinkedLinesAsync(db, a.Id)).Count > 0)
+            throw new InvalidOperationException("Counter bills are on this admission. Discharge the patient instead.");
 
         a.Status = AdmissionStatus.Cancelled;
         a.DischargedOn = clock.Now;
@@ -817,6 +842,203 @@ public class InpatientService(IDbContextFactory<AppDbContext> factory, SettingsS
         return summary;
     }
 
+    // ── For the counters and the patient's history ─────────────────────────
+
+    /// <summary>The patient's current admission, if any - what a counter would charge a bill to.</summary>
+    public async Task<ActiveAdmission?> GetActiveAdmissionAsync(Guid patientId)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var a = await db.Admissions.AsNoTracking().Include(x => x.Bed)
+            .FirstOrDefaultAsync(x => x.PatientId == patientId && x.Status == AdmissionStatus.Admitted);
+        if (a is null) return null;
+
+        return new ActiveAdmission(a.Id, a.IpNo, a.Bed.BedNo, a.Bed.Ward, await HasActiveBillAsync(db, a.Id));
+    }
+
+    /// <summary>Every stay the patient has had, newest first, with what it came to.</summary>
+    public async Task<List<PatientAdmission>> GetAdmissionsByPatientAsync(Guid patientId)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var admissions = await db.Admissions.AsNoTracking().Include(a => a.Doctor).Include(a => a.Bed)
+            .Where(a => a.PatientId == patientId && a.Status != AdmissionStatus.Cancelled)
+            .OrderByDescending(a => a.AdmittedOn).ToListAsync();
+
+        var rows = new List<PatientAdmission>(admissions.Count);
+        foreach (var a in admissions)
+        {
+            var bill = await GetBillInternalAsync(db, a, null);
+            rows.Add(new PatientAdmission(a.Id, a.IpNo, a.AdmittedOn, a.DischargedOn, a.Status, a.Doctor.Name,
+                a.Bed.BedNo, a.Reason, bill.Money.Net, bill.Money.Balance));
+        }
+        return rows;
+    }
+
+    // ── Reports ────────────────────────────────────────────────────────────
+
+    /// <summary>Who is in now, with the bill so far.</summary>
+    public async Task<List<CensusRow>> GetCensusAsync()
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var admissions = await db.Admissions.AsNoTracking()
+            .Include(a => a.Patient).Include(a => a.Doctor).Include(a => a.Bed)
+            .Where(a => a.Status == AdmissionStatus.Admitted)
+            .OrderBy(a => a.Bed.Ward).ThenBy(a => a.Bed.SortOrder).ThenBy(a => a.Bed.BedNo)
+            .ToListAsync();
+
+        var rows = new List<CensusRow>(admissions.Count);
+        foreach (var a in admissions) rows.Add(new CensusRow(a, await GetBillInternalAsync(db, a, null)));
+        return rows;
+    }
+
+    /// <summary>Admissions that came in or went out in the range. Cancelled admissions were mistakes and are left out.</summary>
+    public async Task<List<Admission>> GetRegisterAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var (start, end) = Range(from, to);
+
+        return await db.Admissions.AsNoTracking()
+            .Include(a => a.Patient).Include(a => a.Doctor).Include(a => a.Bed)
+            .Where(a => a.Status != AdmissionStatus.Cancelled
+                        && ((a.AdmittedOn >= start && a.AdmittedOn < end)
+                            || (a.DischargedOn >= start && a.DischargedOn < end)))
+            .OrderBy(a => a.AdmittedOn)
+            .ToListAsync();
+    }
+
+    /// <summary>Final bills made in the range (cancelled ones are not bills any more).</summary>
+    public async Task<List<IpBillReportRow>> GetFinalBillsAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var (start, end) = Range(from, to);
+
+        var bills = await db.IpBills.AsNoTracking()
+            .Include(b => b.Lines)
+            .Include(b => b.Admission).ThenInclude(a => a.Patient)
+            .Include(b => b.Admission).ThenInclude(a => a.Doctor)
+            .Where(b => b.Status == IpBillStatus.Final && b.BilledOn >= start && b.BilledOn < end)
+            .OrderBy(b => b.BilledOn)
+            .AsSplitQuery()
+            .ToListAsync();
+
+        var paid = await PaidByAdmissionAsync(db, bills.Select(b => b.AdmissionId));
+
+        return bills.Select(b => new IpBillReportRow(
+            b, b.Admission,
+            b.Lines.GroupBy(l => l.Category).ToDictionary(g => g.Key, g => g.Sum(l => l.Amount)),
+            paid.GetValueOrDefault(b.AdmissionId))).ToList();
+    }
+
+    /// <summary>Discharged patients whose final bill is not fully paid, as of now, oldest first.</summary>
+    public async Task<List<IpDueRow>> GetDuesAsync()
+    {
+        await using var db = await factory.CreateDbContextAsync();
+
+        var bills = await db.IpBills.AsNoTracking()
+            .Include(b => b.Admission).ThenInclude(a => a.Patient)
+            .Include(b => b.Admission).ThenInclude(a => a.Doctor)
+            .Where(b => b.Status == IpBillStatus.Final && b.Admission.Status == AdmissionStatus.Discharged)
+            .ToListAsync();
+
+        var paid = await PaidByAdmissionAsync(db, bills.Select(b => b.AdmissionId));
+
+        return bills
+            .Select(b =>
+            {
+                var p = paid.GetValueOrDefault(b.AdmissionId);
+                return new IpDueRow(b.Admission, b, p, b.Net - b.InsuranceAdjustment - p);
+            })
+            .Where(r => r.Balance > 0)
+            .OrderBy(r => r.Admission.DischargedOn)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Bed use per ward over the range. A bed counts as used on a day if a patient was in
+    /// it at any time that day; days after today are not counted as available.
+    /// </summary>
+    public async Task<List<OccupancyRow>> GetOccupancyAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var (start, end) = Range(from, to);
+        var now = clock.Now;
+        var lastDay = end.AddDays(-1) > now.Date ? now.Date : end.AddDays(-1);
+        var dayCount = Math.Max(0, (lastDay - start).Days + 1);
+
+        var beds = await db.Beds.AsNoTracking().ToListAsync();
+        var wardOf = beds.ToDictionary(b => b.Id, b => b.Ward);
+
+        var stays = await db.BedStays.AsNoTracking()
+            .Where(s => s.From < end && (s.To == null || s.To > start))
+            .ToListAsync();
+
+        var used = new HashSet<(Guid Bed, DateTime Day)>();
+        foreach (var s in stays)
+        {
+            var until = s.To ?? now;
+            for (var day = s.From.Date < start ? start : s.From.Date; day <= lastDay && day < until; day = day.AddDays(1))
+                used.Add((s.BedId, day));
+        }
+
+        var firstStays = await db.Admissions.AsNoTracking()
+            .Where(a => a.Status != AdmissionStatus.Cancelled && a.AdmittedOn >= start && a.AdmittedOn < end)
+            .Select(a => a.Stays.OrderBy(s => s.From).Select(s => s.BedId).FirstOrDefault())
+            .ToListAsync();
+
+        return beds.Where(b => b.Active).GroupBy(b => b.Ward).OrderBy(g => g.Key)
+            .Select(g => new OccupancyRow(
+                g.Key,
+                g.Count(),
+                g.Count() * dayCount,
+                used.Count(u => wardOf.GetValueOrDefault(u.Bed) == g.Key),
+                firstStays.Count(id => wardOf.GetValueOrDefault(id) == g.Key)))
+            .ToList();
+    }
+
+    /// <summary>IP money received per day (refunds taken off), for the dashboard trend.</summary>
+    public async Task<Dictionary<DateTime, decimal>> GetDailyCollectionsAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var (start, end) = Range(from, to);
+
+        var rows = await db.IpPayments.AsNoTracking()
+            .Where(p => p.PaidOn >= start && p.PaidOn < end)
+            .GroupBy(p => p.PaidOn.Date)
+            .Select(g => new { Day = g.Key, Net = g.Sum(p => p.Kind == IpPaymentKind.Refund ? -p.Amount : p.Amount) })
+            .ToListAsync();
+        return rows.ToDictionary(r => r.Day, r => r.Net);
+    }
+
+    /// <summary>The dashboard's IP tiles: beds in use now, and admissions and discharges in the range.</summary>
+    public async Task<(int Occupied, int Beds, int Admitted, int Discharged)> GetDashboardCountsAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var (start, end) = Range(from, to);
+
+        var beds = await db.Beds.CountAsync(b => b.Active);
+        var occupied = await db.Admissions.CountAsync(a => a.Status == AdmissionStatus.Admitted);
+        var admitted = await db.Admissions.CountAsync(a =>
+            a.Status != AdmissionStatus.Cancelled && a.AdmittedOn >= start && a.AdmittedOn < end);
+        var discharged = await db.Admissions.CountAsync(a =>
+            a.Status == AdmissionStatus.Discharged && a.DischargedOn >= start && a.DischargedOn < end);
+
+        return (occupied, beds, admitted, discharged);
+    }
+
+    /// <summary>Net money received per admission: advances, settlements and insurance, less refunds.</summary>
+    private static async Task<Dictionary<Guid, decimal>> PaidByAdmissionAsync(AppDbContext db, IEnumerable<Guid> admissionIds)
+    {
+        var ids = admissionIds.Distinct().ToList();
+        var rows = await db.IpPayments.AsNoTracking()
+            .Where(p => ids.Contains(p.AdmissionId))
+            .GroupBy(p => p.AdmissionId)
+            .Select(g => new { Id = g.Key, Net = g.Sum(p => p.Kind == IpPaymentKind.Refund ? -p.Amount : p.Amount) })
+            .ToListAsync();
+        return rows.ToDictionary(r => r.Id, r => r.Net);
+    }
+
+    private static (DateTime Start, DateTime End) Range(DateTime from, DateTime to)
+        => from <= to ? (from.Date, to.Date.AddDays(1)) : (to.Date, from.Date.AddDays(1));
+
     // ── Reading one admission ──────────────────────────────────────────────
 
     public async Task<Admission?> GetAdmissionAsync(Guid admissionId)
@@ -882,18 +1104,20 @@ public class InpatientService(IDbContextFactory<AppDbContext> factory, SettingsS
         var stays = await db.BedStays.AsNoTracking().Where(s => s.AdmissionId == a.Id).OrderBy(s => s.From).ToListAsync();
         var charges = await db.IpCharges.AsNoTracking().Where(c => c.AdmissionId == a.Id)
             .OrderBy(c => c.ChargeDate).ThenBy(c => c.CreatedAt).ToListAsync();
+        var linked = await LinkedLinesAsync(db, a.Id);
 
-        var running = BuildRunningLines(a.AdmittedOn, end, stays, charges, general.IpBedDayRule, general.IpGraceHours);
+        var running = BuildRunningLines(a.AdmittedOn, end, stays, charges, general.IpBedDayRule, general.IpGraceHours, linked);
         var gross = running.Lines.Sum(l => l.Amount);
         var gst = running.Lines.Sum(l => Math.Round(l.Amount * l.GstPercent / 100m, 2));
 
         return new IpBillView(false, null, null, end, running.BedDays, running.Lines, Money(gross, gst, 0, 0, payments));
     }
 
-    /// <summary>Room and nursing from the stays, then the manual charges - the order a bill is read in.</summary>
+    /// <summary>Room and nursing from the stays, then the manual charges and the counter bills
+    /// put on the IP bill, by category and date - the order a bill is read in.</summary>
     public static (List<IpBillLineView> Lines, int BedDays) BuildRunningLines(
         DateTime admittedOn, DateTime upTo, IReadOnlyList<BedStay> stays, IReadOnlyList<IpCharge> charges,
-        BedDayRule rule, int graceHours)
+        BedDayRule rule, int graceHours, IReadOnlyList<IpBillLineView>? linked = null)
     {
         var spans = stays.Select(s => new StaySpan(s.BedNo, s.RoomTypeName, s.DailyRent, s.NursingPerDay, s.GstPercent, s.From, s.To)).ToList();
         var days = BedDays.Count(admittedOn, upTo, spans, rule, graceHours);
@@ -916,10 +1140,54 @@ public class InpatientService(IDbContextFactory<AppDbContext> factory, SettingsS
         }
 
         lines.AddRange(charges
-            .OrderBy(c => c.Category).ThenBy(c => c.ChargeDate)
-            .Select(c => new IpBillLineView(c.Category, c.ChargeDate, c.Description, c.Quantity, c.Rate, c.Amount, 0, c.Id)));
+            .Select(c => new IpBillLineView(c.Category, c.ChargeDate, c.Description, c.Quantity, c.Rate, c.Amount, 0, c.Id))
+            .Concat(linked ?? [])
+            .OrderBy(l => l.Category).ThenBy(l => l.ChargeDate));
 
         return (lines, days.Count);
+    }
+
+    /// <summary>
+    /// Counter bills put on this admission's IP bill, one line each. Their prices already
+    /// include any GST (medicines are sold at MRP), so the line carries no GST of its own;
+    /// the counter bill itself is the detail.
+    /// </summary>
+    private static async Task<List<IpBillLineView>> LinkedLinesAsync(AppDbContext db, Guid admissionId)
+    {
+        var lines = new List<IpBillLineView>();
+
+        var sales = await db.Sales.AsNoTracking().Include(s => s.Items)
+            .Where(s => s.AdmissionId == admissionId && s.Status == SaleStatus.Completed).ToListAsync();
+        lines.AddRange(sales.Select(s => Linked(IpChargeCategory.Medicine, s.BillDate, $"Pharmacy bill {s.BillNo}",
+            s.Items.Select(i => i.ProductName), s.NetAmount, "Pharmacy", s.Id)));
+
+        var diagnostics = await db.DiagnosticBills.AsNoTracking().Include(b => b.Items)
+            .Where(b => b.AdmissionId == admissionId).ToListAsync();
+        lines.AddRange(diagnostics.Select(b => Linked(IpChargeCategory.Investigation, b.BillDate, $"Diagnostics bill {b.BillNo}",
+            b.Items.Select(i => i.TestName), b.FinalAmount, "Diagnostics", b.Id)));
+
+        var lab = await db.LabOrders.AsNoTracking().Include(o => o.Reports)
+            .Where(o => o.AdmissionId == admissionId).ToListAsync();
+        lines.AddRange(lab.Select(o => Linked(IpChargeCategory.Investigation, o.OrderDate, $"Lab order {o.OrderNo}",
+            o.Reports.Select(r => r.ReportName), o.FinalAmount, "Lab", o.Id)));
+
+        var procedures = await db.ProcedureBills.AsNoTracking().Include(b => b.Items)
+            .Where(b => b.AdmissionId == admissionId).ToListAsync();
+        lines.AddRange(procedures.Select(b => Linked(IpChargeCategory.Procedure, b.BillDate, $"Procedure bill {b.BillNo}",
+            b.Items.Select(i => i.ProcedureName), b.FinalAmount, "Procedures", b.Id)));
+
+        return lines;
+    }
+
+    private static IpBillLineView Linked(
+        IpChargeCategory category, DateTime on, string title, IEnumerable<string> items, decimal amount, string source, Guid id)
+    {
+        var names = items.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct().ToList();
+        var shown = string.Join(", ", names.Take(4));
+        if (names.Count > 4) shown += $" +{names.Count - 4} more";
+
+        return new IpBillLineView(category, on.Date, shown.Length == 0 ? title : $"{title}: {shown}",
+            1, amount, amount, 0, null, source, id);
     }
 
     private static string Dates(BedDayRun run)

@@ -25,9 +25,9 @@ public static class ProcedureBillDocument
             ("Status", bill.Status.ToString())));
 
         if (!string.IsNullOrWhiteSpace(bill.ReferredBy))
-            head.Rows.Add(IdentityRow(("Referred by", bill.ReferredBy), ("Payment", bill.PaymentMode.ToString())));
+            head.Rows.Add(IdentityRow(("Referred by", bill.ReferredBy), ("Payment", bill.AdmissionId is null ? bill.PaymentMode.ToString() : "IP bill")));
         else
-            head.Rows.Add(IdentityRow(("Payment", bill.PaymentMode.ToString())));
+            head.Rows.Add(IdentityRow(("Payment", bill.AdmissionId is null ? bill.PaymentMode.ToString() : "IP bill")));
 
         doc.Add(head);
         doc.Add(Rule());
@@ -49,7 +49,7 @@ public static class ProcedureBillDocument
         doc.Add(totals);
 
         doc.Add(Text($"AMOUNT PAYABLE   ₹{bill.FinalAmount:0.00}", 13, Weight.Bold, align: Align.Right, topMargin: 1, role: SizeRole.Totals));
-        doc.Add(Text($"Paid by {bill.PaymentMode}", 8, brush: Muted, align: Align.Right, role: SizeRole.Contact));
+        doc.Add(Text(bill.AdmissionId is null ? $"Paid by {bill.PaymentMode}" : "Charged to the IP bill", 8, brush: Muted, align: Align.Right, role: SizeRole.Contact));
         doc.Add(Text(AmountInWords.Convert(bill.FinalAmount), 8, brush: Muted, align: Align.Right, topMargin: 3, role: SizeRole.Contact));
 
         doc.Add(Rule());

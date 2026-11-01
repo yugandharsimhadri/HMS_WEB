@@ -78,6 +78,17 @@ public class InpatientController(InpatientService ip) : ControllerBase
         [FromQuery] AdmissionStatus? status, [FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string? term)
         => Ok(await ip.SearchAsync(status, from, to, term));
 
+    /// <summary>The patient's current admission, or 204 when they are not in. The counters ask this
+    /// to offer "charge to IP bill".</summary>
+    [HttpGet("active")]
+    public async Task<ActionResult<ActiveAdmission?>> Active([FromQuery] Guid patientId)
+        => Ok(await ip.GetActiveAdmissionAsync(patientId));
+
+    /// <summary>Every stay the patient has had, for their history.</summary>
+    [HttpGet("by-patient/{patientId:guid}")]
+    public async Task<ActionResult<List<PatientAdmission>>> ByPatient(Guid patientId)
+        => Ok(await ip.GetAdmissionsByPatientAsync(patientId));
+
     // ── One admission ──────────────────────────────────────────────────────
 
     [HttpPost("admissions")]

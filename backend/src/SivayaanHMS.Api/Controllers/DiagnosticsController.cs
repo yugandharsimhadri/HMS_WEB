@@ -32,7 +32,7 @@ public record DiagnosticBillLineRequest(Guid? TestId, string TestName, decimal P
 public record SaveDiagnosticBillRequest(
     Guid? Id, Guid PatientId, PaymentMode PaymentMode, string? TransactionNo,
     decimal Discount, string? Remarks, Guid? VisitId, string? ReferredBy,
-    List<DiagnosticBillLineRequest> Lines);
+    List<DiagnosticBillLineRequest> Lines, bool ChargeToIp = false);
 
 public record SetBillStatusRequest(DiagnosticBillStatus Status);
 
@@ -47,7 +47,8 @@ public record SetBillStatusRequest(DiagnosticBillStatus Status);
 [Route("api/diagnostics")]
 public class DiagnosticsController(
     DiagnosticsService diagnostics,
-    IDbContextFactory<AppDbContext> factory) : ControllerBase
+    IDbContextFactory<AppDbContext> factory,
+    SettingsService settings) : ControllerBase
 {
     // ── Test master ────────────────────────────────────────────────────────
 
@@ -203,6 +204,8 @@ public class DiagnosticsController(
 
         try
         {
+            bill.AdmissionId = await IpLink.ResolveAsync(db, settings, patient.Id, request.ChargeToIp);
+            if (bill.AdmissionId is not null) bill.TransactionNo = null;
             return Ok(await diagnostics.SaveBillAsync(bill, lines));
         }
         catch (InvalidOperationException ex)

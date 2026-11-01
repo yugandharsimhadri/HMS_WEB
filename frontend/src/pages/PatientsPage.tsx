@@ -1,8 +1,9 @@
 import { useGeneralSettings } from '../settings/SettingsContext';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api, ApiError, openPdf } from '../api/client';
 import type {
-  DiagnosticBill, GrowthMeasurement, Patient, Sale,
+  DiagnosticBill, GrowthMeasurement, Patient, PatientAdmission, Sale,
   VaccinationRecord, Visit,
 } from '../api/types';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
@@ -30,6 +31,8 @@ export function PatientsPage() {
   const [diagnosticBills, setDiagnosticBills] = useState<DiagnosticBill[]>([]);
   const [vaccinations, setVaccinations] = useState<VaccinationRecord[]>([]);
   const [growth, setGrowth] = useState<GrowthMeasurement[]>([]);
+  const [stays, setStays] = useState<PatientAdmission[]>([]);
+  const navigate = useNavigate();
   const general = useGeneralSettings();
 
   const [editing, setEditing] = useState<Patient | null | undefined>(undefined);
@@ -59,7 +62,7 @@ export function PatientsPage() {
 
   useEffect(() => {
     if (!selected) {
-      setHistory([]); setBills([]); setDiagnosticBills([]); setVaccinations([]); setGrowth([]);
+      setHistory([]); setBills([]); setDiagnosticBills([]); setVaccinations([]); setGrowth([]); setStays([]);
       return;
     }
     const id = selected.id;
@@ -74,7 +77,10 @@ export function PatientsPage() {
       .then(setVaccinations).catch(() => setVaccinations([]));
     void api.get<GrowthMeasurement[]>(`/api/pediatrics/patients/${id}/growth`)
       .then(setGrowth).catch(() => setGrowth([]));
-  }, [selected]);
+    if (general?.inpatientEnabled) {
+      void api.get<PatientAdmission[]>(`/api/inpatient/by-patient/${id}`).then(setStays).catch(() => setStays([]));
+    }
+  }, [selected, general?.inpatientEnabled]);
 
   const onSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -183,6 +189,30 @@ export function PatientsPage() {
                   {history.length === 0 && <tr><td colSpan={5}>No visits recorded.</td></tr>}
                 </tbody>
               </table>
+
+              {general?.inpatientEnabled && (
+                <>
+                  <h3 className="sub-heading">In-patient stays</h3>
+                  <table>
+                    <thead><tr><th>IP no.</th><th>Admitted</th><th>Discharged</th><th>Doctor</th><th>Bill</th><th>Balance</th></tr></thead>
+                    <tbody>
+                      {stays.map((s) => (
+                        <tr key={s.id} className="clickable" onClick={() => navigate(`/ip/${s.id}`)}>
+                          <td>{s.ipNo}</td>
+                          <td>{new Date(s.admittedOn).toLocaleDateString()}</td>
+                          <td>{s.dischargedOn ? new Date(s.dischargedOn).toLocaleDateString() : <span className="badge">In · {s.bedNo}</span>}</td>
+                          <td>{s.doctorName}</td>
+                          <td>{s.net.toFixed(2)}</td>
+                          <td className={s.balance > 0 ? 'ip-due' : s.balance < 0 ? 'ip-credit' : ''}>
+                            {s.balance === 0 ? '—' : s.balance > 0 ? s.balance.toFixed(2) : `${(-s.balance).toFixed(2)} cr`}
+                          </td>
+                        </tr>
+                      ))}
+                      {stays.length === 0 && <tr><td colSpan={6}>Never admitted.</td></tr>}
+                    </tbody>
+                  </table>
+                </>
+              )}
 
               <h3 className="sub-heading">Medicine bills</h3>
               <table>

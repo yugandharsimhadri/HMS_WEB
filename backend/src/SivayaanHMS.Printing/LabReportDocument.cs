@@ -60,7 +60,7 @@ public static class LabReportDocument
         doc.Add(totals);
 
         doc.Add(Text($"AMOUNT PAID   ₹{order.FinalAmount:0.00}", 13, Weight.Bold, align: Align.Right, topMargin: 1, role: SizeRole.Totals));
-        doc.Add(Text($"Paid by {order.PaymentMode}", 8, brush: Muted, align: Align.Right, role: SizeRole.Contact));
+        doc.Add(Text(order.AdmissionId is null ? $"Paid by {order.PaymentMode}" : "Charged to the IP bill", 8, brush: Muted, align: Align.Right, role: SizeRole.Contact));
 
         if (!string.IsNullOrWhiteSpace(order.Remarks))
             doc.Add(Text($"Remarks: {order.Remarks}", 8, brush: Muted, topMargin: 3, role: SizeRole.Contact));

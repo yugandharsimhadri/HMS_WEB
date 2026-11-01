@@ -1,5 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api, ApiError, downloadFile, openPdf } from '../api/client';
+import { useGeneralSettings } from '../settings/SettingsContext';
+import { DateRange } from '../shell/DateRange';
+import { todayInput, type Range } from '../shell/dates';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
 import type {
@@ -44,6 +48,25 @@ const TABS: Tab[] = [
   { id: 'diagnostics', label: 'Diagnostics', kind: 'None', path: '/api/reports/diagnostics' },
 ];
 
+/** Shown only when the In-patients module is on. The census and dues are about now; the
+ * other three are read over the From/To range. */
+const IP_TABS: Tab[] = [
+  { id: 'ip-census', label: 'IP census', kind: 'IpCensus' },
+  { id: 'ip-register', label: 'Admissions & discharges', kind: 'IpRegister' },
+  { id: 'ip-bills', label: 'IP bills', kind: 'IpBills' },
+  { id: 'ip-dues', label: 'IP dues', kind: 'IpDues' },
+  { id: 'ip-occupancy', label: 'Bed occupancy', kind: 'BedOccupancy' },
+];
+
+const IP_KINDS: ReportKind[] = ['IpCensus', 'IpRegister', 'IpBills', 'IpDues', 'BedOccupancy'];
+
+/** Every report about what happened is read over From/To; the stock views, the census and
+ * the dues are about now and take no dates. */
+const RANGE_KINDS: ReportKind[] = [
+  'DayBook', 'GstSummary', 'OpdRegister', 'ScheduleH1', 'Collections', 'OpdByDoctor',
+  'IpRegister', 'IpBills', 'BedOccupancy',
+];
+
 const EXPIRING_DAY_OPTIONS = [30, 60, 90, 180];
 
 /**
@@ -69,11 +92,6 @@ const PAYMENT_MODES: { value: PaymentMode | undefined; label: string }[] = [
   { value: 'Upi', label: 'UPI' },
   { value: 'Card', label: 'Card' },
 ];
-
-const localDate = (d: Date) =>
-  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-const today = () => localDate(new Date());
 
 /** Formats a cell the same way the PDF does, so the screen and the export
  * read alike. */
@@ -123,11 +141,16 @@ const TONE_CLASS: Record<ReportTone, string | undefined> = {
 
 
 export function ReportsPage() {
-  const [tab, setTab] = useState<Tab>(TABS[0]);
+  const general = useGeneralSettings();
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
 
-  const [date, setDate] = useState(today);
-  const [from, setFrom] = useState(today);
-  const [to, setTo] = useState(today);
+  const tabs = useMemo(() => (general?.inpatientEnabled ? [...TABS, ...IP_TABS] : TABS), [general?.inpatientEnabled]);
+  // ?tab=ip-register opens straight onto a report - the dashboard's tiles link here.
+  const [tab, setTab] = useState<Tab>(() => [...TABS, ...IP_TABS].find((t) => t.id === params.get('tab')) ?? TABS[0]);
+
+  const [range, setRange] = useState<Range>(() => ({ from: todayInput(), to: todayInput() }));
+  const { from, to } = range;
   const [expiringDays, setExpiringDays] = useState(90);
   const [includeZeroStock, setIncludeZeroStock] = useState(false);
   const [stockSearch, setStockSearch] = useState('');
@@ -144,15 +167,16 @@ export function ReportsPage() {
   const [busy, setBusy] = useState(false);
 
   const query = useCallback(() => {
+    // `date` rides along for the API's older single-date reading of a report.
     const p = new URLSearchParams({
-      date, from, to,
+      date: to, from, to,
       expiringDays: String(expiringDays),
       includeZeroStock: String(includeZeroStock),
     });
     if (stockSearch.trim()) p.set('search', stockSearch.trim());
     if (paymentMode) p.set('mode', paymentMode);
     return p.toString();
-  }, [date, from, to, expiringDays, includeZeroStock, stockSearch, paymentMode]);
+  }, [from, to, expiringDays, includeZeroStock, stockSearch, paymentMode]);
 
   // The generation a load belongs to. Switching tabs quickly — click Day
   // Book, then OPD Register before the first request has returned — starts
@@ -201,15 +225,15 @@ export function ReportsPage() {
     }
   }, [query]);
 
-  // The cards above the tabs belong to the Date picker, not to whichever report is open - the
+  // The cards above the tabs belong to the From/To range, not to whichever report is open - the
   // desktop shows them on every tab.
   const loadSummary = useCallback(async () => {
     try {
-      setSummary(await api.get<DayBookSummary>(`/api/reports/day-book/summary?date=${date}`));
+      setSummary(await api.get<DayBookSummary>(`/api/reports/day-book/summary?from=${from}&to=${to}`));
     } catch {
       setSummary(null);
     }
-  }, [date]);
+  }, [from, to]);
 
   useEffect(() => { void load(tab); }, [tab, load]);
   useEffect(() => { void loadSummary(); }, [loadSummary]);
@@ -261,7 +285,9 @@ export function ReportsPage() {
   const reprintRow = async (id: string) => {
     setError(null);
     try {
-      if (tab.kind === 'DayBook') await openPdf(`/api/print/bill/${id}?reprint=true`);
+      if (tab.kind === 'IpBills') await openPdf(`/api/print/ip/${id}/bill?reprint=true`);
+      else if (IP_KINDS.includes(tab.kind)) navigate(`/ip/${id}`);
+      else if (tab.kind === 'DayBook') await openPdf(`/api/print/bill/${id}?reprint=true`);
       else if (tab.kind === 'OpdRegister') await openPdf(`/api/print/receipt/${id}?reprint=true`);
       else if (tab.id === 'diagnostics') await openPdf(`/api/print/diagnostic-bill/${id}?reprint=true`);
       else if (tab.kind === 'Collections') {
@@ -288,6 +314,8 @@ export function ReportsPage() {
   const reprintLabel = tab.kind === 'DayBook' ? 'Reprint selected bill'
     : tab.kind === 'OpdRegister' ? 'Reprint selected receipt'
     : tab.kind === 'Collections' ? 'Reprint selected'
+    : tab.kind === 'IpBills' ? 'Reprint selected bill'
+    : tab.kind === 'IpCensus' || tab.kind === 'IpRegister' || tab.kind === 'IpDues' ? 'Open IP file'
     : null;
 
   const selectedId = selectedRow !== null ? (table?.rows[selectedRow]?.id ?? null) : null;
@@ -297,14 +325,7 @@ export function ReportsPage() {
   const canExportPdf = tab.kind !== 'None' && tab.kind !== 'StockRegister' && (table?.rows.length ?? 0) > 0;
   const canExportExcel = tab.kind !== 'None' && (table?.rows.length ?? 0) > 0;
 
-  // Diagnostics reads both: today's bills off the Date picker, and
-  // revenue-by-day plus the most-ordered tests off the From/To range — the
-  // same split the day book and the GST summary already use.
-  const isRangeBased = tab.kind === 'GstSummary' || tab.kind === 'ScheduleH1'
-    || tab.kind === 'Collections' || tab.kind === 'OpdByDoctor' || tab.id === 'diagnostics';
-  const hasDatePicker = tab.id === 'diagnostics'
-    || (tab.kind !== 'GstSummary' && tab.kind !== 'ScheduleH1' && tab.kind !== 'OpdByDoctor'
-        && tab.kind !== 'StockRegister' && tab.kind !== 'LowStock' && tab.kind !== 'None');
+  const isRangeBased = RANGE_KINDS.includes(tab.kind) || tab.id === 'diagnostics';
 
   // Registered after the actions they call, so no binding refers to a
   // function declared further down the file.
@@ -332,7 +353,7 @@ export function ReportsPage() {
       </div>
 
       <div className="tabs">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -347,21 +368,8 @@ export function ReportsPage() {
       {/* Only the filters this report actually reads — a From/To pair on the
           day book would imply a range it does not use. */}
       <div className="inline-form">
-        {hasDatePicker && (
-          <>
-            <label>Date</label>
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          </>
-        )}
-
-        {isRangeBased && (
-          <>
-            <label>From</label>
-            <input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-            <label>To</label>
-            <input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
-          </>
-        )}
+        {isRangeBased && <DateRange value={range} onChange={setRange} />}
+        {(tab.kind === 'IpCensus' || tab.kind === 'IpDues') && <span className="hint">As of now</span>}
 
         {/* Cash gives the till to count; UPI gives the list to check a bank
             statement against. "All" keeps the per-mode split in the totals. */}
@@ -457,6 +465,13 @@ export function ReportsPage() {
             <span className="kpi-label">OPD visits</span>
             <span className="kpi-value">{summary.visitCount}</span>
           </div>
+          {/* Medicines that went on IP bills: sold, but paid for with the IP bill, not here. */}
+          {summary.onIpBills > 0 && (
+            <div className="kpi">
+              <span className="kpi-label">Pharmacy on IP bills</span>
+              <span className="kpi-value">{formatCell(summary.onIpBills, 'Money')}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -473,7 +488,7 @@ export function ReportsPage() {
           </div>
 
           <section className="card">
-            <h2>Today&rsquo;s diagnostic bills</h2>
+            <h2>Diagnostic bills</h2>
             <table>
               <thead><tr><th>TIME</th><th>BILL NO</th><th>PATIENT</th><th style={{ textAlign: 'right' }}>TESTS</th><th style={{ textAlign: 'right' }}>AMOUNT</th><th>STATUS</th><th></th></tr></thead>
               <tbody>
@@ -496,7 +511,7 @@ export function ReportsPage() {
                     </td>
                   </tr>
                 ))}
-                {diagnostics.todaysBills.length === 0 && <tr><td colSpan={7}>No records found for the selected date.</td></tr>}
+                {diagnostics.todaysBills.length === 0 && <tr><td colSpan={7}>No records found for the selected dates.</td></tr>}
               </tbody>
             </table>
           </section>

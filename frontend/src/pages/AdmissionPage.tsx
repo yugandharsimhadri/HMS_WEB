@@ -252,6 +252,14 @@ function BillTab({ data, act, print }: { data: AdmissionDetail; act: Act; print:
   );
 }
 
+/** Where each counter keeps the print of a bill that went on the IP bill. */
+const SOURCE_PRINT: Record<string, string> = {
+  Pharmacy: 'bill',
+  Diagnostics: 'diagnostic-bill',
+  Lab: 'lab-report',
+  Procedures: 'procedure-bill',
+};
+
 function GroupRows({ label, lines, onRemove }: {
   label: string;
   lines: IpBillView['lines'];
@@ -264,7 +272,13 @@ function GroupRows({ label, lines, onRemove }: {
       {lines.map((l, i) => (
         <tr key={l.chargeId ?? `${label}-${i}`}>
           <td>{shortDate(l.chargeDate)}</td>
-          <td>{l.description}</td>
+          <td>{l.description}
+            {l.source && l.sourceId && (
+              <button type="button" className="ghost ip-source" title={`Print the ${l.source.toLowerCase()} bill`}
+                      onClick={() => void openPdf(`/api/print/${SOURCE_PRINT[l.source!]}/${l.sourceId}?reprint=true`)}>
+                {l.source} bill
+              </button>
+            )}</td>
           <td className="num">{l.quantity}</td>
           <td className="num">{l.rate.toLocaleString('en-IN')}</td>
           <td className="num">{l.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
@@ -489,6 +503,21 @@ function SummaryCard({ data, act, print }: { data: AdmissionDetail; act: Act; pr
     void act(() => api.put(`/api/inpatient/admissions/${a.id}/summary`, { ...form, followUpOn: form.followUpOn || null }), 'Discharge summary saved.');
   };
 
+  // The follow-up date on the summary becomes an OPD appointment with the treating doctor,
+  // at the start of the morning list; the desk can move it from Appointments.
+  const bookFollowUp = () => {
+    if (!summary?.followUpOn) return;
+    void act(() => api.post('/api/appointments', {
+      patientId: a.patientId,
+      doctorId: a.doctorId,
+      scheduledOn: `${summary.followUpOn!.slice(0, 10)}T10:00:00`,
+      durationMinutes: 15,
+      moduleContext: 'General',
+      reason: `Follow-up after discharge (${a.ipNo})`,
+      notes: null,
+    }), `Follow-up booked for ${new Date(summary.followUpOn).toLocaleDateString()} at 10:00 with ${a.doctor.name}.`);
+  };
+
   return (
     <form className="card ip-summary" onSubmit={save}>
       <h2>1 · Discharge summary {summary && <span className="badge ip-status-admitted">Saved</span>}</h2>
@@ -505,6 +534,11 @@ function SummaryCard({ data, act, print }: { data: AdmissionDetail; act: Act; pr
       <div className="inline-form">
         <button type="submit">Save summary</button>
         {summary && <button type="button" className="ghost" onClick={() => print(`/api/print/ip/${a.id}/summary`)}>Print summary</button>}
+        {summary?.followUpOn && (
+          <button type="button" className="ghost" onClick={bookFollowUp}>
+            Book follow-up {new Date(summary.followUpOn).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
+          </button>
+        )}
       </div>
     </form>
   );

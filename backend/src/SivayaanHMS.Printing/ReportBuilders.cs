@@ -56,17 +56,25 @@ public static class ReportBuilders
         Right("ITEMS", 0.7), Right("TAXABLE"), Right("CGST"), Right("SGST"), Right("NET", 1.1), Left("MODE", 0.9),
     ];
 
-    public static ReportRow DayBookRow(Sale s) => new(
-        [s.BillNo, s.BillDate.ToString("HH:mm"), s.CustomerName, s.DoctorName ?? "", s.Items.Count.ToString(),
-         N2(s.TaxableAmount), N2(s.CgstAmount), N2(s.SgstAmount), N2(s.NetAmount), s.PaymentMode.ToString()],
+    public static ReportRow DayBookRow(Sale s) => DayBookRow(s, false);
+
+    /// <summary><paramref name="withDate"/> when the book spans more than one day, so the time alone
+    /// does not say which day a bill belongs to.</summary>
+    public static ReportRow DayBookRow(Sale s, bool withDate) => new(
+        [s.BillNo, s.BillDate.ToString(withDate ? "dd MMM HH:mm" : "HH:mm"), s.CustomerName, s.DoctorName ?? "", s.Items.Count.ToString(),
+         N2(s.TaxableAmount), N2(s.CgstAmount), N2(s.SgstAmount), N2(s.NetAmount), ModeOf(s)],
         Id: s.Id);
+
+    /// <summary>How the bill was paid - or "IP" when it went on an admitted patient's IP bill and
+    /// took no money at the counter.</summary>
+    public static string ModeOf(Sale s) => s.AdmissionId is null ? s.PaymentMode.ToString() : "IP";
 
     /// <summary>
     /// The day book shows **completed bills only**. A cancelled or returned
     /// sale is not revenue, and leaving it in would double count against the
     /// summary cards, which already exclude it.
     /// </summary>
-    public static ReportTable DayBook(IEnumerable<Sale> sales, string title, string label)
+    public static ReportTable DayBook(IEnumerable<Sale> sales, string title, string label, bool multiDay = false)
     {
         var completed = sales
             .Where(s => s.Status == SaleStatus.Completed)
@@ -77,18 +85,25 @@ public static class ReportBuilders
         var cgst = completed.Sum(s => s.CgstAmount);
         var sgst = completed.Sum(s => s.SgstAmount);
         var net = completed.Sum(s => s.NetAmount);
-        var cash = completed.Where(s => s.PaymentMode == PaymentMode.Cash).Sum(s => s.NetAmount);
-        var upi = completed.Where(s => s.PaymentMode == PaymentMode.Upi).Sum(s => s.NetAmount);
+        var paidHere = completed.Where(s => s.AdmissionId is null).ToList();
+        var cash = paidHere.Where(s => s.PaymentMode == PaymentMode.Cash).Sum(s => s.NetAmount);
+        var upi = paidHere.Where(s => s.PaymentMode == PaymentMode.Upi).Sum(s => s.NetAmount);
+        var onIp = completed.Where(s => s.AdmissionId is not null).Sum(s => s.NetAmount);
 
-        var rows = completed.Select(DayBookRow).ToList();
+        var rows = completed.Select(s => DayBookRow(s, multiDay)).ToList();
+
+        // Only when there is any, so a clinic without in-patients sees the book it always did.
+        List<ReportTotal> IpTotal(string name) => onIp > 0 ? [new(name, onIp)] : [];
 
         var pdf = new ReportTable(ReportKind.DayBook, title, label, DayBookPdfColumns(), rows,
             [new("Taxable", taxable), new("CGST", cgst), new("SGST", sgst), new("Net sales", net),
-             new("Cash", cash), new("UPI", upi)]);
+             new("Cash", cash), new("UPI", upi), ..IpTotal("On IP bills")]);
 
         var excel = new ReportTable(ReportKind.DayBook, title, label,
             [
-                Typed("Bill No", ReportFormat.Text), Typed("Time", ReportFormat.Time), Typed("Customer", ReportFormat.Text),
+                Typed("Bill No", ReportFormat.Text),
+                multiDay ? Typed("Date / time", ReportFormat.DateTime) : Typed("Time", ReportFormat.Time),
+                Typed("Customer", ReportFormat.Text),
                 Typed("Doctor", ReportFormat.Text), Typed("Items", ReportFormat.Integer),
                 Typed("Taxable", ReportFormat.Money, sum: true), Typed("CGST", ReportFormat.Money, sum: true),
                 Typed("SGST", ReportFormat.Money, sum: true), Typed("Net", ReportFormat.Money, sum: true),
@@ -96,12 +111,12 @@ public static class ReportBuilders
             ],
             completed.Select(s => new ReportRow(
                 [s.BillNo, s.BillDate, s.CustomerName, s.DoctorName ?? "", s.Items.Count,
-                 s.TaxableAmount, s.CgstAmount, s.SgstAmount, s.NetAmount, s.PaymentMode.ToString()])).ToList(),
-            [new("Cash total", cash), new("UPI total", upi)]);
+                 s.TaxableAmount, s.CgstAmount, s.SgstAmount, s.NetAmount, ModeOf(s)])).ToList(),
+            [new("Cash total", cash), new("UPI total", upi), ..IpTotal("On IP bills total")]);
 
         return new ReportTable(ReportKind.DayBook, title, label, DayBookScreenColumns(), rows,
             [new("Taxable", taxable), new("CGST", cgst), new("SGST", sgst), new("Net Sales", net),
-             new("Cash", cash), new("UPI", upi)],
+             new("Cash", cash), new("UPI", upi), ..IpTotal("On IP bills")],
             Pdf: pdf, Excel: excel);
     }
 
@@ -165,16 +180,18 @@ public static class ReportBuilders
 
     // ── OPD register ───────────────────────────────────────────────────────
 
-    public static ReportTable OpdRegister(IEnumerable<Visit> source, string title, string label)
+    public static ReportTable OpdRegister(IEnumerable<Visit> source, string title, string label, bool multiDay = false)
     {
-        var visits = source.OrderBy(v => v.TokenNo).ToList();
+        // Day by day, then in token order within the day.
+        var visits = source.OrderBy(v => v.ScheduledOn.Date).ThenBy(v => v.TokenNo).ToList();
+        var timeFormat = multiDay ? "dd MMM HH:mm" : "HH:mm";
 
         var seen = visits.Count(v => v.Status != VisitStatus.Cancelled);
         var collected = visits.Where(v => v.FeePaid).Sum(v => v.Fee);
 
         // Only a paid visit has a receipt to reprint.
         var screenRows = visits.Select(v => new ReportRow(
-            [v.VisitNo, v.ScheduledOn.ToString("HH:mm"), v.Patient.Name, v.Patient.AgeText,
+            [v.VisitNo, v.ScheduledOn.ToString(timeFormat), v.Patient.Name, v.Patient.AgeText,
              v.Patient.Gender.ToString(), v.Doctor.Name, v.Status.ToString(), N2(v.Fee), v.FeePaid],
             Id: v.FeePaid ? v.Id : null)).ToList();
 
@@ -182,7 +199,7 @@ public static class ReportBuilders
             [Left("VISIT NO", 1.1), Left("TIME", 0.9), Left("PATIENT", 1.8), Left("AGE/GENDER"),
              Left("DOCTOR", 1.6), Right("FEE"), Left("PAID", 0.8)],
             visits.Select(v => new ReportRow(
-                [v.VisitNo, v.ScheduledOn.ToString("HH:mm"), v.Patient.Name,
+                [v.VisitNo, v.ScheduledOn.ToString(timeFormat), v.Patient.Name,
                  $"{v.Patient.AgeText}/{v.Patient.Gender.ToString()[0]}", v.Doctor.Name, N2(v.Fee),
                  v.FeePaid ? "Yes" : "No"])).ToList(),
             [Count("Total OPD visits", seen), new("Total consultation fees", collected)]);

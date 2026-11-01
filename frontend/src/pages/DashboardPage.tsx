@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, ApiError } from '../api/client';
 import type { DashboardResponse } from '../api/types';
+import { DateRange } from '../shell/DateRange';
+import { rangeLabel, todayInput, type Range } from '../shell/dates';
 import { useHotkey } from '../shell/hotkeys';
 import { ShortcutHints } from '../shell/ShortcutHints';
 
@@ -15,6 +17,7 @@ const CATEGORY_COLORS = {
   opd: 'var(--c-chart-1)',
   pharmacy: 'var(--c-chart-2)',
   diagnostics: 'var(--c-chart-3)',
+  inpatient: 'var(--c-chart-4)',
 } as const;
 
 /**
@@ -52,19 +55,19 @@ export function DashboardPage() {
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
+  const [range, setRange] = useState<Range>(() => ({ from: todayInput(), to: todayInput() }));
 
   const load = useCallback(async () => {
     setBusy(true);
     try {
-      setData(await api.get<DashboardResponse>('/api/dashboard'));
+      setData(await api.get<DashboardResponse>(`/api/dashboard?from=${range.from}&to=${range.to}`));
       setError(null);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not load the dashboard.');
     } finally {
       setBusy(false);
     }
-  }, []);
+  }, [range]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -74,11 +77,14 @@ export function DashboardPage() {
     if (!data) return null;
 
     const parts: { key: keyof typeof CATEGORY_COLORS; label: string; value: number }[] = [
-      { key: 'opd', label: 'OPD', value: data.opdRevenueToday },
-      { key: 'pharmacy', label: 'Pharmacy', value: data.pharmacyRevenueToday },
+      { key: 'opd', label: 'OPD', value: data.opdRevenue },
+      { key: 'pharmacy', label: 'Pharmacy', value: data.pharmacyRevenue },
     ];
     if (data.diagnosticsEnabled) {
-      parts.push({ key: 'diagnostics', label: 'Diagnostics', value: data.diagnosticsRevenueToday });
+      parts.push({ key: 'diagnostics', label: 'Diagnostics', value: data.diagnosticsRevenue });
+    }
+    if (data.inpatientEnabled) {
+      parts.push({ key: 'inpatient', label: 'In-patients', value: data.inpatientRevenue });
     }
 
     const total = parts.reduce((s, p) => s + p.value, 0);
@@ -119,10 +125,11 @@ export function DashboardPage() {
       opd: data.trend.map((d) => d.opd),
       pharmacy: data.trend.map((d) => d.pharmacy),
       diagnostics: data.trend.map((d) => d.diagnostics),
+      inpatient: data.trend.map((d) => d.inpatient),
     };
 
     const sharedMax = Math.max(
-      ...series.opd, ...series.pharmacy, ...series.diagnostics, 0,
+      ...series.opd, ...series.pharmacy, ...series.diagnostics, ...series.inpatient, 0,
     );
 
     const line = (values: number[]) => {
@@ -146,6 +153,7 @@ export function DashboardPage() {
       opd: { line: line(series.opd), end: endPoint(series.opd) },
       pharmacy: { line: line(series.pharmacy), end: endPoint(series.pharmacy) },
       diagnostics: { line: line(series.diagnostics), end: endPoint(series.diagnostics) },
+      inpatient: { line: line(series.inpatient), end: endPoint(series.inpatient) },
     };
   }, [data]);
 
@@ -156,18 +164,20 @@ export function DashboardPage() {
   if (error) return <div className="page"><p className="auth-error">{error}</p></div>;
   if (!data) return <div className="page"><p className="hint">Loading…</p></div>;
 
-  const today = new Date().toLocaleDateString(undefined, {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const singleDay = range.from === range.to;
+  const isToday = singleDay && range.to === todayInput();
+  const period = isToday ? 'today' : rangeLabel(range);
+  const versus = singleDay ? 'vs the day before' : 'vs the previous period';
 
   return (
     <div className="page">
       <div className="page-head">
         <div>
           <h1>Dashboard</h1>
-          <p className="hint">{today}</p>
+          <p className="hint">{rangeLabel(range)}</p>
         </div>
         <div className="inline-form">
+          <DateRange value={range} onChange={setRange} />
           <button type="button" disabled={busy} onClick={() => void load()}>Refresh <span className="kbd">F9</span></button>
         </div>
       </div>
@@ -176,10 +186,10 @@ export function DashboardPage() {
           real screen behind it for the detail. */}
       <div className="kpi-row">
         <button type="button" className="kpi" onClick={() => navigate('/')}>
-          <span className="kpi-label">Patients today</span>
-          <span className="kpi-value">{data.patientsToday}</span>
+          <span className="kpi-label">Patients {period}</span>
+          <span className="kpi-value">{data.patients}</span>
           <span className={data.patientsDeltaPercent >= 0 ? 'kpi-delta up' : 'kpi-delta down'}>
-            {delta(data.patientsDeltaPercent)} vs yesterday
+            {delta(data.patientsDeltaPercent)} {versus}
           </span>
         </button>
 
@@ -190,10 +200,10 @@ export function DashboardPage() {
         </button>
 
         <div className="kpi">
-          <span className="kpi-label">Revenue today</span>
-          <span className="kpi-value">{money(data.revenueToday)}</span>
+          <span className="kpi-label">Revenue {period}</span>
+          <span className="kpi-value">{money(data.revenue)}</span>
           <span className={data.revenueDeltaPercent >= 0 ? 'kpi-delta up' : 'kpi-delta down'}>
-            {delta(data.revenueDeltaPercent)} vs yesterday
+            {delta(data.revenueDeltaPercent)} {versus}
           </span>
         </div>
 
@@ -202,11 +212,29 @@ export function DashboardPage() {
           <span className="kpi-value">{data.lowStockCount}</span>
           <span className="kpi-delta">at or below reorder level</span>
         </button>
+
+        {data.inpatientEnabled && (
+          <>
+            <button type="button" className="kpi" onClick={() => navigate('/ip')}>
+              <span className="kpi-label">Beds in use now</span>
+              <span className="kpi-value">{data.ipOccupied} / {data.ipBeds}</span>
+              <span className="kpi-delta">
+                {data.ipBeds > 0 ? `${Math.round((data.ipOccupied / data.ipBeds) * 100)}% occupied` : 'no beds set up'}
+              </span>
+            </button>
+
+            <button type="button" className="kpi" onClick={() => navigate('/reports?tab=ip-register')}>
+              <span className="kpi-label">Admitted {period}</span>
+              <span className="kpi-value">{data.ipAdmitted}</span>
+              <span className="kpi-delta">{data.ipDischarged} discharged · {money(data.inpatientRevenue)} IP money in</span>
+            </button>
+          </>
+        )}
       </div>
 
       <div className="queue-columns">
         <section className="card">
-          <h2>Today&rsquo;s revenue</h2>
+          <h2>Revenue {period === 'today' ? 'today' : <span className="hint">· {period}</span>}</h2>
           {donut && donut.total > 0 ? (
             <div className="donut-row">
               <svg viewBox="0 0 124 124" width="150" height="150" role="img" aria-label="Revenue split by department">
@@ -224,19 +252,19 @@ export function DashboardPage() {
               </ul>
             </div>
           ) : (
-            <p className="hint">Nothing taken yet today.</p>
+            <p className="hint">Nothing taken {isToday ? 'yet today' : 'in this period'}.</p>
           )}
         </section>
 
         <section className="card">
           <h2>
-            Last 14 days
+            {data.trend.length} days to {new Date(data.to).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}
             <span className="hint"> · {money(data.revenueTrendTotal)} total</span>
           </h2>
           {trend && trend.sharedMax > 0 ? (
             <>
               <svg viewBox="0 0 104 104" width="100%" height="160" preserveAspectRatio="none"
-                   role="img" aria-label="Revenue trend by department over 14 days">
+                   role="img" aria-label={`Revenue trend by department over ${data.trend.length} days`}>
                 <polyline points={trend.opd.line} fill="none" stroke={CATEGORY_COLORS.opd} strokeWidth={2} vectorEffect="non-scaling-stroke" />
                 <circle cx={trend.opd.end.x} cy={trend.opd.end.y} r={2} fill={CATEGORY_COLORS.opd} />
                 <polyline points={trend.pharmacy.line} fill="none" stroke={CATEGORY_COLORS.pharmacy} strokeWidth={2} vectorEffect="non-scaling-stroke" />
@@ -247,20 +275,30 @@ export function DashboardPage() {
                     <circle cx={trend.diagnostics.end.x} cy={trend.diagnostics.end.y} r={2} fill={CATEGORY_COLORS.diagnostics} />
                   </>
                 )}
+                {data.inpatientEnabled && (
+                  <>
+                    <polyline points={trend.inpatient.line} fill="none" stroke={CATEGORY_COLORS.inpatient} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                    <circle cx={trend.inpatient.end.x} cy={trend.inpatient.end.y} r={2} fill={CATEGORY_COLORS.inpatient} />
+                  </>
+                )}
               </svg>
               <p className="hint">
-                One shared scale across all three, so they are honestly comparable. Peak day {money(trend.sharedMax)}.
+                One shared scale for every line, so they are honestly comparable. Peak day {money(trend.sharedMax)}.
               </p>
             </>
           ) : (
-            <p className="hint">No revenue in the last 14 days.</p>
+            <p className="hint">No revenue in these {data.trend.length} days.</p>
           )}
         </section>
       </div>
 
       <div className="queue-columns">
         <section className="card">
-          <h2>Recent activity</h2>
+          <h2>
+            Activity
+            <span className="hint"> · {data.activityDay.slice(0, 10) === todayInput() ? 'today'
+              : new Date(data.activityDay).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+          </h2>
           <table>
             <thead><tr><th>Time</th><th>No.</th><th>Who</th><th>Where</th><th>Amount</th></tr></thead>
             <tbody>
@@ -273,7 +311,7 @@ export function DashboardPage() {
                   <td>{money(r.amount)}</td>
                 </tr>
               ))}
-              {data.recentActivity.length === 0 && <tr><td colSpan={5}>Nothing yet today.</td></tr>}
+              {data.recentActivity.length === 0 && <tr><td colSpan={5}>Nothing on this day.</td></tr>}
             </tbody>
           </table>
         </section>

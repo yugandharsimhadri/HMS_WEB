@@ -11,7 +11,7 @@ public record DashboardActivityRow(
 
 /// <summary>One day of the trend, per category. Sent as numbers, not as a
 /// drawn path: the server owns the money, the browser owns the geometry.</summary>
-public record DashboardTrendDay(DateTime Day, decimal Opd, decimal Pharmacy, decimal Diagnostics);
+public record DashboardTrendDay(DateTime Day, decimal Opd, decimal Pharmacy, decimal Diagnostics, decimal Inpatient);
 
 public record DashboardLowStockRow(Guid ProductId, string Name, decimal StockOnHand, int ReorderLevel);
 
@@ -21,24 +21,31 @@ public record DashboardLowStockRow(Guid ProductId, string Name, decimal StockOnH
 /// One endpoint rather than several on purpose: the KPI tile and the donut
 /// have to agree with each other, and they only reliably do so when they
 /// come out of the same arithmetic over the same snapshot. Splitting this
-/// into "today's revenue" and "today's split" would let the two be fetched
-/// either side of a sale.
+/// into "revenue" and "the split" would let the two be fetched either side
+/// of a sale.
+///
+/// The figures are for the chosen From/To range and are compared with the
+/// period of the same length just before it. The queue, the restock list and
+/// the beds in use are about now, whatever the range.
 /// </summary>
 public record DashboardResponse(
-    int PatientsToday, double PatientsDeltaPercent,
+    DateTime From, DateTime To,
+    int Patients, double PatientsDeltaPercent,
     int InQueueNow,
-    decimal RevenueToday, double RevenueDeltaPercent,
-    decimal OpdRevenueToday, decimal PharmacyRevenueToday, decimal DiagnosticsRevenueToday,
+    decimal Revenue, double RevenueDeltaPercent,
+    decimal OpdRevenue, decimal PharmacyRevenue, decimal DiagnosticsRevenue, decimal InpatientRevenue,
     decimal RevenueTrendTotal,
     int LowStockCount,
-    bool DiagnosticsEnabled, bool PediatricsEnabled, bool DentistEnabled, bool PathologyLabEnabled,
+    bool DiagnosticsEnabled, bool PediatricsEnabled, bool DentistEnabled, bool PathologyLabEnabled, bool InpatientEnabled,
+    int IpOccupied, int IpBeds, int IpAdmitted, int IpDischarged,
     List<DashboardTrendDay> Trend,
     List<DashboardLowStockRow> LowStock,
+    DateTime ActivityDay,
     List<DashboardActivityRow> RecentActivity);
 
 /// <summary>
-/// The landing screen: today's numbers, which way revenue is moving, where
-/// it comes from, what needs restocking, and what just happened.
+/// The landing screen: the period's numbers, which way revenue is moving,
+/// where it comes from, what needs restocking, and what just happened.
 ///
 /// Nothing here is a destination in its own right — every figure has a real
 /// screen behind it for the detail.
@@ -53,115 +60,130 @@ public class DashboardController(
     SettingsService settings,
     ProcedureBillsService procedureBills,
     DentistService dentist,
-    PathologyLabService pathologyLab) : ControllerBase
+    PathologyLabService pathologyLab,
+    InpatientService inpatient) : ControllerBase
 {
-    private const int TrendDays = 14;
+    /// <summary>The trend always shows at least this many days, so a one-day range still has a line to read.</summary>
+    private const int MinTrendDays = 14;
+
+    /// <summary>A year and a bit - the trend is one point a day.</summary>
+    private const int MaxRangeDays = 400;
 
     [HttpGet]
-    public async Task<ActionResult<DashboardResponse>> Get()
+    public async Task<ActionResult<DashboardResponse>> Get([FromQuery] DateTime? from, [FromQuery] DateTime? to)
     {
         var general = await settings.GetGeneralAsync();
 
-        var to = DateTime.Today;
-        var from = to.AddDays(-(TrendDays - 1));
+        var end = (to ?? DateTime.Today).Date;
+        var start = (from ?? end).Date;
+        if (start > end) (start, end) = (end, start);
+        if ((end - start).Days >= MaxRangeDays) start = end.AddDays(-(MaxRangeDays - 1));
 
-        // Three aggregate queries returning one number per day, not three
-        // range queries returning a fortnight of bills and visits to be
-        // grouped here. Only the figures cross the wire.
+        var days = (end - start).Days + 1;
+
+        // The same length again, just before - "vs previous period". For a single day
+        // that is yesterday, which is what the tiles always compared against.
+        var previousStart = start.AddDays(-days);
+        var trendStart = days < MinTrendDays ? end.AddDays(-(MinTrendDays - 1)) : start;
+        var readFrom = previousStart < trendStart ? previousStart : trendStart;
+
+        // Aggregate queries returning one number per day, not range queries
+        // returning the period's bills and visits to be grouped here.
         //
         // What each counts is unchanged and is the part that matters: only a
         // Completed sale is revenue, since a returned one is not money the
         // clinic kept; an OPD fee counts on the day it was *paid*, not the
-        // day the visit was booked; and patients counts who was *seen*, so it
-        // keys off the visit date and excludes cancellations.
+        // day the visit was booked; patients counts who was *seen*, so it
+        // keys off the visit date and excludes cancellations; and a bill put
+        // on an IP bill counts when the IP money arrives, not twice.
         //
-        // Issued together, not one after another. Every one of these is a
-        // read, each takes its own short-lived context from the factory, and
-        // none depends on another's result — so the page waits for the
-        // slowest rather than for the sum. Awaited in a batch below.
-        var pharmacyByDayTask = pharmacy.GetDailyNetAsync(from, to);
-        var opdTotalsTask = opd.GetDailyOpdTotalsAsync(from, to);
+        // Issued together, not one after another: each takes its own
+        // short-lived context from the factory and none depends on another.
+        var pharmacyByDayTask = pharmacy.GetDailyNetAsync(readFrom, end);
+        var opdTotalsTask = opd.GetDailyOpdTotalsAsync(readFrom, end);
         var diagByDayTask = general.DiagnosticsEnabled
-            ? diagnostics.GetDailyRevenueAsync(from, to)
+            ? diagnostics.GetDailyRevenueAsync(readFrom, end)
             : Task.FromResult(new Dictionary<DateTime, decimal>());
+        var ipByDayTask = general.InpatientEnabled
+            ? inpatient.GetDailyCollectionsAsync(readFrom, end)
+            : Task.FromResult(new Dictionary<DateTime, decimal>());
+        var ipCountsTask = general.InpatientEnabled
+            ? inpatient.GetDashboardCountsAsync(start, end)
+            : Task.FromResult((0, 0, 0, 0));
 
-        // Today's own rows, for the queue count, the feed and the restock list.
-        var todaysVisitsTask = opd.GetVisitsAsync(to);
+        // The queue is about now; the activity feed shows the last day of the range.
+        var todaysVisitsTask = opd.GetVisitsAsync(DateTime.Today);
+        var activityVisitsTask = end == DateTime.Today ? todaysVisitsTask : opd.GetVisitsAsync(end);
         var lowStockTask = pharmacy.GetLowStockAsync();
-        var todaysSalesTask = pharmacy.GetSalesAsync(to);
-        var todaysDiagBillsTask = general.DiagnosticsEnabled
-            ? diagnostics.SearchBillsAsync(to, to)
+        var salesTask = pharmacy.GetSalesAsync(end);
+        var diagBillsTask = general.DiagnosticsEnabled
+            ? diagnostics.SearchBillsAsync(end, end)
             : Task.FromResult(new List<DiagnosticBill>());
         var procedureBillsTask = general.PediatricsEnabled || general.DentistEnabled
-            ? procedureBills.SearchBillsAsync(to, to)
+            ? procedureBills.SearchBillsAsync(end, end)
             : Task.FromResult(new List<ProcedureBill>());
         var dentalPaymentsTask = general.DentistEnabled
-            ? dentist.SearchPaymentsAsync(to, to)
+            ? dentist.SearchPaymentsAsync(end, end)
             : Task.FromResult(new List<DentalPayment>());
         var labOrdersTask = general.PathologyLabEnabled
-            ? pathologyLab.SearchOrdersAsync(to, to)
+            ? pathologyLab.SearchOrdersAsync(end, end)
             : Task.FromResult(new List<LabOrder>());
 
         await Task.WhenAll(
-            pharmacyByDayTask, opdTotalsTask, diagByDayTask, todaysVisitsTask, lowStockTask,
-            todaysSalesTask, todaysDiagBillsTask, procedureBillsTask, dentalPaymentsTask, labOrdersTask);
+            pharmacyByDayTask, opdTotalsTask, diagByDayTask, ipByDayTask, ipCountsTask,
+            todaysVisitsTask, activityVisitsTask, lowStockTask,
+            salesTask, diagBillsTask, procedureBillsTask, dentalPaymentsTask, labOrdersTask);
 
         var pharmacyByDay = pharmacyByDayTask.Result;
         var (opdFeesByDay, patientsByDay) = opdTotalsTask.Result;
         var diagByDay = diagByDayTask.Result;
+        var ipByDay = ipByDayTask.Result;
 
-        var trend = new List<DashboardTrendDay>(TrendDays);
-        decimal todayOpd = 0, todayPharmacy = 0, todayDiag = 0, yesterdayTotal = 0;
-        int todayPatients = 0, yesterdayPatients = 0;
+        DashboardTrendDay Day(DateTime day) => new(day,
+            opdFeesByDay.GetValueOrDefault(day), pharmacyByDay.GetValueOrDefault(day),
+            diagByDay.GetValueOrDefault(day), ipByDay.GetValueOrDefault(day));
 
-        for (var i = 0; i < TrendDays; i++)
-        {
-            var day = from.AddDays(i).Date;
+        static decimal Total(DashboardTrendDay d) => d.Opd + d.Pharmacy + d.Diagnostics + d.Inpatient;
 
-            var dayPharmacy = pharmacyByDay.GetValueOrDefault(day);
-            var dayOpd = opdFeesByDay.GetValueOrDefault(day);
-            var dayDiag = diagByDay.GetValueOrDefault(day);
-            var dayPatients = patientsByDay.GetValueOrDefault(day);
+        List<DashboardTrendDay> Span(DateTime first, DateTime last)
+            => Enumerable.Range(0, (last - first).Days + 1).Select(i => Day(first.AddDays(i))).ToList();
 
-            trend.Add(new DashboardTrendDay(day, dayOpd, dayPharmacy, dayDiag));
+        int PatientsIn(DateTime first, DateTime last)
+            => Enumerable.Range(0, (last - first).Days + 1).Sum(i => patientsByDay.GetValueOrDefault(first.AddDays(i)));
 
-            if (day == to)
-            {
-                todayOpd = dayOpd; todayPharmacy = dayPharmacy; todayDiag = dayDiag;
-                todayPatients = dayPatients;
-            }
-            if (day == to.AddDays(-1))
-            {
-                yesterdayTotal = dayPharmacy + dayOpd + dayDiag;
-                yesterdayPatients = dayPatients;
-            }
-        }
+        var period = Span(start, end);
+        var previous = Span(previousStart, start.AddDays(-1));
+        var trend = Span(trendStart, end);
 
-        var revenueToday = todayOpd + todayPharmacy + todayDiag;
+        var revenue = period.Sum(Total);
+        var patients = PatientsIn(start, end);
 
-        var todaysVisits = todaysVisitsTask.Result;
-        var inQueue = todaysVisits.Count(v =>
+        var inQueue = todaysVisitsTask.Result.Count(v =>
             v.Status is VisitStatus.Booked or VisitStatus.Waiting or VisitStatus.InConsultation);
 
         var lowStock = lowStockTask.Result;
+        var (ipOccupied, ipBeds, ipAdmitted, ipDischarged) = ipCountsTask.Result;
 
         var activity = BuildActivity(
-            todaysVisits, todaysSalesTask.Result, todaysDiagBillsTask.Result,
+            activityVisitsTask.Result, salesTask.Result, diagBillsTask.Result,
             procedureBillsTask.Result, dentalPaymentsTask.Result, labOrdersTask.Result);
 
         return Ok(new DashboardResponse(
-            todayPatients, DeltaPercent(todayPatients, yesterdayPatients),
+            start, end,
+            patients, DeltaPercent(patients, PatientsIn(previousStart, start.AddDays(-1))),
             inQueue,
-            revenueToday, DeltaPercent((double)revenueToday, (double)yesterdayTotal),
-            todayOpd, todayPharmacy, todayDiag,
-            trend.Sum(d => d.Opd + d.Pharmacy + d.Diagnostics),
+            revenue, DeltaPercent((double)revenue, (double)previous.Sum(Total)),
+            period.Sum(d => d.Opd), period.Sum(d => d.Pharmacy), period.Sum(d => d.Diagnostics), period.Sum(d => d.Inpatient),
+            trend.Sum(Total),
             lowStock.Count,
             general.DiagnosticsEnabled, general.PediatricsEnabled,
-            general.DentistEnabled, general.PathologyLabEnabled,
+            general.DentistEnabled, general.PathologyLabEnabled, general.InpatientEnabled,
+            ipOccupied, ipBeds, ipAdmitted, ipDischarged,
             trend,
             lowStock.Take(5)
                 .Select(p => new DashboardLowStockRow(p.Id, p.Name, p.StockOnHand, p.ReorderLevel))
                 .ToList(),
+            end,
             activity));
     }
 
@@ -183,7 +205,7 @@ public class DashboardController(
         rows.AddRange(todaysSales
             .Where(s => s.Status == SaleStatus.Completed)
             .Select(s => new DashboardActivityRow(
-                s.BillDate, s.BillNo, s.CustomerName, "Pharmacy", s.NetAmount)));
+                s.BillDate, s.BillNo, s.CustomerName, s.AdmissionId is null ? "Pharmacy" : "Pharmacy · IP", s.NetAmount)));
 
         rows.AddRange(todaysDiagBills
             .Select(b => new DashboardActivityRow(

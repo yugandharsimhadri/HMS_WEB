@@ -137,7 +137,7 @@ public static class PharmacyInvoiceDocument
         doc.Add(totals);
 
         doc.Add(Text($"NET PAYABLE   ₹{sale.NetAmount:0.00}", 13, Weight.Bold, align: Align.Right, topMargin: 1, role: SizeRole.Totals));
-        doc.Add(Text($"Paid by {sale.PaymentMode}", 8, brush: Muted, align: Align.Right, role: SizeRole.Contact));
+        doc.Add(Text(sale.AdmissionId is null ? $"Paid by {sale.PaymentMode}" : "Charged to the IP bill", 8, brush: Muted, align: Align.Right, role: SizeRole.Contact));
         doc.Add(Text(AmountInWords.Convert(sale.NetAmount), 8, brush: Muted, align: Align.Right, topMargin: 3, role: SizeRole.Contact));
 
         doc.Add(Rule());

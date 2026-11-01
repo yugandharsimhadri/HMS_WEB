@@ -39,7 +39,7 @@ public record PlatformClinicUsage(
     UsageStatus Status,
     UsageCount Patients, UsageCount Visits, UsageCount Appointments, UsageCount PharmacyBills,
     UsageCount DiagnosticBills, UsageCount LabOrders, UsageCount ProcedureBills, UsageCount DentalCases,
-    UsageCount Vaccinations);
+    UsageCount Vaccinations, UsageCount Admissions);
 
 public record PlatformUsage(DateTime Since, int Days, List<PlatformClinicUsage> Clinics);
 
@@ -201,6 +201,7 @@ public class PlatformController(
         var procedures = await TallyAsync(db.ProcedureBills, since);
         var dental = await TallyAsync(db.DentalCases, since);
         var vaccinations = await TallyAsync(db.VaccinationRecords, since);
+        var admissions = await TallyAsync(db.Admissions, since);
 
         var users = await db.Users.AsNoTracking().IgnoreQueryFilters()
             .Where(u => !u.IsDeleted)
@@ -218,6 +219,7 @@ public class PlatformController(
             [
                 Of(patients, t.Id), Of(visits, t.Id), Of(appointments, t.Id), Of(sales, t.Id),
                 Of(diagnostics, t.Id), Of(lab, t.Id), Of(procedures, t.Id), Of(dental, t.Id), Of(vaccinations, t.Id),
+                Of(admissions, t.Id),
             ];
 
             var total = kinds.Sum(k => k.Total);
@@ -238,7 +240,7 @@ public class PlatformController(
             return new PlatformClinicUsage(
                 t.Id, t.Slug, t.ClinicName, t.CreatedAt, t.IsActive, t.LicenseExpiresOn, licence,
                 userInfo?.Count ?? 0, lastSignIn, lastActivity, total, recent, status,
-                kinds[0], kinds[1], kinds[2], kinds[3], kinds[4], kinds[5], kinds[6], kinds[7], kinds[8]);
+                kinds[0], kinds[1], kinds[2], kinds[3], kinds[4], kinds[5], kinds[6], kinds[7], kinds[8], kinds[9]);
         }).ToList();
 
         return Ok(new PlatformUsage(since, days, result));

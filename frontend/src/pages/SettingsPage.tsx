@@ -773,6 +773,15 @@ function ModulesTab() {
                    onChange={() => setGeneral({ ...general, ipAllowDischargeWithDues: !general.ipAllowDischargeWithDues })} />
             <span>Allow discharge with a balance due <span className="hint">(insurance cases often leave before the insurer pays)</span></span>
           </label>
+          <label className="checkbox-label">
+            <input type="checkbox" checked={general.ipLinkedBilling}
+                   onChange={() => setGeneral({ ...general, ipLinkedBilling: !general.ipLinkedBilling })} />
+            <span>
+              Counters can charge to the IP bill
+              <span className="hint"> (pharmacy, diagnostics, lab and procedure bills for an admitted patient get a
+                &ldquo;Charge to IP bill&rdquo; option instead of taking payment; the counter still chooses each time)</span>
+            </span>
+          </label>
           <p className="hint">A day spent in two beds is charged at the higher rate.</p>
         </fieldset>
       )}

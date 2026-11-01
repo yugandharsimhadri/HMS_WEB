@@ -13,6 +13,8 @@ import type {
 import { PatientPicker } from '../shell/PatientPicker';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
+import { ChargeToIp } from '../inpatient/ChargeToIp';
+import { useActiveAdmission } from '../inpatient/useActiveAdmission';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
 import { usePatientSearch } from '../shell/usePatientSearch';
 
@@ -74,6 +76,9 @@ export function PathologyLabPage() {
   const [discount, setDiscount] = useState('0');
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('Cash');
   const [transactionNo, setTransactionNo] = useState('');
+  const [chargeToIp, setChargeToIp] = useState(false);
+  const admission = useActiveAdmission(patient?.id);
+  const onIpBill = chargeToIp && admission !== null && !admission.hasFinalBill;
   const [remarks, setRemarks] = useState('');
 
   // ── Result entry ───────────────────────────────────────────────────────
@@ -231,6 +236,7 @@ export function PathologyLabPage() {
     setDiscount('0');
     setPaymentMode('Cash');
     setTransactionNo('');
+    setChargeToIp(false);
     setRemarks('');
     setError(null);
   };
@@ -252,6 +258,7 @@ export function PathologyLabPage() {
         discount: Number(discount) || 0,
         paymentMode,
         transactionNo: transactionNo.trim() || null,
+        chargeToIp: onIpBill,
         remarks: remarks.trim() || null,
         lines: lines.map((l) => ({ reportId: l.reportId, reportName: l.reportName, price: l.price })),
       });
@@ -449,13 +456,16 @@ export function PathologyLabPage() {
             <label>Specimen id</label>
             <input value={specimenId} onChange={(e) => setSpecimenId(e.target.value)} />
           </div>
+          <ChargeToIp admission={admission} checked={chargeToIp} onChange={setChargeToIp} />
+          {!onIpBill && (
           <div className="settings-row">
             <label>Mode</label>
             <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}>
               {PAYMENT_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           </div>
-          {(paymentMode === 'Upi' || paymentMode === 'Card') && (
+          )}
+          {!onIpBill && (paymentMode === 'Upi' || paymentMode === 'Card') && (
             <div className="settings-row">
               <label>Reference no.</label>
               <input value={transactionNo} onChange={(e) => setTransactionNo(e.target.value)} />

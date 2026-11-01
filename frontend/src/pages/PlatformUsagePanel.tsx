@@ -20,7 +20,7 @@ type Sort = 'attention' | 'newest' | 'busiest';
 /** The kinds of record counted, in the order a clinic usually starts using them. */
 const KINDS: { key: keyof Pick<PlatformClinicUsage,
   'patients' | 'visits' | 'pharmacyBills' | 'diagnosticBills' | 'labOrders' | 'procedureBills' |
-  'dentalCases' | 'vaccinations' | 'appointments'>; label: string }[] = [
+  'dentalCases' | 'vaccinations' | 'appointments' | 'admissions'>; label: string }[] = [
   { key: 'patients', label: 'Patients' },
   { key: 'visits', label: 'OPD visits' },
   { key: 'pharmacyBills', label: 'Pharmacy bills' },
@@ -30,6 +30,7 @@ const KINDS: { key: keyof Pick<PlatformClinicUsage,
   { key: 'dentalCases', label: 'Dental cases' },
   { key: 'vaccinations', label: 'Vaccinations' },
   { key: 'appointments', label: 'Appointments' },
+  { key: 'admissions', label: 'Admissions' },
 ];
 
 const DAY = 24 * 60 * 60 * 1000;

@@ -19,6 +19,8 @@ import { RecordVaccinationDialog, type VaccinationDraft } from '../pediatrics/Re
 import { PatientPicker } from '../shell/PatientPicker';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
+import { ChargeToIp } from '../inpatient/ChargeToIp';
+import { useActiveAdmission } from '../inpatient/useActiveAdmission';
 import { useModalBehaviour } from '../shell/useModalBehaviour';
 import { usePatientSearch } from '../shell/usePatientSearch';
 
@@ -83,6 +85,9 @@ export function PediatricsPage() {
   const [discount, setDiscount] = useState('0');
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('Cash');
   const [transactionNo, setTransactionNo] = useState('');
+  const [chargeToIp, setChargeToIp] = useState(false);
+  const admission = useActiveAdmission(patient?.id);
+  const onIpBill = chargeToIp && admission !== null && !admission.hasFinalBill;
   const [referredBy, setReferredBy] = useState('');
 
   const [addingProcedure, setAddingProcedure] = useState(false);
@@ -160,6 +165,7 @@ export function PediatricsPage() {
     setDiscount('0');
     setPaymentMode('Cash');
     setTransactionNo('');
+    setChargeToIp(false);
     setReferredBy('');
     setError(null);
   };
@@ -243,6 +249,7 @@ export function PediatricsPage() {
         patientId: patient.id,
         paymentMode,
         transactionNo: transactionNo.trim() || null,
+        chargeToIp: onIpBill,
         discount: Number(discount) || 0,
         visitId: null,
         referredBy: referredBy.trim() || null,
@@ -529,13 +536,16 @@ export function PediatricsPage() {
           <section className="card">
             <h2>Payment</h2>
             <div className="settings-form">
+              <ChargeToIp admission={admission} checked={chargeToIp} onChange={setChargeToIp} />
+              {!onIpBill && (
               <div className="settings-row">
                 <label>Mode</label>
                 <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}>
                   {PAYMENT_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
-              {(paymentMode === 'Upi' || paymentMode === 'Card') && (
+              )}
+              {!onIpBill && (paymentMode === 'Upi' || paymentMode === 'Card') && (
                 <div className="settings-row">
                   <label>Reference no.</label>
                   <input value={transactionNo} onChange={(e) => setTransactionNo(e.target.value)} />

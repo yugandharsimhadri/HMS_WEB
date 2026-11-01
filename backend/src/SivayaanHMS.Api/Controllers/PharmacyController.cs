@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SivayaanHMS.Core;
 using SivayaanHMS.Data;
 
@@ -13,7 +14,7 @@ public record AllocateRequest(Guid ProductId, int Units);
 /// as <see cref="SavePatientRequest"/>.</summary>
 public record SaleHeaderRequest(
     Guid? PatientId, Guid? VisitId, string CustomerName, string? DoctorName,
-    PaymentMode PaymentMode, string? TransactionNo, bool IsTaxInvoice);
+    PaymentMode PaymentMode, string? TransactionNo, bool IsTaxInvoice, bool ChargeToIp = false);
 
 public record SaveSaleRequest(SaleHeaderRequest Sale, List<SaleLine> Lines);
 
@@ -50,7 +51,10 @@ public record RepackRequest(int UnitsPerPack);
 [ApiController]
 [Authorize]
 [Route("api/pharmacy")]
-public class PharmacyController(PharmacyService pharmacy) : ControllerBase
+public class PharmacyController(
+    PharmacyService pharmacy,
+    IDbContextFactory<AppDbContext> factory,
+    SettingsService settings) : ControllerBase
 {
     [HttpGet("products")]
     public async Task<ActionResult<List<Product>>> SearchProducts([FromQuery] string? term, [FromQuery] int take = 50)
@@ -171,6 +175,11 @@ public class PharmacyController(PharmacyService pharmacy) : ControllerBase
 
         try
         {
+            // An admitted patient's medicines can go on their IP bill instead of being paid for here.
+            await using (var db = await factory.CreateDbContextAsync())
+                sale.AdmissionId = await IpLink.ResolveAsync(db, settings, header.PatientId, header.ChargeToIp);
+            if (sale.AdmissionId is not null) sale.TransactionNo = null;
+
             return Ok(await pharmacy.SaveSaleAsync(sale, request.Lines));
         }
         catch (InvalidOperationException ex)

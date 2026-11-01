@@ -951,6 +951,9 @@ namespace SivayaanHMS.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AdmissionId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("BillDate")
                         .HasColumnType("timestamp without time zone");
 
@@ -1023,6 +1026,8 @@ namespace SivayaanHMS.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AdmissionId");
 
                     b.HasIndex("BillDate");
 
@@ -1999,6 +2004,9 @@ namespace SivayaanHMS.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AdmissionId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("CollectedOn")
                         .HasColumnType("timestamp without time zone");
 
@@ -2083,6 +2091,8 @@ namespace SivayaanHMS.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AdmissionId");
 
                     b.HasIndex("OrderDate");
 
@@ -2817,6 +2827,9 @@ namespace SivayaanHMS.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AdmissionId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("BillDate")
                         .HasColumnType("timestamp without time zone");
 
@@ -2886,6 +2899,8 @@ namespace SivayaanHMS.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AdmissionId");
 
                     b.HasIndex("BillDate");
 
@@ -3177,6 +3192,9 @@ namespace SivayaanHMS.Data.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("AdmissionId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("BillDate")
                         .HasColumnType("timestamp without time zone");
 
@@ -3261,6 +3279,8 @@ namespace SivayaanHMS.Data.Migrations
                         .HasColumnType("uuid");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AdmissionId");
 
                     b.HasIndex("BillDate");
 
@@ -4292,6 +4312,11 @@ namespace SivayaanHMS.Data.Migrations
 
             modelBuilder.Entity("SivayaanHMS.Core.DiagnosticBill", b =>
                 {
+                    b.HasOne("SivayaanHMS.Core.Admission", null)
+                        .WithMany()
+                        .HasForeignKey("AdmissionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SivayaanHMS.Core.Patient", "Patient")
                         .WithMany()
                         .HasForeignKey("PatientId")
@@ -4401,6 +4426,11 @@ namespace SivayaanHMS.Data.Migrations
 
             modelBuilder.Entity("SivayaanHMS.Core.LabOrder", b =>
                 {
+                    b.HasOne("SivayaanHMS.Core.Admission", null)
+                        .WithMany()
+                        .HasForeignKey("AdmissionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SivayaanHMS.Core.LabPackageMaster", null)
                         .WithMany()
                         .HasForeignKey("PackageId")
@@ -4522,6 +4552,11 @@ namespace SivayaanHMS.Data.Migrations
 
             modelBuilder.Entity("SivayaanHMS.Core.ProcedureBill", b =>
                 {
+                    b.HasOne("SivayaanHMS.Core.Admission", null)
+                        .WithMany()
+                        .HasForeignKey("AdmissionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SivayaanHMS.Core.Patient", "Patient")
                         .WithMany()
                         .HasForeignKey("PatientId")
@@ -4567,6 +4602,11 @@ namespace SivayaanHMS.Data.Migrations
 
             modelBuilder.Entity("SivayaanHMS.Core.Sale", b =>
                 {
+                    b.HasOne("SivayaanHMS.Core.Admission", null)
+                        .WithMany()
+                        .HasForeignKey("AdmissionId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SivayaanHMS.Core.Patient", "Patient")
                         .WithMany()
                         .HasForeignKey("PatientId")

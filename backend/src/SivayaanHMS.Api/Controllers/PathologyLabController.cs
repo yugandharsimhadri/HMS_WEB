@@ -21,7 +21,7 @@ public record LabOrderLineRequest(Guid? ReportId, string ReportName, decimal Pri
 public record SaveLabOrderRequest(
     Guid? Id, Guid PatientId, Guid? PackageId, Guid? VisitId, string? ReferredBy,
     string? SpecimenId, decimal Discount, PaymentMode PaymentMode, string? TransactionNo,
-    string? Remarks, List<LabOrderLineRequest> Lines);
+    string? Remarks, List<LabOrderLineRequest> Lines, bool ChargeToIp = false);
 
 public record SetLabOrderStatusRequest(LabOrderStatus Status);
 
@@ -88,7 +88,8 @@ public record SaveLabPackageRequest(
 [Route("api/lab")]
 public class PathologyLabController(
     PathologyLabService lab,
-    IDbContextFactory<AppDbContext> factory) : ControllerBase
+    IDbContextFactory<AppDbContext> factory,
+    SettingsService settings) : ControllerBase
 {
     // ── Masters, read-only ─────────────────────────────────────────────────
 
@@ -345,8 +346,11 @@ public class PathologyLabController(
 
         try
         {
+            var admissionId = await IpLink.ResolveAsync(db, settings, patient.Id, request.ChargeToIp);
+
             return Ok(await lab.SaveOrderAsync(new LabOrder
             {
+                AdmissionId = admissionId,
                 Id = request.Id ?? Guid.Empty,
                 PatientId = patient.Id,
                 PatientName = patient.Name,
@@ -357,7 +361,7 @@ public class PathologyLabController(
                 SpecimenId = NullIfBlank(request.SpecimenId),
                 Discount = request.Discount,
                 PaymentMode = request.PaymentMode,
-                TransactionNo = NullIfBlank(request.TransactionNo),
+                TransactionNo = admissionId is null ? NullIfBlank(request.TransactionNo) : null,
                 Remarks = NullIfBlank(request.Remarks)
             },
             request.Lines

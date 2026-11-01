@@ -125,6 +125,7 @@ public class ProcedureBillsService(IDbContextFactory<AppDbContext> factory)
         {
             if (existing.Status == ProcedureBillStatus.Completed)
                 throw new InvalidOperationException("This bill is Completed and can no longer be edited.");
+            await IpLink.EnsureOpenAsync(db, existing.AdmissionId);
 
             entity = existing;
             entity.PatientId = bill.PatientId;
@@ -135,6 +136,7 @@ public class ProcedureBillsService(IDbContextFactory<AppDbContext> factory)
             entity.Discount = bill.Discount;
             entity.VisitId = bill.VisitId;
             entity.ReferredBy = bill.ReferredBy;
+            entity.AdmissionId = bill.AdmissionId;
 
             db.ProcedureBillItems.RemoveRange(entity.Items);
             entity.Items.Clear();
@@ -181,6 +183,7 @@ public class ProcedureBillsService(IDbContextFactory<AppDbContext> factory)
 
         if (bill.Status == ProcedureBillStatus.Completed)
             throw new InvalidOperationException("This bill is Completed and can no longer be deleted.");
+        await IpLink.EnsureOpenAsync(db, bill.AdmissionId);
 
         db.ProcedureBills.Remove(bill);
         await db.SaveChangesAsync();

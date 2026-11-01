@@ -332,6 +332,7 @@ public class PathologyLabService(IDbContextFactory<AppDbContext> factory, IClock
         {
             if (existing.Status is LabOrderStatus.Verified or LabOrderStatus.Completed)
                 throw new InvalidOperationException($"This order is {existing.Status} and can no longer be edited.");
+            await IpLink.EnsureOpenAsync(db, existing.AdmissionId);
 
             entity = existing;
             entity.PatientId = order.PatientId;
@@ -347,6 +348,7 @@ public class PathologyLabService(IDbContextFactory<AppDbContext> factory, IClock
             entity.TransactionNo = order.TransactionNo;
             entity.Discount = order.Discount;
             entity.Remarks = order.Remarks;
+            entity.AdmissionId = order.AdmissionId;
 
             db.LabOrderReports.RemoveRange(existing.Reports);
             entity.Reports.Clear();

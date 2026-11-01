@@ -138,6 +138,7 @@ public class DiagnosticsService(IDbContextFactory<AppDbContext> factory)
         {
             if (existing.Status == DiagnosticBillStatus.Completed)
                 throw new InvalidOperationException("This bill is Completed and can no longer be edited.");
+            await IpLink.EnsureOpenAsync(db, existing.AdmissionId);
 
             entity = existing;
             entity.PatientId = bill.PatientId;
@@ -149,6 +150,7 @@ public class DiagnosticsService(IDbContextFactory<AppDbContext> factory)
             entity.Remarks = bill.Remarks;
             entity.VisitId = bill.VisitId;
             entity.ReferredBy = bill.ReferredBy;
+            entity.AdmissionId = bill.AdmissionId;
 
             db.DiagnosticBillItems.RemoveRange(entity.Items);
             entity.Items.Clear();
@@ -206,6 +208,7 @@ public class DiagnosticsService(IDbContextFactory<AppDbContext> factory)
 
         if (bill.Status == DiagnosticBillStatus.Completed)
             throw new InvalidOperationException("This bill is Completed and can no longer be deleted.");
+        await IpLink.EnsureOpenAsync(db, bill.AdmissionId);
 
         db.DiagnosticBills.Remove(bill);
         await db.SaveChangesAsync();
@@ -294,7 +297,8 @@ public class DiagnosticsService(IDbContextFactory<AppDbContext> factory)
     }
 
     /// <summary>Diagnostic revenue per day over [from, to] inclusive, summed
-    /// in the database — for the dashboard trend, which wants the figures.</summary>
+    /// in the database — for the dashboard trend, which wants the figures. Bills on an IP bill are
+    /// left out: their money arrives as IP payments.</summary>
     public async Task<Dictionary<DateTime, decimal>> GetDailyRevenueAsync(DateTime from, DateTime to)
     {
         await using var db = await factory.CreateDbContextAsync();
@@ -302,7 +306,7 @@ public class DiagnosticsService(IDbContextFactory<AppDbContext> factory)
         var end = to.Date.AddDays(1);
 
         var rows = await db.DiagnosticBills.AsNoTracking()
-            .Where(b => !b.IsDeleted && b.BillDate >= start && b.BillDate < end)
+            .Where(b => !b.IsDeleted && b.BillDate >= start && b.BillDate < end && b.AdmissionId == null)
             .GroupBy(b => b.BillDate.Date)
             .Select(g => new { Day = g.Key, Amount = g.Sum(b => b.FinalAmount) })
             .ToListAsync();

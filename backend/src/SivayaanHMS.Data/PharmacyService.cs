@@ -894,6 +894,9 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
     /// Net revenue per day over [from, to] inclusive, Completed sales only —
     /// summed in the database. The dashboard's trend needs fourteen numbers,
     /// not fourteen days of bills.
+    ///
+    /// A bill put on an IP bill took no money at the counter, so it is left out: that
+    /// money arrives later as IP payments, and counting it here as well would count it twice.
     /// </summary>
     public async Task<Dictionary<DateTime, decimal>> GetDailyNetAsync(DateTime from, DateTime to)
     {
@@ -904,6 +907,7 @@ public class PharmacyService(IDbContextFactory<AppDbContext> factory, IClock clo
         var rows = await db.Sales.AsNoTracking()
             .Where(s => !s.IsDeleted && s.Status == SaleStatus.Completed
                      && s.BillDate >= start && s.BillDate < end)
+            .Where(s => s.AdmissionId == null)
             .GroupBy(s => s.BillDate.Date)
             .Select(g => new { Day = g.Key, Net = g.Sum(s => s.NetAmount) })
             .ToListAsync();

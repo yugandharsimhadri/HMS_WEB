@@ -35,7 +35,8 @@ public record SaveProcedureBillRequest(
     Guid? Id, Guid PatientId, PaymentMode PaymentMode, string? TransactionNo,
     decimal Discount, Guid? VisitId, string? ReferredBy,
     List<ProcedureBillLineRequest> Lines,
-    List<VaccinationDraftRequest> Vaccinations);
+    List<VaccinationDraftRequest> Vaccinations,
+    bool ChargeToIp = false);
 
 public record SaveProcedureRequest(
     Guid? Id, string Name, string? Category, ProcedureDepartment Department, decimal Price, bool Active);
@@ -91,7 +92,8 @@ public record ProcedureBillResult(
 public class PediatricsController(
     PediatricsService pediatrics,
     ProcedureBillsService bills,
-    IDbContextFactory<AppDbContext> factory) : ControllerBase
+    IDbContextFactory<AppDbContext> factory,
+    SettingsService settings) : ControllerBase
 {
     // ── Vaccine master (read-only here; Masters owns the editing) ──────────
 
@@ -333,6 +335,8 @@ public class PediatricsController(
         ProcedureBill saved;
         try
         {
+            bill.AdmissionId = await IpLink.ResolveAsync(db, settings, patient.Id, request.ChargeToIp);
+            if (bill.AdmissionId is not null) bill.TransactionNo = null;
             saved = await bills.SaveBillAsync(bill, lines);
         }
         catch (InvalidOperationException ex)

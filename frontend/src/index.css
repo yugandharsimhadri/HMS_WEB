@@ -120,6 +120,7 @@
   --c-chart-1:     #2f62e0;
   --c-chart-2:     #b45309;
   --c-chart-3:     #6d28d9;
+  --c-chart-4:     #0f766e;
   --c-chart-axis:  #6f7d95;
 
   --shadow-1: 0 1px 2px rgba(15, 22, 32, 0.05);
@@ -192,6 +193,7 @@
     --c-chart-1:     #5b8dff;
     --c-chart-2:     #e0a252;
     --c-chart-3:     #a78bfa;
+    --c-chart-4:     #2dd4bf;
     --c-chart-axis:  #7d8ba3;
 
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -232,6 +234,7 @@
   --c-chart-1:     #5b8dff;
   --c-chart-2:     #e0a252;
   --c-chart-3:     #a78bfa;
+  --c-chart-4:     #2dd4bf;
   --c-chart-axis:  #7d8ba3;
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
@@ -1676,3 +1679,12 @@ tr.clickable:hover td { background: var(--c-surface-2); }
   .ip-grid .ip-span { grid-column: auto; }
   .ip-money b { font-size: 16px; }
 }
+
+/* From/To with presets - the dashboard and every report. */
+.date-range { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.date-range input[type="date"] { width: auto; }
+
+/* A counter bill that goes on the patient's IP bill instead of being paid here. */
+.ip-charge { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--c-accent); border-radius: 8px; background: var(--c-accent-weak); }
+.ip-charge .hint { margin: 0; }
+.ip-source { font-size: 11px; margin-left: 6px; }

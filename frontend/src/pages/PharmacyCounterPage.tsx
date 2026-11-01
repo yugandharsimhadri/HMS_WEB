@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { api, ApiError, openPdf } from '../api/client';
-import type { Batch, PaymentMode, PharmacyProfile, Product, Sale, Visit } from '../api/types';
+import type { AdmissionRow, Batch, PaymentMode, PharmacyProfile, Product, Sale, Visit } from '../api/types';
+import { ChargeToIp } from '../inpatient/ChargeToIp';
+import { useActiveAdmission } from '../inpatient/useActiveAdmission';
+import { useGeneralSettings } from '../settings/SettingsContext';
 import { nextBatchMrp } from '../api/types';
 import { billAmounts, lineAmounts, unitPrice } from '../clinical/gst';
 import { describePacks } from '../clinical/doseMath';
@@ -69,6 +72,14 @@ export function PharmacyCounterPage() {
   const [prescribedVisits, setPrescribedVisits] = useState<Visit[]>([]);
   const [selectedVisitId, setSelectedVisitId] = useState('');
 
+  // An admitted patient's medicines can go on their IP bill. The list only appears when the
+  // clinic has switched that on; picking from it is itself the choice, so it ticks the box.
+  const general = useGeneralSettings();
+  const linkedBilling = Boolean(general?.inpatientEnabled && general?.ipLinkedBilling);
+  const [admitted, setAdmitted] = useState<AdmissionRow[]>([]);
+  const [ipPatientId, setIpPatientId] = useState('');
+  const [chargeToIp, setChargeToIp] = useState(false);
+
   const [gstRegistered, setGstRegistered] = useState(false);
   const [status, setStatus] = useState('');
   const [warning, setWarning] = useState('');
@@ -89,6 +100,12 @@ export function PharmacyCounterPage() {
   // what a fresh search should be: pressing Enter then adds nothing by
   // accident.
   const [highlight, setHighlight] = useState(-1);
+
+  useEffect(() => {
+    if (!linkedBilling) { setAdmitted([]); return; }
+    void api.get<AdmissionRow[]>('/api/inpatient/admissions?status=Admitted')
+      .then(setAdmitted).catch(() => setAdmitted([]));
+  }, [linkedBilling]);
 
   useEffect(() => {
     void api.get<PharmacyProfile>('/api/settings/pharmacy')
@@ -399,6 +416,10 @@ export function PharmacyCounterPage() {
     }
   };
 
+  const billPatientId = prescribedVisits.find((v) => v.id === selectedVisitId)?.patientId ?? (ipPatientId || null);
+  const admission = useActiveAdmission(billPatientId);
+  const onIpBill = chargeToIp && admission !== null && !admission.hasFinalBill;
+
   const totals = useMemo(
     () => billAmounts(lines.map((l) => lineAmounts(l.mrp, l.unitsPerPack, l.quantity, l.discountPercent, l.gstRate))),
     [lines],
@@ -414,6 +435,8 @@ export function PharmacyCounterPage() {
     setSelected(null);
     setSelectedVisitId('');
     setLoadWarning('');
+    setIpPatientId('');
+    setChargeToIp(false);
     setWarning('');
   };
 
@@ -441,13 +464,14 @@ export function PharmacyCounterPage() {
       const sale = await api.post<Sale>('/api/pharmacy/sales', {
         sale: {
           billDate: new Date().toISOString().slice(0, 19),
-          patientId: visit?.patientId ?? null,
+          patientId: billPatientId,
           visitId: visit?.id ?? null,
           customerName: customerName.trim() || 'Guest',
           doctorName: doctorName.trim() || null,
           paymentMode,
           transactionNo: transactionNo.trim() || null,
           isTaxInvoice: gstRegistered,
+          chargeToIp: onIpBill,
         },
         lines: lines.map((l) => ({
           productId: l.productId, batchId: l.batchId, productName: l.productName,
@@ -458,7 +482,7 @@ export function PharmacyCounterPage() {
       });
 
       setSavedSale(sale);
-      setStatus(`Bill ${sale.billNo} saved · ₹${sale.netAmount.toFixed(2)}`);
+      setStatus(`Bill ${sale.billNo} saved · ₹${sale.netAmount.toFixed(2)}${sale.admissionId ? ' · on the IP bill' : ''}`);
       newBill();
 
       if (print) {
@@ -476,7 +500,7 @@ export function PharmacyCounterPage() {
     }
   };
 
-  const showTransactionNo = paymentMode === 'Upi' || paymentMode === 'Card';
+  const showTransactionNo = !onIpBill && (paymentMode === 'Upi' || paymentMode === 'Card');
 
   // One list, used by both the arrow keys and the markup. Deriving it twice
   // is how the highlighted row and the row Enter picks drift apart.
@@ -551,6 +575,23 @@ export function PharmacyCounterPage() {
             ))}
           </select>
           <button type="button" className="ghost" onClick={loadPrescription}>Load prescription</button>
+          {linkedBilling && admitted.length > 0 && (
+            <select
+              value={ipPatientId}
+              onChange={(e) => {
+                const row = admitted.find((a) => a.patientId === e.target.value);
+                setIpPatientId(e.target.value);
+                setSelectedVisitId('');
+                setChargeToIp(Boolean(row));
+                if (row) setCustomerName(row.patientName);
+              }}
+            >
+              <option value="">Admitted patient…</option>
+              {admitted.map((a) => (
+                <option key={a.id} value={a.patientId}>{a.ipNo} · {a.patientName} · {a.bedNo}</option>
+              ))}
+            </select>
+          )}
           <button type="button" className="ghost" onClick={newBill}>New bill</button>
         </div>
       </div>
@@ -559,7 +600,7 @@ export function PharmacyCounterPage() {
         <section className="card success">
           <h2>Bill {savedSale.billNo} saved</h2>
           <p>
-            Net ₹{savedSale.netAmount.toFixed(2)} ({savedSale.paymentMode}){' '}
+            Net ₹{savedSale.netAmount.toFixed(2)} ({savedSale.admissionId ? 'on the IP bill' : savedSale.paymentMode}){' '}
             <button type="button" className="ghost" onClick={() => openPdf(`/api/print/bill/${savedSale.id}?reprint=true`)}>
               Reprint
             </button>
@@ -705,6 +746,7 @@ export function PharmacyCounterPage() {
 
       <section className="card">
         <h2>Payment</h2>
+        <ChargeToIp admission={admission} checked={chargeToIp} onChange={setChargeToIp} />
         <div className="inline-form">
           <input placeholder="Customer name" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
           <input
@@ -712,11 +754,11 @@ export function PharmacyCounterPage() {
             value={doctorName}
             onChange={(e) => setDoctorName(e.target.value)}
           />
-          <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}>
+          {!onIpBill && <select value={paymentMode} onChange={(e) => setPaymentMode(e.target.value as PaymentMode)}>
             <option value="Cash">Cash</option>
             <option value="Upi">UPI</option>
             <option value="Card">Card</option>
-          </select>
+          </select>}
           {showTransactionNo && (
             <input
               placeholder="Transaction / ref no."

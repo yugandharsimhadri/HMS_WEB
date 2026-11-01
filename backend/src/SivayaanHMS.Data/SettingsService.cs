@@ -274,6 +274,10 @@ public class GeneralSettings
     /// On by default: insurance cases routinely leave before the insurer pays.</summary>
     public bool IpAllowDischargeWithDues { get; set; } = true;
 
+    /// <summary>Off by default. When on, the pharmacy, diagnostics, lab and procedure counters can put an
+    /// admitted patient's bill on their IP bill instead of taking payment - the counter still chooses per bill.</summary>
+    public bool IpLinkedBilling { get; set; }
+
 
     /// <summary>
     /// Whether at least one clinical module — OPD, Pharmacy, or any of the
@@ -372,6 +376,7 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
     private const string KeyIpBedDayRule = "inpatient.beddayrule";
     private const string KeyIpGraceHours = "inpatient.gracehours";
     private const string KeyIpAllowDischargeWithDues = "inpatient.dischargewithdues";
+    private const string KeyIpLinkedBilling = "inpatient.linkedbilling";
 
     public async Task<ClinicProfile> GetClinicAsync()
     {
@@ -535,7 +540,8 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
             InpatientEnabled = Bool(map, KeyInpatientEnabled),
             IpBedDayRule = Enum.TryParse<BedDayRule>(Get(map, KeyIpBedDayRule, ""), out var rule) ? rule : fallback.IpBedDayRule,
             IpGraceHours = int.TryParse(Get(map, KeyIpGraceHours, ""), out var grace) ? Math.Clamp(grace, 0, 12) : fallback.IpGraceHours,
-            IpAllowDischargeWithDues = BoolDefault(map, KeyIpAllowDischargeWithDues, true)
+            IpAllowDischargeWithDues = BoolDefault(map, KeyIpAllowDischargeWithDues, true),
+            IpLinkedBilling = BoolDefault(map, KeyIpLinkedBilling, false)
         };
     }
 
@@ -566,6 +572,7 @@ public class SettingsService(IDbContextFactory<AppDbContext> factory)
         await SetAsync(db, KeyIpBedDayRule, settings.IpBedDayRule.ToString());
         await SetAsync(db, KeyIpGraceHours, Math.Clamp(settings.IpGraceHours, 0, 12).ToString());
         await SetAsync(db, KeyIpAllowDischargeWithDues, settings.IpAllowDischargeWithDues.ToString());
+        await SetAsync(db, KeyIpLinkedBilling, settings.IpLinkedBilling.ToString());
 
         await db.SaveChangesAsync();
     }

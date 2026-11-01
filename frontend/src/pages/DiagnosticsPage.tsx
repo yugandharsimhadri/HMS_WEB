@@ -11,6 +11,8 @@ import type {
 import { PatientPicker } from '../shell/PatientPicker';
 import { ShortcutHints } from '../shell/ShortcutHints';
 import { useHotkey } from '../shell/hotkeys';
+import { ChargeToIp } from '../inpatient/ChargeToIp';
+import { useActiveAdmission } from '../inpatient/useActiveAdmission';
 import { PatientEditorDialog } from '../opd/PatientEditorDialog';
 import { TestEditorDialog } from '../diagnostics/TestEditorDialog';
 import { TestPickerDialog } from '../diagnostics/TestPickerDialog';
@@ -53,6 +55,9 @@ export function DiagnosticsPage() {
   const [discount, setDiscount] = useState('0');
   const [paymentMode, setPaymentMode] = useState<PaymentMode>('Cash');
   const [transactionNo, setTransactionNo] = useState('');
+  const [chargeToIp, setChargeToIp] = useState(false);
+  const admission = useActiveAdmission(patient?.id);
+  const onIpBill = chargeToIp && admission !== null && !admission.hasFinalBill;
   const [remarks, setRemarks] = useState('');
   const [referredBy, setReferredBy] = useState('');
 
@@ -172,6 +177,7 @@ export function DiagnosticsPage() {
     setRemarks('');
     setPaymentMode('Cash');
     setTransactionNo('');
+    setChargeToIp(false);
     setBillId(null);
     setBillNo('');
     setBillStatus('Ordered');
@@ -273,6 +279,7 @@ export function DiagnosticsPage() {
         remarks: remarks.trim() || null,
         visitId,
         referredBy: referredBy.trim() || null,
+        chargeToIp: onIpBill,
         lines: lines.map((l) => ({
           testId: l.testId,
           testName: l.testName,
@@ -281,7 +288,7 @@ export function DiagnosticsPage() {
         })),
       });
 
-      setStatus(`Bill ${saved.billNo} saved · ₹${saved.finalAmount.toFixed(2)}`);
+      setStatus(`Bill ${saved.billNo} saved · ₹${saved.finalAmount.toFixed(2)}${saved.admissionId ? ' · on the IP bill' : ''}`);
 
       // Printed from the saved bill, never from what was on screen: a bill
       // is a document, and what it says has to come from what was stored.
@@ -324,6 +331,7 @@ export function DiagnosticsPage() {
       setDiscount(String(bill.discount));
       setPaymentMode(bill.paymentMode);
       setTransactionNo(bill.transactionNo ?? '');
+      setChargeToIp(Boolean(bill.admissionId));
       setRemarks(bill.remarks ?? '');
       setVisitId(bill.visitId);
       setReferredBy(bill.referredBy ?? '');
@@ -514,6 +522,8 @@ export function DiagnosticsPage() {
           <section className="card">
             <h2>3 · Payment</h2>
             <div className="settings-form">
+              <ChargeToIp admission={admission} checked={chargeToIp} onChange={setChargeToIp} />
+              {!onIpBill && (
               <div className="settings-row">
                 <label>Mode</label>
                 <select
@@ -524,10 +534,11 @@ export function DiagnosticsPage() {
                   {PAYMENT_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
+              )}
 
               {/* Only for UPI and card — cash has nothing to reconcile
                   against, so the field would be dead weight. */}
-              {(paymentMode === 'Upi' || paymentMode === 'Card') && (
+              {!onIpBill && (paymentMode === 'Upi' || paymentMode === 'Card') && (
                 <div className="settings-row">
                   <label>Reference no.</label>
                   <input value={transactionNo} disabled={!canEdit} onChange={(e) => setTransactionNo(e.target.value)} />

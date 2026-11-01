@@ -255,6 +255,23 @@ public class OpdService(IDbContextFactory<AppDbContext> factory, IClock clock, I
             .ToListAsync();
     }
 
+    /// <summary>Visits across a date range with the patient and doctor, for the OPD register
+    /// when it is read over more than one day.</summary>
+    public async Task<List<Visit>> GetRegisterVisitsAsync(DateTime from, DateTime to)
+    {
+        await using var db = await factory.CreateDbContextAsync();
+        var start = from.Date;
+        var end = to.Date.AddDays(1);
+
+        return await db.Visits
+            .AsNoTracking()
+            .Include(v => v.Patient)
+            .Include(v => v.Doctor)
+            .Where(v => !v.IsDeleted && v.ScheduledOn >= start && v.ScheduledOn < end)
+            .OrderBy(v => v.ScheduledOn)
+            .ToListAsync();
+    }
+
     /// <summary>
     /// Two numbers per day over [from, to]: fees actually collected that day,
     /// and patients seen that day. Summed in the database — the dashboard's

@@ -226,6 +226,7 @@ export interface PlatformClinicUsage {
   procedureBills: UsageCount;
   dentalCases: UsageCount;
   vaccinations: UsageCount;
+  admissions: UsageCount;
 }
 
 export interface PlatformUsage {
@@ -337,6 +338,8 @@ export interface GeneralSettings {
   ipBedDayRule: BedDayRule;
   ipGraceHours: number;
   ipAllowDischargeWithDues: boolean;
+  /** The counters may put an admitted patient's bill on their IP bill. */
+  ipLinkedBilling: boolean;
 }
 
 export type DrugSchedule = 'None' | 'H' | 'H1' | 'X';
@@ -411,6 +414,8 @@ export function lastReceivedMrp(product: Product): number | null {
 
 export interface Sale {
   id: string;
+  /** Set when the bill went on an admitted patient's IP bill instead of being paid here. */
+  admissionId?: string | null;
   billNo: string;
   billDate: string;
   customerName: string;
@@ -560,6 +565,7 @@ export interface DiagnosticBillItem {
 
 export interface DiagnosticBill {
   id: string;
+  admissionId?: string | null;
   billNo: string;
   billDate: string;
   patientId: string;
@@ -847,6 +853,7 @@ export interface LabOrderReport {
 
 export interface LabOrder {
   id: string;
+  admissionId?: string | null;
   orderNo: string;
   orderDate: string;
   patientId: string;
@@ -875,6 +882,7 @@ export interface DashboardTrendDay {
   opd: number;
   pharmacy: number;
   diagnostics: number;
+  inpatient: number;
 }
 
 export interface DashboardLowStockRow {
@@ -895,22 +903,33 @@ export interface DashboardActivityRow {
 /** One payload, not several: the KPI tile and the donut only reliably agree
  * when they come out of the same arithmetic over the same snapshot. */
 export interface DashboardResponse {
-  patientsToday: number;
+  from: string;
+  to: string;
+  /** For the range, compared with the same length of time just before it. */
+  patients: number;
   patientsDeltaPercent: number;
   inQueueNow: number;
-  revenueToday: number;
+  revenue: number;
   revenueDeltaPercent: number;
-  opdRevenueToday: number;
-  pharmacyRevenueToday: number;
-  diagnosticsRevenueToday: number;
+  opdRevenue: number;
+  pharmacyRevenue: number;
+  diagnosticsRevenue: number;
+  inpatientRevenue: number;
   revenueTrendTotal: number;
   lowStockCount: number;
   diagnosticsEnabled: boolean;
   pediatricsEnabled: boolean;
   dentistEnabled: boolean;
   pathologyLabEnabled: boolean;
+  inpatientEnabled: boolean;
+  ipOccupied: number;
+  ipBeds: number;
+  ipAdmitted: number;
+  ipDischarged: number;
   trend: DashboardTrendDay[];
   lowStock: DashboardLowStockRow[];
+  /** The day the activity feed is for: the last day of the range. */
+  activityDay: string;
   recentActivity: DashboardActivityRow[];
 }
 
@@ -918,7 +937,8 @@ export interface DashboardResponse {
 
 export type ReportKind =
   | 'None' | 'DayBook' | 'GstSummary' | 'OpdRegister' | 'ExpiringSoon'
-  | 'LowStock' | 'StockRegister' | 'ScheduleH1' | 'Collections' | 'OpdByDoctor';
+  | 'LowStock' | 'StockRegister' | 'ScheduleH1' | 'Collections' | 'OpdByDoctor'
+  | 'IpCensus' | 'IpRegister' | 'IpBills' | 'IpDues' | 'BedOccupancy';
 
 export type ReportAlign = 'Left' | 'Right' | 'Center';
 export type ReportFormat =
@@ -992,6 +1012,8 @@ export interface DayBookSummary {
   netTotal: number;
   consultationTotal: number;
   visitCount: number;
+  /** Pharmacy bills put on IP bills - sold, but no money taken at the counter. */
+  onIpBills: number;
 }
 
 /** A catalogue row for a picker — enough to choose and price a medicine,
@@ -1078,6 +1100,7 @@ export interface BedBoardItem {
 
 export interface AdmissionRow {
   id: string;
+  patientId: string;
   ipNo: string;
   patientName: string;
   patientNo: string;
@@ -1164,6 +1187,9 @@ export interface IpBillLineView {
   amount: number;
   gstPercent: number;
   chargeId: string | null;
+  /** The counter a linked bill came from, and that bill. */
+  source?: 'Pharmacy' | 'Diagnostics' | 'Lab' | 'Procedures' | null;
+  sourceId?: string | null;
 }
 
 export interface IpMoney {
@@ -1238,4 +1264,27 @@ export interface AdmissionDetail {
   notes: IpNote[];
   summary: DischargeSummary | null;
   canDiscount: boolean;
+}
+
+/** The patient's current admission, which a counter can charge a bill to. */
+export interface ActiveAdmission {
+  id: string;
+  ipNo: string;
+  bedNo: string;
+  ward: string;
+  hasFinalBill: boolean;
+}
+
+/** One stay, as the patient's history lists it. */
+export interface PatientAdmission {
+  id: string;
+  ipNo: string;
+  admittedOn: string;
+  dischargedOn: string | null;
+  status: AdmissionStatus;
+  doctorName: string;
+  bedNo: string;
+  reason: string | null;
+  net: number;
+  balance: number;
 }

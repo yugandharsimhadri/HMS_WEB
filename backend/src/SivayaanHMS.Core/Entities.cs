@@ -734,6 +734,10 @@ public class Sale : BaseEntity
     /// </summary>
     public bool IsTaxInvoice { get; set; }
 
+    /// <summary>Set when the bill was put on an admitted patient's IP bill instead of being paid at the
+    /// counter. No money was taken for it here; it is settled with the IP bill.</summary>
+    public Guid? AdmissionId { get; set; }
+
     public ICollection<SaleItem> Items { get; set; } = [];
 }
 
@@ -826,6 +830,10 @@ public class DiagnosticBill : BaseEntity
     /// our own OPD is referred by the clinic itself, and asking again is
     /// noise.</summary>
     public string? ReferredBy { get; set; }
+
+    /// <summary>Set when the bill was put on an admitted patient's IP bill instead of being paid at the
+    /// counter. No money was taken for it here; it is settled with the IP bill.</summary>
+    public Guid? AdmissionId { get; set; }
 
     public ICollection<DiagnosticBillItem> Items { get; set; } = [];
 }
@@ -1016,6 +1024,10 @@ public class ProcedureBill : BaseEntity
     /// patient who came through our own OPD is referred by the clinic
     /// itself, same reasoning as <see cref="DiagnosticBill.ReferredBy"/>.</summary>
     public string? ReferredBy { get; set; }
+
+    /// <summary>Set when the bill was put on an admitted patient's IP bill instead of being paid at the
+    /// counter. No money was taken for it here; it is settled with the IP bill.</summary>
+    public Guid? AdmissionId { get; set; }
 
     public ICollection<ProcedureBillItem> Items { get; set; } = [];
 }
@@ -1334,6 +1346,10 @@ public class LabOrder : BaseEntity
     /// <summary>Order-level note — e.g. "Patient fasting".</summary>
     public string? Remarks { get; set; }
 
+    /// <summary>Set when the bill was put on an admitted patient's IP bill instead of being paid at the
+    /// counter. No money was taken for it here; it is settled with the IP bill.</summary>
+    public Guid? AdmissionId { get; set; }
+
     public ICollection<LabOrderReport> Reports { get; set; } = [];
 }
 
@@ -1503,8 +1519,8 @@ public enum PasswordResetStage
 /// <see cref="PasswordResetStage.Verified"/>, so a browser cannot skip the
 /// code by calling the last endpoint directly.
 ///
-/// In SivaComm mode the code itself lives in SivaComm and this row keeps the
-/// verification grant SivaComm returned, encrypted (<see cref="GrantHandle"/>),
+/// In SivaCom mode the code itself lives in SivaCom and this row keeps the
+/// verification grant SivaCom returned, encrypted (<see cref="GrantHandle"/>),
 /// until it is consumed. The password itself never leaves this application.
 /// </summary>
 public class PasswordResetTransaction : BaseEntity
@@ -1514,7 +1530,7 @@ public class PasswordResetTransaction : BaseEntity
     /// <summary>SHA-256 of the browser's reset token. The token itself is never stored.</summary>
     public string TokenHash { get; set; } = string.Empty;
 
-    /// <summary>"Local" or "SivaComm" — which OTP service issued the code, so a
+    /// <summary>"Local" or "SivaCom" — which OTP service issued the code, so a
     /// mode switch mid-reset cannot send a verify to the wrong place.</summary>
     public string Provider { get; set; } = string.Empty;
 

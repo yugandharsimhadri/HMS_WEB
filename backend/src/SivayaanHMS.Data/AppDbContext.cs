@@ -271,6 +271,9 @@ public class AppDbContext : DbContext
         {
             e.HasIndex(x => new { x.TenantId, x.BillNo }).IsUnique();
             e.HasIndex(x => x.BillDate);
+            e.HasIndex(x => x.AdmissionId);
+            e.HasOne<Admission>().WithMany()
+                .HasForeignKey(x => x.AdmissionId).OnDelete(DeleteBehavior.Restrict);
             e.HasMany(x => x.Items).WithOne(i => i.Sale)
                 .HasForeignKey(i => i.SaleId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Patient).WithMany()
@@ -283,6 +286,9 @@ public class AppDbContext : DbContext
         {
             e.HasIndex(x => new { x.TenantId, x.BillNo }).IsUnique();
             e.HasIndex(x => x.BillDate);
+            e.HasIndex(x => x.AdmissionId);
+            e.HasOne<Admission>().WithMany()
+                .HasForeignKey(x => x.AdmissionId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Patient).WithMany()
                 .HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Visit).WithMany()
@@ -452,6 +458,9 @@ public class AppDbContext : DbContext
         {
             e.HasIndex(x => new { x.TenantId, x.BillNo }).IsUnique();
             e.HasIndex(x => x.BillDate);
+            e.HasIndex(x => x.AdmissionId);
+            e.HasOne<Admission>().WithMany()
+                .HasForeignKey(x => x.AdmissionId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Patient).WithMany()
                 .HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Visit).WithMany()
@@ -554,6 +563,9 @@ public class AppDbContext : DbContext
         {
             e.HasIndex(x => new { x.TenantId, x.OrderNo }).IsUnique();
             e.HasIndex(x => x.OrderDate);
+            e.HasIndex(x => x.AdmissionId);
+            e.HasOne<Admission>().WithMany()
+                .HasForeignKey(x => x.AdmissionId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Patient).WithMany()
                 .HasForeignKey(x => x.PatientId).OnDelete(DeleteBehavior.Restrict);
             e.HasOne(x => x.Visit).WithMany()

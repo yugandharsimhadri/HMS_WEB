@@ -27,7 +27,22 @@ public enum ReportKind
     /// patients each one saw and what their consultations brought in, read
     /// over a week or a month the same way Collections is: one day rarely
     /// says much about a doctor's own load.</summary>
-    OpdByDoctor
+    OpdByDoctor,
+
+    /// <summary>Who is in now, with the bill so far. A snapshot, like the stock reports.</summary>
+    IpCensus,
+
+    /// <summary>Admissions and discharges in a date range.</summary>
+    IpRegister,
+
+    /// <summary>Final IP bills made in a date range, split by category, doctor and payer.</summary>
+    IpBills,
+
+    /// <summary>Discharged patients who still owe, as of now.</summary>
+    IpDues,
+
+    /// <summary>Bed use per ward over a date range.</summary>
+    BedOccupancy
 }
 
 /// <summary>Display name and file-naming rules shared by the PDF and Excel
@@ -45,18 +60,29 @@ public static class ReportNaming
         ReportKind.ScheduleH1 => "Schedule H1 Register",
         ReportKind.Collections => "Collections by payment mode",
         ReportKind.OpdByDoctor => "OPD by Doctor",
+        ReportKind.IpCensus => "IP Census",
+        ReportKind.IpRegister => "Admission & Discharge Register",
+        ReportKind.IpBills => "IP Bills",
+        ReportKind.IpDues => "IP Dues",
+        ReportKind.BedOccupancy => "Bed Occupancy",
         _ => "Report"
     };
 
-    /// <summary>GST summary and the Schedule H1 register are read over a
-    /// From/To range; everything else follows the single Date picker.</summary>
+    /// <summary>The reports read over a From/To range - every report about what happened.
+    /// The stock views and the IP census and dues are about now, and take no dates.</summary>
     public static bool IsRangeBased(ReportKind kind)
-        => kind is ReportKind.GstSummary or ReportKind.ScheduleH1 or ReportKind.Collections or ReportKind.OpdByDoctor;
+        => kind is ReportKind.DayBook or ReportKind.GstSummary or ReportKind.OpdRegister or ReportKind.ScheduleH1
+            or ReportKind.Collections or ReportKind.OpdByDoctor
+            or ReportKind.IpRegister or ReportKind.IpBills or ReportKind.BedOccupancy;
+
+    /// <summary>A report of how things stand now rather than of a period.</summary>
+    public static bool IsSnapshot(ReportKind kind)
+        => kind is ReportKind.StockRegister or ReportKind.IpCensus or ReportKind.IpDues;
 
     public static string DateLabel(ReportKind kind, DateTime date, DateTime from, DateTime to)
     {
-        // Stock Register is a live snapshot, not tied to the Date picker at all.
-        if (kind == ReportKind.StockRegister) return $"As of {DateTime.Now:dd MMM yyyy, HH:mm}";
+        // A snapshot is not tied to any date picker at all.
+        if (IsSnapshot(kind)) return $"As of {DateTime.Now:dd MMM yyyy, HH:mm}";
 
         if (!IsRangeBased(kind)) return date.ToString("dd MMM yyyy");
 
@@ -79,11 +105,16 @@ public static class ReportNaming
             ReportKind.ScheduleH1 => "ScheduleH1",
             ReportKind.Collections => "Collections",
             ReportKind.OpdByDoctor => "OPDByDoctor",
+            ReportKind.IpCensus => "IPCensus",
+            ReportKind.IpRegister => "IPRegister",
+            ReportKind.IpBills => "IPBills",
+            ReportKind.IpDues => "IPDues",
+            ReportKind.BedOccupancy => "BedOccupancy",
             _ => "Report"
         };
 
         string suffix;
-        if (kind == ReportKind.StockRegister)
+        if (IsSnapshot(kind))
         {
             // A live snapshot — the filename is today's date, not whatever the
             // page's (unrelated) Date picker happens to be set to.
