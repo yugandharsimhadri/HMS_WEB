@@ -36,7 +36,7 @@ public sealed record ResetStepResult(ResetStepStatus Status, int? RemainingAttem
 /// was verified, and the password itself.
 ///
 /// The OTP itself is delegated to an <see cref="IOtpGateway"/> (local table,
-/// or SivaComm). Whatever it says, two rules hold:
+/// or SivaCom). Whatever it says, two rules hold:
 ///
 ///   * the new password is accepted only when this application's own reset
 ///     transaction says the code was verified by the backend — the browser's

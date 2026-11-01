@@ -13,10 +13,10 @@ public sealed class MovableClock(DateTime start) : IClock
 }
 
 /// <summary>An OTP gateway whose answers the test decides, and which records
-/// what it was asked — so the flow's own rules can be pinned without SivaComm.</summary>
+/// what it was asked — so the flow's own rules can be pinned without SivaCom.</summary>
 public sealed class ScriptedGateway : IOtpGateway
 {
-    public string Name => "SivaComm";
+    public string Name => "SivaCom";
     public Queue<OtpVerifyResult> VerifyScript { get; } = new();
     public Queue<OtpStatus> ConsumeScript { get; } = new();
     public List<OtpSendRequest> Sent { get; } = [];
@@ -227,7 +227,7 @@ public sealed class PasswordResetFlowTests : IAsyncLifetime
         Assert.Equal(ResetStepStatus.PasswordChanged, (await flow.CompleteAsync(token, NewPassword, default)).Status);
         Assert.True(await PasswordIsAsync(NewPassword));
 
-        // Both attempts used the same reset reference — SivaComm's idempotency key.
+        // Both attempts used the same reset reference — SivaCom's idempotency key.
         Assert.Equal(2, _gateway.Consumed.Count);
         Assert.Equal(_gateway.Consumed[0].Reset, _gateway.Consumed[1].Reset);
     }

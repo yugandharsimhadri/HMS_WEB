@@ -9,8 +9,8 @@ import type { ForgotPasswordResponse, ResetStepResponse } from '../api/types';
 const RESEND_COOLDOWN = 60;
 
 /**
- * "I forgot my password", in three steps on one screen — the SivaComm flow,
- * shown only when the API reports SivaComm:Enabled. With it off (the default)
+ * "I forgot my password", in three steps on one screen — the SivaCom flow,
+ * shown only when the API reports SivaCom:Enabled. With it off (the default)
  * ForgotPasswordPage shows ClassicForgotPasswordPage instead, unchanged.
  *
  *   1. ask    — the username; a code goes to the phone already on that account.

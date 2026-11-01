@@ -27,29 +27,29 @@ public sealed class StubHandler : HttpMessageHandler
 }
 
 /// <summary>
-/// The HTTP edge to SivaComm. What matters most here is the failure side:
+/// The HTTP edge to SivaCom. What matters most here is the failure side:
 /// every way the call can go wrong must come back as TEMPORARY_ERROR or a
 /// definite refusal — never as VERIFIED or CONSUMED.
 /// </summary>
-public sealed class SivaCommGatewayTests
+public sealed class SivaComGatewayTests
 {
     private const string Secret = "test-signing-secret";
     private readonly StubHandler _http = new();
 
-    private SivaCommOtpGateway Gateway()
+    private SivaComOtpGateway Gateway()
     {
-        var options = Options.Create(new SivaCommOptions
+        var options = Options.Create(new SivaComOptions
         {
             BaseUrl = "https://comm.test", ClientId = "hms-web", KeyId = "k1", Secret = Secret, TimeoutSeconds = 5,
         });
-        var client = new SivaCommClient(new HttpClient(_http), options, NullLogger<SivaCommClient>.Instance);
-        return new SivaCommOtpGateway(client, options, NullLogger<SivaCommOtpGateway>.Instance);
+        var client = new SivaComClient(new HttpClient(_http), options, NullLogger<SivaComClient>.Instance);
+        return new SivaComOtpGateway(client, options, NullLogger<SivaComOtpGateway>.Instance);
     }
 
     private static OtpSendRequest Send() => new("hms-reset-1", "u-user-1", "9876543210", Guid.NewGuid(), Guid.NewGuid(), "Clinic");
 
     [Fact]
-    public async Task Requests_are_signed_the_way_sivacomm_checks_them()
+    public async Task Requests_are_signed_the_way_sivacom_checks_them()
     {
         _http.Script.Enqueue(_ => StubHandler.Json(202, new { success = true, status = "QUEUED", challengeId = "c-1" }));
 
@@ -59,13 +59,13 @@ public sealed class SivaCommGatewayTests
 
         var (req, body) = Assert.Single(_http.Seen);
         string H(string name) => req.Headers.GetValues(name).Single();
-        var canonical = string.Join('\n', "POST", "/api/v1/otp/challenges", H("X-SivaComm-Timestamp"), H("X-SivaComm-Nonce"),
+        var canonical = string.Join('\n', "POST", "/api/v1/otp/challenges", H("X-SivaCom-Timestamp"), H("X-SivaCom-Nonce"),
             Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(body))));
         var expected = Convert.ToBase64String(HMACSHA256.HashData(Encoding.UTF8.GetBytes(Secret), Encoding.UTF8.GetBytes(canonical)));
 
-        Assert.Equal(expected, H("X-SivaComm-Signature"));
-        Assert.Equal("hms-web", H("X-SivaComm-Client"));
-        // No password field of any kind ever travels to SivaComm.
+        Assert.Equal(expected, H("X-SivaCom-Signature"));
+        Assert.Equal("hms-web", H("X-SivaCom-Client"));
+        // No password field of any kind ever travels to SivaCom.
         var fields = JsonDocument.Parse(body).RootElement.EnumerateObject().Select(p => p.Name).ToList();
         Assert.Equal(["resetReference", "userReference", "phone", "purpose"], fields);
     }
@@ -146,7 +146,7 @@ public sealed class SivaCommGatewayTests
     }
 
     [Fact]
-    public async Task A_tampered_grant_handle_is_refused_without_calling_sivacomm()
+    public async Task A_tampered_grant_handle_is_refused_without_calling_sivacom()
     {
         Assert.Equal(OtpStatus.Expired, await Gateway().ConsumeAsync("bm90LWEtaGFuZGxlLWF0LWFsbC1ub3QtYXQtYWxs", "hms-reset-1", "u-user-1", default));
         Assert.Empty(_http.Seen);

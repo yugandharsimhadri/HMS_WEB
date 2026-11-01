@@ -6,11 +6,11 @@ import { OtpForgotPasswordPage } from './OtpForgotPasswordPage';
 /**
  * /forgot-password: which reset page this deployment uses.
  *
- *   SivaComm:Enabled off (the default) — ClassicForgotPasswordPage, the page
- *     as it was before SivaComm, unchanged. It is also what shows while the
- *     options are still loading or could not be fetched, so with SivaComm off
+ *   SivaCom:Enabled off (the default) — ClassicForgotPasswordPage, the page
+ *     as it was before SivaCom, unchanged. It is also what shows while the
+ *     options are still loading or could not be fetched, so with SivaCom off
  *     nothing about this screen changes or waits.
- *   SivaComm:Enabled on — OtpForgotPasswordPage, the three-step flow.
+ *   SivaCom:Enabled on — OtpForgotPasswordPage, the three-step flow.
  *   PasswordReset:Enabled off — no reset at all; ask the clinic admin.
  */
 export function ForgotPasswordPage() {
@@ -32,5 +32,5 @@ export function ForgotPasswordPage() {
     );
   }
 
-  return options?.sivaCommEnabled ? <OtpForgotPasswordPage /> : <ClassicForgotPasswordPage />;
+  return options?.sivaComEnabled ? <OtpForgotPasswordPage /> : <ClassicForgotPasswordPage />;
 }

@@ -48,20 +48,20 @@
   "PasswordReset": {
     "//": [
       "Whether users can reset a forgotten password themselves with a one-time code to their phone.",
-      "true  - the Forgot password link is shown; codes come from SivaComm if SivaComm:Enabled, else from this application.",
+      "true  - the Forgot password link is shown; codes come from SivaCom if SivaCom:Enabled, else from this application.",
       "false - the link is hidden and the reset endpoints refuse; the clinic admin resets passwords."
     ],
     "Enabled": true
   },
 
-  "SivaComm": {
+  "SivaCom": {
     "//": [
       "The OTP switch. Full guide: docs/PASSWORD_RESET.md.",
       "Enabled false - the normal flow: this application sends reset codes and welcomes itself (WhatsApp section below, or the log).",
-      "Enabled true  - reset codes and welcome messages go through the central SivaComm service; the WhatsApp section is then unused.",
-      "The other values come from SivaComm's dashboard when HMS is registered, and are required only when Enabled is true.",
-      "BaseUrl  - the SivaComm API origin, server to server. Never exposed to the browser.",
-      "Secret   - shown once by SivaComm. This file only, or the SivaComm__Secret environment variable."
+      "Enabled true  - reset codes and welcome messages go through the central SivaCom service; the WhatsApp section is then unused.",
+      "The other values come from SivaCom's dashboard when HMS is registered, and are required only when Enabled is true.",
+      "BaseUrl  - the SivaCom API origin, server to server. Never exposed to the browser.",
+      "Secret   - shown once by SivaCom. This file only, or the SivaCom__Secret environment variable."
     ],
     "Enabled": false,
     "BaseUrl": "",

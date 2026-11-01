@@ -6,17 +6,17 @@ using Microsoft.Extensions.Options;
 namespace SivayaanHMS.Data.Messaging;
 
 /// <summary>
-/// OTPs through SivaComm. SivaComm generates, sends and verifies the code;
+/// OTPs through SivaCom. SivaCom generates, sends and verifies the code;
 /// this application still owns the user, the phone on file, the reset
 /// transaction and — only ever here — the password.
 ///
-/// The verification grant SivaComm returns is kept on the reset transaction
-/// encrypted (AES-GCM, with a key derived from our SivaComm secret), so a
+/// The verification grant SivaCom returns is kept on the reset transaction
+/// encrypted (AES-GCM, with a key derived from our SivaCom secret), so a
 /// read of this application's database alone does not yield a usable grant.
 /// </summary>
-public sealed class SivaCommOtpGateway(SivaCommClient client, IOptions<SivaCommOptions> options, ILogger<SivaCommOtpGateway> logger) : IOtpGateway
+public sealed class SivaComOtpGateway(SivaComClient client, IOptions<SivaComOptions> options, ILogger<SivaComOtpGateway> logger) : IOtpGateway
 {
-    public const string ProviderName = "SivaComm";
+    public const string ProviderName = "SivaCom";
     public string Name => ProviderName;
 
     private readonly byte[] _grantKey = HKDF.DeriveKey(
@@ -56,7 +56,7 @@ public sealed class SivaCommOtpGateway(SivaCommClient client, IOptions<SivaCommO
         var grant = r.Str("verificationGrant");
         if (string.IsNullOrEmpty(grant) || r.Str("resetReference") != resetReference)
         {
-            logger.LogError("SivaComm reported VERIFIED without a usable grant for {ResetReference}.", resetReference);
+            logger.LogError("SivaCom reported VERIFIED without a usable grant for {ResetReference}.", resetReference);
             return new(OtpStatus.TemporaryError);
         }
 
@@ -82,7 +82,7 @@ public sealed class SivaCommOtpGateway(SivaCommClient client, IOptions<SivaCommO
 
         if (status == OtpStatus.Consumed && (r.Str("resetReference") != resetReference || r.Str("userReference") != userReference))
         {
-            logger.LogError("SivaComm consumed a grant bound to a different reset or user than {ResetReference}.", resetReference);
+            logger.LogError("SivaCom consumed a grant bound to a different reset or user than {ResetReference}.", resetReference);
             return OtpStatus.NotFound;
         }
 
@@ -94,7 +94,7 @@ public sealed class SivaCommOtpGateway(SivaCommClient client, IOptions<SivaCommO
         var r = await client.PostAsync($"/api/v1/otp/challenges/{Uri.EscapeDataString(challengeId)}/completion",
             new { resetReference, outcome = "PASSWORD_CHANGED" }, ct);
         if (r.Status != "COMPLETED")
-            logger.LogWarning("SivaComm did not record completion of {ResetReference}: {Status}.", resetReference, r.Status);
+            logger.LogWarning("SivaCom did not record completion of {ResetReference}: {Status}.", resetReference, r.Status);
     }
 
     private static OtpStatus Map(string status) => status switch
@@ -140,17 +140,17 @@ public sealed class SivaCommOtpGateway(SivaCommClient client, IOptions<SivaCommO
 }
 
 /// <summary>
-/// Welcome messages through SivaComm, so they appear in its dashboard with
-/// everything else. Reset codes never come through here in SivaComm mode —
-/// those go through <see cref="SivaCommOtpGateway"/>.
+/// Welcome messages through SivaCom, so they appear in its dashboard with
+/// everything else. Reset codes never come through here in SivaCom mode —
+/// those go through <see cref="SivaComOtpGateway"/>.
 /// </summary>
-public sealed class SivaCommMessageSender(SivaCommClient client, ILogger<SivaCommMessageSender> logger) : IMessageSender
+public sealed class SivaComMessageSender(SivaComClient client, ILogger<SivaComMessageSender> logger) : IMessageSender
 {
     public async Task<bool> SendAsync(string phone, OutboundMessage message, CancellationToken ct = default)
     {
         if (message.Purpose != MessagePurpose.Welcome)
         {
-            logger.LogError("SivaCommMessageSender was asked to send a {Purpose}; only Welcome goes this way.", message.Purpose);
+            logger.LogError("SivaComMessageSender was asked to send a {Purpose}; only Welcome goes this way.", message.Purpose);
             return false;
         }
 
@@ -164,7 +164,7 @@ public sealed class SivaCommMessageSender(SivaCommClient client, ILogger<SivaCom
 
         if (r.Status != "QUEUED")
         {
-            logger.LogWarning("SivaComm did not queue a welcome message: {Status}.", r.Status);
+            logger.LogWarning("SivaCom did not queue a welcome message: {Status}.", r.Status);
             return false;
         }
         return true;

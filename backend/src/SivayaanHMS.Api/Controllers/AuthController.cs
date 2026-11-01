@@ -33,10 +33,10 @@ public record ResetStepResponse(string Status, string Message, int? RemainingAtt
 
 /// <param name="PasswordResetEnabled">PasswordReset:Enabled. When false the
 /// sign-in page hides "Forgot password" and the reset endpoints answer 403.</param>
-/// <param name="SivaCommEnabled">SivaComm:Enabled. False (the default): the
-/// original forgot-password page and endpoints, exactly as before SivaComm.
-/// True: the three-step page backed by SivaComm OTPs.</param>
-public record AuthOptionsResponse(bool PasswordResetEnabled, bool SivaCommEnabled);
+/// <param name="SivaComEnabled">SivaCom:Enabled. False (the default): the
+/// original forgot-password page and endpoints, exactly as before SivaCom.
+/// True: the three-step page backed by SivaCom OTPs.</param>
+public record AuthOptionsResponse(bool PasswordResetEnabled, bool SivaComEnabled);
 
 /// <summary>
 /// What the "send me a code" screen is told: one sentence, byte-for-byte the
@@ -49,7 +49,7 @@ public record AuthOptionsResponse(bool PasswordResetEnabled, bool SivaCommEnable
 /// convenience of naming which phone to look at is not worth handing out a
 /// list of every account on the platform.
 /// </summary>
-/// <param name="ResetToken">SivaComm flow only. Opaque, and issued for every
+/// <param name="ResetToken">SivaCom flow only. Opaque, and issued for every
 /// request — a real reset or a decoy — so its presence says nothing either.
 /// Omitted entirely otherwise, so the original flow's response is unchanged:
 /// <c>{ "message": "…" }</c>.</param>
@@ -84,7 +84,7 @@ public class AuthController(
     PasswordResetFlow resetFlow,
     IMessageSender messages,
     Microsoft.Extensions.Options.IOptions<PasswordResetOptions> resetOptions,
-    Microsoft.Extensions.Options.IOptions<SivaCommOptions> sivaCommOptions,
+    Microsoft.Extensions.Options.IOptions<SivaComOptions> sivaComOptions,
     ILogger<AuthController> logger) : ControllerBase
 {
     private const string ResetDisabled =
@@ -93,12 +93,12 @@ public class AuthController(
     private bool ResetEnabled => resetOptions.Value.Enabled;
 
     /// <summary>
-    /// SivaComm:Enabled — off by default. Off, every reset endpoint behaves
-    /// exactly as it did before SivaComm existed: the original two-step page,
-    /// the original code table, no reset-transaction rows. The SivaComm
+    /// SivaCom:Enabled — off by default. Off, every reset endpoint behaves
+    /// exactly as it did before SivaCom existed: the original two-step page,
+    /// the original code table, no reset-transaction rows. The SivaCom
     /// three-step flow runs only when this is true.
     /// </summary>
-    private bool SivaCommEnabled => sivaCommOptions.Value.Enabled;
+    private bool SivaComEnabled => sivaComOptions.Value.Enabled;
 
     /// <summary>
     /// What the sign-in screens need to know before anyone signs in: whether to
@@ -106,7 +106,7 @@ public class AuthController(
     /// the same for every caller: it describes this deployment, not any account.
     /// </summary>
     [HttpGet("options")]
-    public ActionResult<AuthOptionsResponse> Options() => Ok(new AuthOptionsResponse(ResetEnabled, SivaCommEnabled));
+    public ActionResult<AuthOptionsResponse> Options() => Ok(new AuthOptionsResponse(ResetEnabled, SivaComEnabled));
 
     // Deliberately one message for every way this can fail. Telling an
     // anonymous caller "no such clinic" or "no such user" turns the login
@@ -219,7 +219,7 @@ public class AuthController(
     /// Nothing about the phone number comes back at all — not even masked.
     /// See ForgotPasswordResponse for why that changed.
     ///
-    /// With SivaComm:Enabled off (the default) this is the original endpoint,
+    /// With SivaCom:Enabled off (the default) this is the original endpoint,
     /// unchanged — see <see cref="ClassicForgotPasswordAsync"/>. With it on,
     /// a reset token comes back too, for every request alike: an unknown
     /// username gets one backed by a decoy that fails the next step the same
@@ -236,7 +236,7 @@ public class AuthController(
         // the same for every caller and says nothing about any account.
         if (!ResetEnabled) return StatusCode(StatusCodes.Status403Forbidden, ResetDisabled);
 
-        if (!SivaCommEnabled) return await ClassicForgotPasswordAsync(request, ct);
+        if (!SivaComEnabled) return await ClassicForgotPasswordAsync(request, ct);
 
         var (tenant, user) = await ResolveAsync(request.Username, ct);
 
@@ -257,10 +257,10 @@ public class AuthController(
     }
 
     /// <summary>
-    /// The forgot-password endpoint exactly as it was before SivaComm:
+    /// The forgot-password endpoint exactly as it was before SivaCom:
     /// a code in this application's own PasswordResetCodes table, sent through
     /// IMessageSender (WhatsApp, or the log), and one sentence back. Kept
-    /// verbatim so that with SivaComm:Enabled off nothing about this path
+    /// verbatim so that with SivaCom:Enabled off nothing about this path
     /// changes — not the response, not the tables written.
     /// </summary>
     private async Task<ActionResult<ForgotPasswordResponse>> ClassicForgotPasswordAsync(
@@ -312,11 +312,11 @@ public class AuthController(
     }
 
     /// <summary>A fresh code for the same reset. Always the same answer — see
-    /// PasswordResetFlow.ResendAsync for why. SivaComm flow only.</summary>
+    /// PasswordResetFlow.ResendAsync for why. SivaCom flow only.</summary>
     [HttpPost("resend-reset-code")]
     public async Task<ActionResult<ForgotPasswordResponse>> ResendResetCode(ResendResetCodeRequest request, CancellationToken ct)
     {
-        if (!SivaCommEnabled) return NotFound();
+        if (!SivaComEnabled) return NotFound();
         if (!ResetEnabled) return StatusCode(StatusCodes.Status403Forbidden, ResetDisabled);
 
         await resetFlow.ResendAsync(request.ResetToken ?? "", ct);
@@ -333,12 +333,12 @@ public class AuthController(
     /// It does say what went wrong — wrong code, expired, too many attempts —
     /// because that is the difference between retyping six digits and asking
     /// again. A decoy reset answers in exactly the same words and counts.
-    /// SivaComm flow only; with SivaComm:Enabled off this endpoint does not exist.
+    /// SivaCom flow only; with SivaCom:Enabled off this endpoint does not exist.
     /// </summary>
     [HttpPost("verify-reset-code")]
     public async Task<IActionResult> VerifyResetCode(VerifyResetCodeRequest request, CancellationToken ct)
     {
-        if (!SivaCommEnabled) return NotFound();
+        if (!SivaComEnabled) return NotFound();
 
         // A reset started before the flag was turned off stops here too.
         if (!ResetEnabled) return Disabled();
@@ -350,11 +350,11 @@ public class AuthController(
     /// <summary>
     /// Two shapes, one per flow:
     ///
-    ///   * SivaComm:Enabled off (default) — the original: username + code +
+    ///   * SivaCom:Enabled off (default) — the original: username + code +
     ///     new password in one request, checked against this application's
-    ///     PasswordResetCodes table. Unchanged from before SivaComm.
-    ///   * SivaComm:Enabled on — reset token + new password, accepted only for
-    ///     a reset whose code SivaComm has verified.
+    ///     PasswordResetCodes table. Unchanged from before SivaCom.
+    ///   * SivaCom:Enabled on — reset token + new password, accepted only for
+    ///     a reset whose code SivaCom has verified.
     ///
     /// A request in the other flow's shape is told the page is out of date
     /// (a browser that loaded the page before the flag was switched).
@@ -366,7 +366,7 @@ public class AuthController(
 
         const string OutOfDate = "This page is out of date. Reload it and request a new code.";
 
-        if (SivaCommEnabled)
+        if (SivaComEnabled)
         {
             return string.IsNullOrEmpty(request.ResetToken)
                 ? BadRequest(OutOfDate)

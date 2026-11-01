@@ -2,7 +2,7 @@ namespace SivayaanHMS.Data.Messaging;
 
 /// <summary>
 /// Every answer an OTP service can give this application, normalised. The
-/// names match SivaComm's wire statuses so a log line reads the same on
+/// names match SivaCom's wire statuses so a log line reads the same on
 /// both sides.
 /// </summary>
 public enum OtpStatus
@@ -18,7 +18,7 @@ public enum OtpStatus
     RateLimited,
     NotFound,
 
-    /// <summary>Timeout, network failure, 5xx, unreadable response, or SivaComm
+    /// <summary>Timeout, network failure, 5xx, unreadable response, or SivaCom
     /// refusing our signature. Never success — the caller retries or fails.</summary>
     TemporaryError,
 }
@@ -38,8 +38,8 @@ public sealed record OtpVerifyResult(OtpStatus Status, int? RemainingAttempts = 
 /// <summary>
 /// Where reset codes come from and are checked. Two implementations:
 /// <see cref="LocalOtpGateway"/> (this application's own PasswordResetCodes
-/// table, as before) and <see cref="SivaCommOtpGateway"/> (the central
-/// service). Chosen once at startup by SivaComm:Enabled.
+/// table, as before) and <see cref="SivaComOtpGateway"/> (the central
+/// service). Chosen once at startup by SivaCom:Enabled.
 ///
 /// Nothing here sets a password. That stays in PasswordResetFlow, in this
 /// application, against this application's own database.

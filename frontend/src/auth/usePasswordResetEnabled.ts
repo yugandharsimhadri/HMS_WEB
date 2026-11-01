@@ -13,11 +13,11 @@ function load(): Promise<AuthOptionsResponse | null> {
 }
 
 /**
- * GET /api/auth/options: PasswordReset:Enabled and SivaComm:Enabled on the
+ * GET /api/auth/options: PasswordReset:Enabled and SivaCom:Enabled on the
  * server. Undefined until known, null if it could not be fetched.
  *
  * Every caller treats "not known" as the original behaviour — the Forgot
- * password link shown, the original reset page — so with SivaComm off nothing
+ * password link shown, the original reset page — so with SivaCom off nothing
  * on screen waits for, or depends on, this request.
  */
 export function useAuthOptions(): AuthOptionsResponse | null | undefined {

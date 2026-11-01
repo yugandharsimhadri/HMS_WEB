@@ -5,20 +5,20 @@ back: ask platform support. This adds the ordinary one — a code to the phone
 on the account — and the rule that makes it safe: **the code goes to the
 number already on file, never to a number somebody types in.**
 
-> The end-to-end picture — HMS_WEB and SivaComm together, sequence diagrams,
+> The end-to-end picture — HMS_WEB and SivaCom together, sequence diagrams,
 > every state and status, and every configuration key on both sides — is in
-> SivaComm's `docs/GUIDE.md`. This page is HMS_WEB's half in depth.
+> SivaCom's `docs/GUIDE.md`. This page is HMS_WEB's half in depth.
 
 ---
 
 ## The shape
 
-There are two flows. **`SivaComm:Enabled` is off by default, and off means
+There are two flows. **`SivaCom:Enabled` is off by default, and off means
 the original flow, unchanged** — the same page, the same endpoints, the same
 responses, the same tables written. The three-step flow exists only when the
-flag is on. ([The switch](#the-switch-sivacommenabled) below.)
+flag is on. ([The switch](#the-switch-sivacomenabled) below.)
 
-**Original flow — `SivaComm:Enabled = false` (default):**
+**Original flow — `SivaCom:Enabled = false` (default):**
 
 | | |
 |---|---|
@@ -30,24 +30,24 @@ The page asks for the username, then for the code and the new password on
 one screen (`ClassicForgotPasswordPage`). `verify-reset-code` and
 `resend-reset-code` answer **404** — in this flow they do not exist.
 
-**SivaComm flow — `SivaComm:Enabled = true`:**
+**SivaCom flow — `SivaCom:Enabled = true`:**
 
 | | |
 |---|---|
-| `POST /api/auth/forgot-password` | `{ username }` → `{ message, resetToken }`; SivaComm sends the code |
+| `POST /api/auth/forgot-password` | `{ username }` → `{ message, resetToken }`; SivaCom sends the code |
 | `POST /api/auth/verify-reset-code` | `{ resetToken, code }` → `VERIFIED`, or what went wrong |
 | `POST /api/auth/reset-password` | `{ resetToken, newPassword }` → sets the password, **only** after `VERIFIED` |
 | `POST /api/auth/resend-reset-code` | `{ resetToken }` → a fresh code for the same reset |
 
-`GET /api/auth/options` → `{ passwordResetEnabled, sivaCommEnabled }` tells
+`GET /api/auth/options` → `{ passwordResetEnabled, sivaComEnabled }` tells
 the page which flow to show. Until it answers (or if it cannot), the page
 shows the original flow, so with the flag off nothing on screen waits on it.
 All reset endpoints are anonymous, like `login`.
 
-### Three steps, not two (SivaComm flow)
+### Three steps, not two (SivaCom flow)
 
 The original flow takes the code and the new password in one submit. The
-SivaComm flow takes them separately, and the screen shows the password
+SivaCom flow takes them separately, and the screen shows the password
 fields only after the API has said `VERIFIED` — the browser does not decide
 that.
 
@@ -144,18 +144,18 @@ Each rule closes one route, and none of them is optional:
 
 ---
 
-## The switch: `SivaComm:Enabled`
+## The switch: `SivaCom:Enabled`
 
 ```json
-"SivaComm": { "Enabled": true, "BaseUrl": "…", "ClientId": "hms-web", "KeyId": "…", "Secret": "…" }
+"SivaCom": { "Enabled": true, "BaseUrl": "…", "ClientId": "hms-web", "KeyId": "…", "Secret": "…" }
 ```
 
 One flag, read from the config files at startup:
 
-| `SivaComm:Enabled` | What happens |
+| `SivaCom:Enabled` | What happens |
 |---|---|
-| `false` (default) | **The normal flow.** This application generates and checks the code in its own `PasswordResetCodes` table and sends it (and the welcome message) itself — through WhatsApp if the `WhatsApp` section is filled in, otherwise to the log. Nothing in this deployment talks to SivaComm. |
-| `true` | **OTP authentication through SivaComm.** SivaComm generates, sends and verifies the code and sends the welcome message. This application still owns the user, the stored phone, the reset transaction and the password. `BaseUrl`, `ClientId`, `KeyId` and `Secret` are required — the API refuses to start without them rather than failing at the first reset somebody needs. |
+| `false` (default) | **The normal flow.** This application generates and checks the code in its own `PasswordResetCodes` table and sends it (and the welcome message) itself — through WhatsApp if the `WhatsApp` section is filled in, otherwise to the log. Nothing in this deployment talks to SivaCom. |
+| `true` | **OTP authentication through SivaCom.** SivaCom generates, sends and verifies the code and sends the welcome message. This application still owns the user, the stored phone, the reset transaction and the password. `BaseUrl`, `ClientId`, `KeyId` and `Secret` are required — the API refuses to start without them rather than failing at the first reset somebody needs. |
 
 The user, the stored phone and the password are this application's either
 way, and the password never leaves it.
@@ -163,20 +163,20 @@ way, and the password never leaves it.
 | | **Enabled = false (default)** | **Enabled = true** |
 |---|---|---|
 | Reset page | original: code + new password on one screen | three steps: code, then new password |
-| Code generated, stored, checked | here, `PasswordResetCodes` | SivaComm (keyed HMAC, not stored) |
-| Sent through | `IMessageSender` → WhatsApp or the log | SivaComm's worker → WhatsApp |
-| Welcome message | `IMessageSender` here | SivaComm (`SivaCommMessageSender`) |
+| Code generated, stored, checked | here, `PasswordResetCodes` | SivaCom (keyed HMAC, not stored) |
+| Sent through | `IMessageSender` → WhatsApp or the log | SivaCom's worker → WhatsApp |
+| Welcome message | `IMessageSender` here | SivaCom (`SivaComMessageSender`) |
 | `PasswordResetTransactions` rows | none | one per reset |
-| Delivery receipts, dashboard | no | yes — SivaComm's admin dashboard |
-| Configured in | the `WhatsApp` section | the `SivaComm` section |
+| Delivery receipts, dashboard | no | yes — SivaCom's admin dashboard |
+| Configured in | the `WhatsApp` section | the `SivaCom` section |
 
-**Off is the code that ran before SivaComm, not a re-implementation of it:**
+**Off is the code that ran before SivaCom, not a re-implementation of it:**
 `forgot-password` runs the original method verbatim
 (`AuthController.ClassicForgotPasswordAsync`), `reset-password` the original
 one-step branch, and the page is the original component
 (`ClassicForgotPasswordPage`, identical to `main` but for its name).
 `ClassicPasswordResetTests` pins that behaviour, and it was checked end to end
-in a browser with no `SivaComm` section in the config at all.
+in a browser with no `SivaCom` section in the config at all.
 
 What a deployment that leaves the flag off still gets from this branch:
 
@@ -204,33 +204,33 @@ and the same for every caller, and `forgot-password` refuses before looking at
 the username, so it is not an enumeration channel. Leave it alone unless you
 want to withdraw self-service reset entirely.
 
-### What `SivaComm:Enabled = true` does on each step
+### What `SivaCom:Enabled = true` does on each step
 
 ```
 forgot-password  ─► PasswordResetFlow creates PasswordResetTransactions row (hms-<id>)
-                 ─► SivaComm POST /api/v1/otp/challenges { resetReference: hms-<id>, userReference: u-<userId>, phone }
+                 ─► SivaCom POST /api/v1/otp/challenges { resetReference: hms-<id>, userReference: u-<userId>, phone }
                     ◄─ 202 QUEUED + challengeId        (stored on the row; browser gets only resetToken)
-verify-reset-code ─► SivaComm POST /otp/challenges/{id}/verify { resetReference, otp }
+verify-reset-code ─► SivaCom POST /otp/challenges/{id}/verify { resetReference, otp }
                     ◄─ 200 VERIFIED + verificationGrant (stored on the row ENCRYPTED; never sent to the browser)
                     ◄─ 422 INVALID_OTP / EXPIRED / …    (relayed as the same status)
-reset-password   ─► SivaComm POST /grants/consume { grant, resetReference }   Idempotency-Key: hms-<id>
+reset-password   ─► SivaCom POST /grants/consume { grant, resetReference }   Idempotency-Key: hms-<id>
                     ◄─ 200 CONSUMED                     then, in ONE SaveChanges here: new password hash,
                                                         MustChangePassword = false, stage PasswordChanged
-                 ─► SivaComm POST /otp/challenges/{id}/completion   (reporting only, best effort)
+                 ─► SivaCom POST /otp/challenges/{id}/completion   (reporting only, best effort)
 ```
 
 `userReference` is the user's internal id, never the username or phone.
-Requests are HMAC-signed with the key SivaComm issued (`SivaCommClient`);
-SivaComm's `docs/API.md` has the contract.
+Requests are HMAC-signed with the key SivaCom issued (`SivaComClient`);
+SivaCom's `docs/API.md` has the contract.
 
 ### When something fails in the middle
 
-- **SivaComm down, slow or answering 5xx / 401 / garbage** → `TEMPORARY_ERROR`
-  (503). `SivaCommClient` turns every non-answer into that, and the flow
+- **SivaCom down, slow or answering 5xx / 401 / garbage** → `TEMPORARY_ERROR`
+  (503). `SivaComClient` turns every non-answer into that, and the flow
   never treats it as verified. The same code can be tried again.
 - **Grant consumed, then our database write fails** → the reset stays at
   `Verified`. Submitting again re-consumes with the same `Idempotency-Key`,
-  SivaComm answers `CONSUMED` again (replay of the same reset), and the
+  SivaCom answers `CONSUMED` again (replay of the same reset), and the
   password change is retried.
 - **Password changed, response to the browser lost** → resubmitting within 5
   minutes answers `PASSWORD_CHANGED` without changing anything again; later,
@@ -241,13 +241,13 @@ SivaComm's `docs/API.md` has the contract.
 
 ### Turning it on
 
-1. Register HMS in SivaComm's dashboard (code `hms-web`), and set its two
+1. Register HMS in SivaCom's dashboard (code `hms-web`), and set its two
    templates (an Authentication template for the code, `hms_welcome` with 2
    parameters). Copy the key id and secret it shows once.
 2. In `appsettings.Production.json`:
 
    ```json
-   "SivaComm": { "Enabled": true, "BaseUrl": "https://comm.example", "ClientId": "hms-web", "KeyId": "k…", "Secret": "…" }
+   "SivaCom": { "Enabled": true, "BaseUrl": "https://comm.example", "ClientId": "hms-web", "KeyId": "k…", "Secret": "…" }
    ```
 
 3. Migrate (adds `PasswordResetTransactions`) and restart. With `Enabled`
@@ -260,7 +260,7 @@ person starts again.
 
 ---
 
-## Sending the messages (`SivaComm:Enabled = false`)
+## Sending the messages (`SivaCom:Enabled = false`)
 
 Nothing is sent yet. `IMessageSender` has one implementation,
 `LoggingMessageSender`, which writes the message to the API log — which is
@@ -304,7 +304,7 @@ template with the telecom regulator — which is why `MessagePurpose` and
 - **Codes are not swept.** Spent and expired rows stay in `PasswordResetCodes`
   and `PasswordResetTransactions` (decoys included). They are harmless —
   hashed, single-use, expired — but a periodic delete would keep the tables
-  small. SivaComm sweeps its own.
+  small. SivaCom sweeps its own.
 - **Existing sessions are not revoked.** Sign-in is a stateless 8-hour JWT
   with no server-side session list, so a reset does not sign out a browser
   that is already signed in — the same is true of change-password today.
@@ -313,5 +313,5 @@ template with the telecom regulator — which is why `MessagePurpose` and
 - **A bare 10-digit number with no `DefaultCountryCode`** is accepted by
   `WhatsAppCloudMessageSender.TryNormalise` (length check `>= 10`) and would
   be sent without a country code, despite its comment saying it is refused.
-  SivaComm's copy of the rule requires 11+ digits after prefixing; the Local
+  SivaCom's copy of the rule requires 11+ digits after prefixing; the Local
   sender here is unchanged and should get the same fix.

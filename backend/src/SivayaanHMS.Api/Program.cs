@@ -112,10 +112,10 @@ var whatsApp = builder.Configuration
     .GetSection(SivayaanHMS.Data.Messaging.WhatsAppOptions.SectionName)
     .Get<SivayaanHMS.Data.Messaging.WhatsAppOptions>() ?? new SivayaanHMS.Data.Messaging.WhatsAppOptions();
 
-// SivaComm:Enabled is the one switch for OTP authentication through the
+// SivaCom:Enabled is the one switch for OTP authentication through the
 // central messaging service:
 //
-//   true  — SivaComm generates, sends and verifies reset codes and sends the
+//   true  — SivaCom generates, sends and verifies reset codes and sends the
 //           welcome message. This application still owns the user, the
 //           reset transaction and the password. See docs/PASSWORD_RESET.md.
 //   false (default) — the normal flow, as it always was: this application's
@@ -123,24 +123,24 @@ var whatsApp = builder.Configuration
 //
 // Enabled with the section incomplete refuses to start, rather than quietly
 // falling back and leaving every reset to fail at the first click.
-builder.Services.Configure<SivayaanHMS.Data.Messaging.SivaCommOptions>(
-    builder.Configuration.GetSection(SivayaanHMS.Data.Messaging.SivaCommOptions.SectionName));
+builder.Services.Configure<SivayaanHMS.Data.Messaging.SivaComOptions>(
+    builder.Configuration.GetSection(SivayaanHMS.Data.Messaging.SivaComOptions.SectionName));
 
-var sivaComm = builder.Configuration.GetSection(SivayaanHMS.Data.Messaging.SivaCommOptions.SectionName)
-    .Get<SivayaanHMS.Data.Messaging.SivaCommOptions>() ?? new();
+var sivaCom = builder.Configuration.GetSection(SivayaanHMS.Data.Messaging.SivaComOptions.SectionName)
+    .Get<SivayaanHMS.Data.Messaging.SivaComOptions>() ?? new();
 
-if (sivaComm.Enabled)
+if (sivaCom.Enabled)
 {
-    if (!sivaComm.IsConfigured)
+    if (!sivaCom.IsConfigured)
         throw new InvalidOperationException(
-            "SivaComm:Enabled is true but the SivaComm section is incomplete. Set SivaComm:BaseUrl, ClientId, " +
-            "KeyId and Secret (Secret in appsettings.Production.json or SivaComm__Secret) — see docs/PASSWORD_RESET.md.");
+            "SivaCom:Enabled is true but the SivaCom section is incomplete. Set SivaCom:BaseUrl, ClientId, " +
+            "KeyId and Secret (Secret in appsettings.Production.json or SivaCom__Secret) — see docs/PASSWORD_RESET.md.");
 
-    // No HttpClient timeout of its own: SivaCommClient applies
-    // SivaComm:TimeoutSeconds per call and turns expiry into TEMPORARY_ERROR.
-    builder.Services.AddHttpClient<SivayaanHMS.Data.Messaging.SivaCommClient>(c => c.Timeout = Timeout.InfiniteTimeSpan);
-    builder.Services.AddTransient<SivayaanHMS.Data.Messaging.IOtpGateway, SivayaanHMS.Data.Messaging.SivaCommOtpGateway>();
-    builder.Services.AddTransient<SivayaanHMS.Data.Messaging.IMessageSender, SivayaanHMS.Data.Messaging.SivaCommMessageSender>();
+    // No HttpClient timeout of its own: SivaComClient applies
+    // SivaCom:TimeoutSeconds per call and turns expiry into TEMPORARY_ERROR.
+    builder.Services.AddHttpClient<SivayaanHMS.Data.Messaging.SivaComClient>(c => c.Timeout = Timeout.InfiniteTimeSpan);
+    builder.Services.AddTransient<SivayaanHMS.Data.Messaging.IOtpGateway, SivayaanHMS.Data.Messaging.SivaComOtpGateway>();
+    builder.Services.AddTransient<SivayaanHMS.Data.Messaging.IMessageSender, SivayaanHMS.Data.Messaging.SivaComMessageSender>();
 }
 else
 {
@@ -282,7 +282,7 @@ var app = builder.Build();
 // Promised by the registration above: say it once, at startup, where it will
 // be seen — not at the first reset nobody receives.
 if (!app.Environment.IsDevelopment() &&
-    !sivaComm.Enabled && !whatsApp.IsConfigured)
+    !sivaCom.Enabled && !whatsApp.IsConfigured)
 {
     app.Logger.LogWarning(
         "No WhatsApp provider is configured. Welcome messages and password-reset codes will be " +

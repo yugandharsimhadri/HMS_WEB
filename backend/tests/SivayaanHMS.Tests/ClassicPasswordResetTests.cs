@@ -6,9 +6,9 @@ using SivayaanHMS.Data.Security;
 namespace SivayaanHMS.Tests;
 
 /// <summary>
-/// The original, one-step reset — what HMS_WEB runs with SivaComm:Enabled off,
+/// The original, one-step reset — what HMS_WEB runs with SivaCom:Enabled off,
 /// the default. PasswordResetService was refactored to share its code check
-/// with the SivaComm flow; these pin that the original behaviour did not move:
+/// with the SivaCom flow; these pin that the original behaviour did not move:
 /// the code is checked and the password set in one call, wrong codes are
 /// counted, five kill the code, a code works once, and a new code kills the old.
 /// </summary>

@@ -8,7 +8,7 @@ namespace SivayaanHMS.Data.Messaging;
 /// The OTP gateway HMS_WEB has always had, behind the new interface: codes in
 /// its own PasswordResetCodes table, sent through IMessageSender (the log, or
 /// WhatsApp directly). The default, so nothing changes for a deployment that
-/// has not set up SivaComm.
+/// has not set up SivaCom.
 ///
 /// Verification is authoritative here — there is no second service to ask —
 /// so the "grant" is simply proof, held on the reset transaction, that this
