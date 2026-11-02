@@ -28,6 +28,9 @@ public static class DemoData
     /// </summary>
     public const string AdminPassword = "UatTest@12345";
 
+    /// <summary>Required at registration: the owner's mobile, where password-reset codes go.</summary>
+    public const string AdminPhone = "+91 98200 00099";
+
     public const string PatientOneName = "Aarav Rao";
     public const string PatientOnePhone = "9820000001";
     public const string PatientTwoName = "Meera Iyer";
@@ -110,6 +113,7 @@ public sealed class DemoDataSeeder(string apiBaseUrl, Action<string>? log = null
             clinicCode = DemoData.ClinicCode,
             username = DemoData.AdminLocalPart,
             password = DemoData.AdminPassword,
+            phone = DemoData.AdminPhone,
         }, Json, cancellationToken);
 
         // 409 Conflict means a previous run's database is still around and already has this

@@ -43,6 +43,7 @@ public sealed class RegistrationDuplicateCodeWorkflow() : Workflow(
                 await c.Page.GetByPlaceholder("Twinkle Children's Hospital").FillAsync("A Second Test Clinic");
                 await c.Page.GetByPlaceholder("twinkle", new() { Exact = true }).FillAsync(DemoData.ClinicCode);
                 await c.Page.GetByPlaceholder("yourname").FillAsync("someoneelse");
+                await c.Page.GetByPlaceholder("+91 98765 43210").FillAsync("+91 98200 00098");
                 await c.Page.GetByLabel("Password", new() { Exact = true }).FillAsync("SecondClinic@1");
                 await c.Page.GetByLabel("Retype password", new() { Exact = true }).FillAsync("SecondClinic@1");
             });

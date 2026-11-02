@@ -28,7 +28,7 @@ public sealed class PatientRegisterWorkflow() : Workflow(
 
                 await c.Page.GetByLabel("Name", new() { Exact = true }).FillAsync(name);
                 await c.Page.GetByLabel("Phone", new() { Exact = true }).FillAsync(phone);
-                await c.Page.GetByLabel("Age", new() { Exact = true }).FillAsync("6");
+                await c.Page.GetByLabel("Age (years)", new() { Exact = true }).FillAsync("6");
 
                 await c.Button("Save").ClickAsync();
             });
