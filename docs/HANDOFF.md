@@ -137,6 +137,16 @@ OPD receipt and doctor registration number. The two disagree about
 already-shipped OPD behaviour, and that is worth resolving before anyone
 ports against the wrong one.
 
+> **Update, 2 Nov 2026.** `Dentist_Pathology` was merged into HMS_WPF's `main`
+> on 8 Sep (`d0a8a1e`), so there is one spec source again and the warning
+> above no longer applies to anything new. The desktop moved on after that:
+> the OPD validity window and the reworked consultation receipt (`33e2eba`…
+> `ff0c99d`, 9 Sep) were ported on 2 Nov — see
+> [PARITY_OPD_PHARMACY.md §10](PARITY_OPD_PHARMACY.md). Before porting
+> anything else, check HMS_WPF's `git log main` since 9 Sep; the 29–31 Oct
+> commits (age in years and months, one From/To range on reports and the
+> dashboard) were already here.
+
 
 ---
 

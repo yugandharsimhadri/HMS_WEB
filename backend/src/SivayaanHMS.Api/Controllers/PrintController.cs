@@ -158,14 +158,20 @@ public class PrintController(
         var visit = await opd.GetVisitAsync(visitId);
         if (visit is null) return NotFound();
 
-        if (!visit.FeePaid)
+        // A review takes no money and gets no receipt number, but it still gets
+        // paper: the slip names the doctor, the token and the receipt the fee
+        // was actually paid on, which is what the patient needs if anyone later
+        // asks why they were seen without paying.
+        if (!visit.FeeSettled)
             return BadRequest($"Token {visit.TokenNo} has not paid yet — there is no receipt to print.");
 
         var clinic = await settings.GetClinicAsync();
         var theme = await settings.GetDocumentThemeAsync();
 
-        return Inline(FeeReceiptDocument.Generate(visit, clinic, theme, reprint),
-                      $"receipt-{visit.FeeReceiptNo}.pdf");
+        // A review is not a duplicate of anything — it is its own slip, so it is
+        // never stamped DUPLICATE however the screen asked for it.
+        return Inline(FeeReceiptDocument.Generate(visit, clinic, theme, reprint && visit.FeePaid),
+                      visit.IsReview ? $"visit-slip-{visit.VisitNo}.pdf" : $"receipt-{visit.FeeReceiptNo}.pdf");
     }
 
     [HttpGet("bill/{saleId:guid}")]

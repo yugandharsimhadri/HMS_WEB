@@ -14,7 +14,17 @@ export function DoctorEditorDialog({ existing, onClose, onSaved }: Props) {
   const [speciality, setSpeciality] = useState(existing?.speciality ?? '');
   const [registrationNo, setRegistrationNo] = useState(existing?.registrationNo ?? '');
   const [consultationFee, setConsultationFee] = useState(existing ? String(existing.consultationFee) : '');
+  const [qualification, setQualification] = useState(existing?.qualification ?? '');
+  const [opdValidDays, setOpdValidDays] = useState(existing ? String(existing.opdValidDays ?? 0) : '0');
   const [isActive, setIsActive] = useState(existing?.isActive ?? true);
+
+  // Says back what the number means, because "7" on its own does not tell the
+  // person typing it whether they have just made reviews free for a week or
+  // charged them for seven days.
+  const validDays = Math.max(0, Math.floor(Number(opdValidDays) || 0));
+  const validDaysNote = validDays <= 0
+    ? '0 — every visit is charged.'
+    : `One fee covers this doctor for ${validDays} day${validDays === 1 ? '' : 's'}; a return inside that is a free review.`;
 
   const [nameMissing, setNameMissing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,6 +49,11 @@ export function DoctorEditorDialog({ existing, onClose, onSaved }: Props) {
         speciality: speciality.trim() || null,
         registrationNo: registrationNo.trim() || null,
         consultationFee: Number(consultationFee) || 0,
+        // Always sent, even when blank: an empty string clears the degrees and
+        // a 0 turns the window off, which the server treats differently from
+        // the fields being absent (absent leaves them alone).
+        qualification: qualification.trim(),
+        opdValidDays: validDays,
         isActive,
       });
       onSaved(`${saved.name} saved.`);
@@ -91,6 +106,19 @@ export function DoctorEditorDialog({ existing, onClose, onSaved }: Props) {
           </div>
 
           <div className="settings-row">
+            <label>Qualification (optional)</label>
+            <input
+              value={qualification}
+              onChange={(e) => setQualification(e.target.value)}
+              placeholder="MBBS, MD (Paediatrics)"
+              aria-describedby="qualification-hint"
+            />
+            <p className="hint" id="qualification-hint">
+              Degrees as they should print beside the name on receipts, e.g. MBBS, MD (Paediatrics).
+            </p>
+          </div>
+
+          <div className="settings-row">
             <label>Consultation fee</label>
             <input
               type="number"
@@ -99,6 +127,20 @@ export function DoctorEditorDialog({ existing, onClose, onSaved }: Props) {
               value={consultationFee}
               onChange={(e) => setConsultationFee(e.target.value)}
             />
+          </div>
+
+          <div className="settings-row">
+            <label>OPD valid for (days)</label>
+            <input
+              type="number"
+              min={0}
+              step="1"
+              value={opdValidDays}
+              onChange={(e) => setOpdValidDays(e.target.value)}
+              aria-describedby="opd-valid-hint"
+              title="0 charges every visit. 7 means one fee covers this doctor for seven days."
+            />
+            <p className="hint" id="opd-valid-hint">{validDaysNote}</p>
           </div>
 
           <label className="checkbox-label">

@@ -112,6 +112,30 @@ public class Doctor : BaseEntity
     public string? Phone { get; set; }
     public decimal ConsultationFee { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>
+    /// Degrees as they should print beside the name — "MBBS, MD (Paediatrics)".
+    /// Free text on purpose: Indian qualifications do not fit a fixed list, and
+    /// a doctor who cannot print their own degrees correctly will not use the
+    /// field at all.
+    /// </summary>
+    public string? Qualification { get; set; }
+
+    /// <summary>
+    /// How many days one consultation fee covers with this doctor.
+    ///
+    /// Set to 7 and a patient who pays today may come back to the same doctor
+    /// free until the seventh day after — the common Indian arrangement, and it
+    /// is per doctor because it is the doctor's own money being given away.
+    /// Zero turns it off entirely and every visit is charged, which is the
+    /// default and what every existing doctor gets on upgrade.
+    /// </summary>
+    public int OpdValidDays { get; set; }
+
+    /// <summary>Name with degrees, the way a receipt or prescription carries it.</summary>
+    public string NameWithQualification => string.IsNullOrWhiteSpace(Qualification)
+        ? Name
+        : $"{Name}, {Qualification}";
 }
 
 /// <summary>
@@ -158,6 +182,32 @@ public class Visit : BaseEntity
     /// a phone screenshot as proof and move on.</summary>
     public string? FeeTransactionNo { get; set; }
 
+    /// <summary>
+    /// The last day this payment covers a return to the same doctor, or null
+    /// when the doctor charges every visit.
+    ///
+    /// Worked out once, when the money is actually taken, from the doctor's
+    /// <see cref="Doctor.OpdValidDays"/> — never recomputed afterwards. Two
+    /// reasons. The patient was told "come back within seven days" and it is
+    /// printed on their receipt, so it is a promise, not a running calculation;
+    /// and a doctor who later changes seven to fifteen, or turns the scheme
+    /// off, must not silently revoke or extend a window already given. It also
+    /// means the day-wise arithmetic happens in exactly one place.
+    /// </summary>
+    public DateTime? FreeFollowUpUntil { get; set; }
+
+    /// <summary>
+    /// The paid visit this one rides on, when it is a review inside that
+    /// visit's <see cref="FreeFollowUpUntil"/> window. Null on an ordinary
+    /// visit, which is every visit until a doctor turns the scheme on.
+    ///
+    /// A real link rather than a flag, so the receipt can quote the number of
+    /// the receipt actually paid and the desk can answer "which payment was
+    /// this free against?" months later.
+    /// </summary>
+    public Guid? FeeWaivedAgainstVisitId { get; set; }
+    public Visit? FeeWaivedAgainstVisit { get; set; }
+
     public DateTime? FollowUpOn { get; set; }
 
     /// <summary>Set when this visit was created by checking in an
@@ -184,7 +234,29 @@ public class Visit : BaseEntity
         ? ""
         : $"{Patient.AgeText} {Patient.Gender.ToString()[0]} · {ScheduledOn:HH:mm}";
 
-    public string FeeBadge => FeePaid ? "Fee paid" : "Fee due";
+    /// <summary>A return inside the paying visit's window — free, and not the
+    /// same thing as a visit that simply has not paid yet.</summary>
+    public bool IsReview => FeeWaivedAgainstVisitId is not null;
+
+    /// <summary>
+    /// Whether the money side of this visit is finished — paid, or free because
+    /// it is a review. The screens ask this rather than <see cref="FeePaid"/>,
+    /// which on its own means only "still owes", and would put a Fee button on
+    /// a review and chase it as an unpaid visit.
+    /// </summary>
+    public bool FeeSettled => FeePaid || IsReview;
+
+    /// <summary>"New" or "Review", as the receipt prints it.</summary>
+    public string VisitKind => IsReview ? "Review" : "New";
+
+    public string FeeBadge => IsReview ? "Review · no fee" : FeePaid ? "Fee paid" : "Fee due";
+
+    /// <summary>
+    /// Whether there is still money to take. False on a review, which owes
+    /// nothing, as well as on a visit already paid — the screen stops offering
+    /// Fee in both cases, and for the same reason: there is nothing to collect.
+    /// </summary>
+    public bool CanCollectFee => !FeeSettled;
 
     /// <summary>
     /// Whether this visit may still be called off.

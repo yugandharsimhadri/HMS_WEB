@@ -2193,6 +2193,686 @@ BEGIN
 END $EF$;
 COMMIT;
 
+START TRANSACTION;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030162902_PatientAgeMonths') THEN
+    ALTER TABLE "Patients" ADD "AgeMonths" integer NOT NULL DEFAULT 0;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261030162902_PatientAgeMonths') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20261030162902_PatientAgeMonths', '10.0.11');
+    END IF;
+END $EF$;
+COMMIT;
+
+START TRANSACTION;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "DischargeSummaries" (
+        "Id" uuid NOT NULL,
+        "AdmissionId" uuid NOT NULL,
+        "FinalDiagnosis" text,
+        "CourseInHospital" text,
+        "Treatment" text,
+        "ConditionAtDischarge" text,
+        "Medicines" text,
+        "Advice" text,
+        "FollowUpOn" timestamp without time zone,
+        "DoctorName" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_DischargeSummaries" PRIMARY KEY ("Id")
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "IpNotes" (
+        "Id" uuid NOT NULL,
+        "AdmissionId" uuid NOT NULL,
+        "WrittenOn" timestamp without time zone NOT NULL,
+        "Author" text NOT NULL,
+        "Text" text NOT NULL,
+        "TemperatureF" numeric(12,2),
+        "Pulse" integer,
+        "BloodPressure" text,
+        "Spo2" integer,
+        "RespiratoryRate" integer,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_IpNotes" PRIMARY KEY ("Id")
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "IpServices" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "Category" integer NOT NULL,
+        "Rate" numeric(12,2) NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_IpServices" PRIMARY KEY ("Id")
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "RoomTypes" (
+        "Id" uuid NOT NULL,
+        "Name" text NOT NULL,
+        "DailyRent" numeric(12,2) NOT NULL,
+        "NursingPerDay" numeric(12,2) NOT NULL,
+        "GstPercent" numeric(12,2) NOT NULL,
+        "Active" boolean NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_RoomTypes" PRIMARY KEY ("Id")
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "Beds" (
+        "Id" uuid NOT NULL,
+        "BedNo" text NOT NULL,
+        "Ward" text NOT NULL,
+        "RoomTypeId" uuid NOT NULL,
+        "Status" integer NOT NULL,
+        "Note" text,
+        "Active" boolean NOT NULL,
+        "SortOrder" integer NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Beds" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_Beds_RoomTypes_RoomTypeId" FOREIGN KEY ("RoomTypeId") REFERENCES "RoomTypes" ("Id") ON DELETE RESTRICT
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "Admissions" (
+        "Id" uuid NOT NULL,
+        "IpNo" text NOT NULL,
+        "PatientId" uuid NOT NULL,
+        "DoctorId" uuid NOT NULL,
+        "VisitId" uuid,
+        "AdmittedOn" timestamp without time zone NOT NULL,
+        "Reason" text,
+        "AttendantName" text,
+        "AttendantRelation" text,
+        "AttendantPhone" text,
+        "PayerType" integer NOT NULL,
+        "InsurerName" text,
+        "PolicyNo" text,
+        "IsMlc" boolean NOT NULL,
+        "Status" integer NOT NULL,
+        "DischargedOn" timestamp without time zone,
+        "DischargeType" integer,
+        "BedId" uuid NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_Admissions" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_Admissions_Beds_BedId" FOREIGN KEY ("BedId") REFERENCES "Beds" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_Admissions_Doctors_DoctorId" FOREIGN KEY ("DoctorId") REFERENCES "Doctors" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_Admissions_Patients_PatientId" FOREIGN KEY ("PatientId") REFERENCES "Patients" ("Id") ON DELETE RESTRICT,
+        CONSTRAINT "FK_Admissions_Visits_VisitId" FOREIGN KEY ("VisitId") REFERENCES "Visits" ("Id") ON DELETE SET NULL
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "BedStays" (
+        "Id" uuid NOT NULL,
+        "AdmissionId" uuid NOT NULL,
+        "BedId" uuid NOT NULL,
+        "BedNo" text NOT NULL,
+        "RoomTypeName" text NOT NULL,
+        "DailyRent" numeric(12,2) NOT NULL,
+        "NursingPerDay" numeric(12,2) NOT NULL,
+        "GstPercent" numeric(12,2) NOT NULL,
+        "From" timestamp without time zone NOT NULL,
+        "To" timestamp without time zone,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_BedStays" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_BedStays_Admissions_AdmissionId" FOREIGN KEY ("AdmissionId") REFERENCES "Admissions" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_BedStays_Beds_BedId" FOREIGN KEY ("BedId") REFERENCES "Beds" ("Id") ON DELETE RESTRICT
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "IpBills" (
+        "Id" uuid NOT NULL,
+        "BillNo" text NOT NULL,
+        "AdmissionId" uuid NOT NULL,
+        "BilledOn" timestamp without time zone NOT NULL,
+        "BilledUpTo" timestamp without time zone NOT NULL,
+        "BedDays" integer NOT NULL,
+        "Gross" numeric(12,2) NOT NULL,
+        "Gst" numeric(12,2) NOT NULL,
+        "Discount" numeric(12,2) NOT NULL,
+        "DiscountReason" text,
+        "Net" numeric(12,2) NOT NULL,
+        "InsuranceAdjustment" numeric(12,2) NOT NULL,
+        "Status" integer NOT NULL,
+        "CancelledOn" timestamp without time zone,
+        "CancelReason" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_IpBills" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_IpBills_Admissions_AdmissionId" FOREIGN KEY ("AdmissionId") REFERENCES "Admissions" ("Id") ON DELETE RESTRICT
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "IpCharges" (
+        "Id" uuid NOT NULL,
+        "AdmissionId" uuid NOT NULL,
+        "ChargeDate" timestamp without time zone NOT NULL,
+        "IpServiceId" uuid,
+        "Category" integer NOT NULL,
+        "Description" text NOT NULL,
+        "DoctorId" uuid,
+        "Quantity" integer NOT NULL,
+        "Rate" numeric(12,2) NOT NULL,
+        "Amount" numeric(12,2) NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_IpCharges" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_IpCharges_Admissions_AdmissionId" FOREIGN KEY ("AdmissionId") REFERENCES "Admissions" ("Id") ON DELETE CASCADE,
+        CONSTRAINT "FK_IpCharges_Doctors_DoctorId" FOREIGN KEY ("DoctorId") REFERENCES "Doctors" ("Id") ON DELETE SET NULL,
+        CONSTRAINT "FK_IpCharges_IpServices_IpServiceId" FOREIGN KEY ("IpServiceId") REFERENCES "IpServices" ("Id") ON DELETE SET NULL
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "IpPayments" (
+        "Id" uuid NOT NULL,
+        "AdmissionId" uuid NOT NULL,
+        "ReceiptNo" text NOT NULL,
+        "PaidOn" timestamp without time zone NOT NULL,
+        "Kind" integer NOT NULL,
+        "Amount" numeric(12,2) NOT NULL,
+        "Mode" integer,
+        "Reference" text,
+        "Remarks" text,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_IpPayments" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_IpPayments_Admissions_AdmissionId" FOREIGN KEY ("AdmissionId") REFERENCES "Admissions" ("Id") ON DELETE RESTRICT
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE TABLE "IpBillLines" (
+        "Id" uuid NOT NULL,
+        "BillId" uuid NOT NULL,
+        "Sort" integer NOT NULL,
+        "Category" integer NOT NULL,
+        "ChargeDate" timestamp without time zone,
+        "Description" text NOT NULL,
+        "Quantity" numeric(10,2) NOT NULL,
+        "Rate" numeric(12,2) NOT NULL,
+        "Amount" numeric(12,2) NOT NULL,
+        "GstPercent" numeric(12,2) NOT NULL,
+        "TenantId" uuid NOT NULL,
+        "RowVersion" bytea NOT NULL,
+        "CreatedAt" timestamp without time zone NOT NULL,
+        "UpdatedAt" timestamp without time zone,
+        "IsDeleted" boolean NOT NULL,
+        "CreatedByUserId" uuid,
+        "UpdatedByUserId" uuid,
+        CONSTRAINT "PK_IpBillLines" PRIMARY KEY ("Id"),
+        CONSTRAINT "FK_IpBillLines_IpBills_BillId" FOREIGN KEY ("BillId") REFERENCES "IpBills" ("Id") ON DELETE CASCADE
+    );
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_Admissions_AdmittedOn" ON "Admissions" ("AdmittedOn");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_Admissions_BedId" ON "Admissions" ("BedId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_Admissions_DischargedOn" ON "Admissions" ("DischargedOn");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_Admissions_DoctorId" ON "Admissions" ("DoctorId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_Admissions_PatientId" ON "Admissions" ("PatientId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_Admissions_Status" ON "Admissions" ("Status");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE UNIQUE INDEX "IX_Admissions_TenantId_IpNo" ON "Admissions" ("TenantId", "IpNo");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_Admissions_VisitId" ON "Admissions" ("VisitId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_Beds_RoomTypeId" ON "Beds" ("RoomTypeId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE UNIQUE INDEX "IX_Beds_TenantId_BedNo" ON "Beds" ("TenantId", "BedNo") WHERE "IsDeleted" = false;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_BedStays_AdmissionId" ON "BedStays" ("AdmissionId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_BedStays_BedId" ON "BedStays" ("BedId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE UNIQUE INDEX "IX_DischargeSummaries_AdmissionId" ON "DischargeSummaries" ("AdmissionId") WHERE "IsDeleted" = false;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_IpBillLines_BillId" ON "IpBillLines" ("BillId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_IpBills_BilledOn" ON "IpBills" ("BilledOn");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE UNIQUE INDEX "IX_IpBills_OneFinalPerAdmission" ON "IpBills" ("AdmissionId") WHERE "Status" = 1 AND "IsDeleted" = false;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE UNIQUE INDEX "IX_IpBills_TenantId_BillNo" ON "IpBills" ("TenantId", "BillNo");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_IpCharges_AdmissionId" ON "IpCharges" ("AdmissionId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_IpCharges_ChargeDate" ON "IpCharges" ("ChargeDate");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_IpCharges_DoctorId" ON "IpCharges" ("DoctorId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_IpCharges_IpServiceId" ON "IpCharges" ("IpServiceId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_IpNotes_AdmissionId_WrittenOn" ON "IpNotes" ("AdmissionId", "WrittenOn");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_IpPayments_AdmissionId" ON "IpPayments" ("AdmissionId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_IpPayments_PaidOn" ON "IpPayments" ("PaidOn");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE UNIQUE INDEX "IX_IpPayments_TenantId_ReceiptNo" ON "IpPayments" ("TenantId", "ReceiptNo");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_IpServices_Name" ON "IpServices" ("Name");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    CREATE INDEX "IX_RoomTypes_Name" ON "RoomTypes" ("Name");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261031172925_Inpatient') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20261031172925_Inpatient', '10.0.11');
+    END IF;
+END $EF$;
+COMMIT;
+
+START TRANSACTION;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    ALTER TABLE "Sales" ADD "AdmissionId" uuid;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    ALTER TABLE "ProcedureBills" ADD "AdmissionId" uuid;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    ALTER TABLE "LabOrders" ADD "AdmissionId" uuid;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    ALTER TABLE "DiagnosticBills" ADD "AdmissionId" uuid;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    CREATE INDEX "IX_Sales_AdmissionId" ON "Sales" ("AdmissionId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    CREATE INDEX "IX_ProcedureBills_AdmissionId" ON "ProcedureBills" ("AdmissionId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    CREATE INDEX "IX_LabOrders_AdmissionId" ON "LabOrders" ("AdmissionId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    CREATE INDEX "IX_DiagnosticBills_AdmissionId" ON "DiagnosticBills" ("AdmissionId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    ALTER TABLE "DiagnosticBills" ADD CONSTRAINT "FK_DiagnosticBills_Admissions_AdmissionId" FOREIGN KEY ("AdmissionId") REFERENCES "Admissions" ("Id") ON DELETE RESTRICT;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    ALTER TABLE "LabOrders" ADD CONSTRAINT "FK_LabOrders_Admissions_AdmissionId" FOREIGN KEY ("AdmissionId") REFERENCES "Admissions" ("Id") ON DELETE RESTRICT;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    ALTER TABLE "ProcedureBills" ADD CONSTRAINT "FK_ProcedureBills_Admissions_AdmissionId" FOREIGN KEY ("AdmissionId") REFERENCES "Admissions" ("Id") ON DELETE RESTRICT;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    ALTER TABLE "Sales" ADD CONSTRAINT "FK_Sales_Admissions_AdmissionId" FOREIGN KEY ("AdmissionId") REFERENCES "Admissions" ("Id") ON DELETE RESTRICT;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261101014035_IpLinkedBilling') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20261101014035_IpLinkedBilling', '10.0.11');
+    END IF;
+END $EF$;
+COMMIT;
+
+START TRANSACTION;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261102171804_AddOpdValidDaysAndDoctorQualification') THEN
+    DROP INDEX "IX_Visits_PatientId";
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261102171804_AddOpdValidDaysAndDoctorQualification') THEN
+    ALTER TABLE "Visits" ADD "FeeWaivedAgainstVisitId" uuid;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261102171804_AddOpdValidDaysAndDoctorQualification') THEN
+    ALTER TABLE "Visits" ADD "FreeFollowUpUntil" timestamp without time zone;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261102171804_AddOpdValidDaysAndDoctorQualification') THEN
+    ALTER TABLE "Doctors" ADD "OpdValidDays" integer NOT NULL DEFAULT 0;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261102171804_AddOpdValidDaysAndDoctorQualification') THEN
+    ALTER TABLE "Doctors" ADD "Qualification" text;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261102171804_AddOpdValidDaysAndDoctorQualification') THEN
+    CREATE INDEX "IX_Visits_FeeWaivedAgainstVisitId" ON "Visits" ("FeeWaivedAgainstVisitId");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261102171804_AddOpdValidDaysAndDoctorQualification') THEN
+    CREATE INDEX "IX_Visits_PatientId_DoctorId_FreeFollowUpUntil" ON "Visits" ("PatientId", "DoctorId", "FreeFollowUpUntil");
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261102171804_AddOpdValidDaysAndDoctorQualification') THEN
+    ALTER TABLE "Visits" ADD CONSTRAINT "FK_Visits_Visits_FeeWaivedAgainstVisitId" FOREIGN KEY ("FeeWaivedAgainstVisitId") REFERENCES "Visits" ("Id") ON DELETE RESTRICT;
+    END IF;
+END $EF$;
+
+DO $EF$
+BEGIN
+    IF NOT EXISTS(SELECT 1 FROM "__EFMigrationsHistory" WHERE "MigrationId" = '20261102171804_AddOpdValidDaysAndDoctorQualification') THEN
+    INSERT INTO "__EFMigrationsHistory" ("MigrationId", "ProductVersion")
+    VALUES ('20261102171804_AddOpdValidDaysAndDoctorQualification', '10.0.11');
+    END IF;
+END $EF$;
+COMMIT;
+
 
 -- ------------------------------------------------------------ 5. check
 

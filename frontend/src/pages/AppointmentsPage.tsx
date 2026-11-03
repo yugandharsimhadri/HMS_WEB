@@ -174,7 +174,9 @@ export function AppointmentsPage() {
   const checkIn = (a: Appointment) =>
     runDaily(async () => {
       const result = await api.post<CheckInResult>(`/api/appointments/${a.id}/check-in`);
-      return `${result.patientName} checked in — token ${result.tokenNo}.`;
+      return result.isReview
+        ? `${result.patientName} checked in — token ${result.tokenNo}, review, no fee due.`
+        : `${result.patientName} checked in — token ${result.tokenNo}.`;
     });
 
   const cancel = (a: Appointment) => {

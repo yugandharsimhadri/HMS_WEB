@@ -9,6 +9,12 @@ public record BookVisitRequest(Guid PatientId, Guid DoctorId, DateTime Scheduled
 public record CollectFeeRequest(PaymentMode Mode, decimal? Amount, string? TransactionNo);
 public record SetStatusRequest(VisitStatus Status);
 
+/// <summary>The paid visit that still covers a patient with a doctor — what the
+/// booking screen needs in order to say "free, because of receipt X until Y".
+/// Wrapped so "nobody covers them" is a normal answer rather than an empty body.</summary>
+public record FeeCoverResult(Guid VisitId, decimal Fee, string? ReceiptNo, DateTime? PaidOn, DateTime? FreeUntil);
+public record FeeCoverResponse(FeeCoverResult? Cover);
+
 public record PrescriptionLineRequest(
     Guid? ProductId, string MedicineName, string? Dosage, string? Frequency,
     int Days, int Quantity, string? Instructions);
@@ -47,13 +53,38 @@ public class VisitsController(OpdService opd) : ControllerBase
         return visit is null ? NotFound() : Ok(visit);
     }
 
+    /// <summary>
+    /// Whether this patient has already paid this doctor inside a live OPD
+    /// validity window on <paramref name="date"/> — the day of the visit being
+    /// booked, not today. Read-only: it informs the booking screen, and the
+    /// booking itself asks again rather than trusting what the screen showed.
+    /// </summary>
+    [HttpGet("fee-cover")]
+    public async Task<ActionResult<FeeCoverResponse>> FeeCover(
+        [FromQuery] Guid patientId, [FromQuery] Guid doctorId, [FromQuery] DateTime date)
+    {
+        var cover = await opd.FindCoverForBookingAsync(patientId, doctorId, date, fee: 0m);
+        return Ok(new FeeCoverResponse(cover is null
+            ? null
+            : new FeeCoverResult(cover.Id, cover.Fee, cover.FeeReceiptNo, cover.FeePaidOn, cover.FreeFollowUpUntil)));
+    }
+
     [HttpPost]
     public async Task<ActionResult<Visit>> Book(BookVisitRequest request)
     {
         try
         {
+            // Re-checked here rather than trusted from the booking screen: the
+            // patient may have been picked before the doctor, or changed after
+            // it, and a fee typed back in means the desk decided to charge
+            // after all. The client never names the payment a review rides on —
+            // the server finds it, so a free visit cannot be claimed.
+            var cover = await opd.FindCoverForBookingAsync(
+                request.PatientId, request.DoctorId, request.ScheduledOn, request.Fee);
+
             var visit = await opd.BookVisitAsync(
-                request.PatientId, request.DoctorId, request.ScheduledOn, request.Complaint, request.Fee);
+                request.PatientId, request.DoctorId, request.ScheduledOn, request.Complaint, request.Fee,
+                feeWaivedAgainstVisitId: cover?.Id);
             return Ok(visit);
         }
         catch (InvalidOperationException ex)
@@ -79,8 +110,16 @@ public class VisitsController(OpdService opd) : ControllerBase
     [HttpPost("{id:guid}/collect-fee")]
     public async Task<ActionResult<Visit>> CollectFee(Guid id, CollectFeeRequest request)
     {
-        var visit = await opd.CollectFeeAsync(id, request.Mode, request.Amount, request.TransactionNo);
-        return visit is null ? NotFound() : Ok(visit);
+        try
+        {
+            var visit = await opd.CollectFeeAsync(id, request.Mode, request.Amount, request.TransactionNo);
+            return visit is null ? NotFound() : Ok(visit);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // A review owes nothing — see OpdService.CollectFeeAsync.
+            return BadRequest(ex.Message);
+        }
     }
 
     /// <summary>Saves the consultation. <c>Complete</c> also moves the visit

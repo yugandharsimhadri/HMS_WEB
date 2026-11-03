@@ -54,7 +54,12 @@ public static class TenantProvisioner
                 Name = "Dr. A. Kumar",
                 Speciality = "Paediatrics",
                 RegistrationNo = "REG-00000",
+                Qualification = "MBBS, MD (Paediatrics)",
                 ConsultationFee = 300m,
+
+                // Left off. A starter clinic should charge every visit until
+                // somebody deliberately decides otherwise — see Settings.
+                OpdValidDays = 0,
                 IsActive = true
             });
         }

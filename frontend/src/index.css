@@ -781,6 +781,17 @@ tbody tr.row-flagged:hover { background: var(--c-warn-weak); }
 .hint { font-size: 12.5px; color: var(--c-text-3); margin: 0; }
 .hint.warn { color: var(--c-warn); }
 
+/* Why a booking is free — the OPD validity window. Must stand out from the
+   ordinary hints around it, because it is the one thing the desk will be asked
+   about by the person standing in front of them. */
+.hint.cover-note {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--c-accent-weak);
+  color: var(--c-accent-hi);
+}
+
 .status-line {
   background: var(--c-ok-weak);
   color: var(--c-ok);

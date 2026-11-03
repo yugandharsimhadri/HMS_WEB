@@ -1242,7 +1242,13 @@ namespace SivayaanHMS.Data.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<int>("OpdValidDays")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Phone")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Qualification")
                         .HasColumnType("text");
 
                     b.Property<string>("RegistrationNo")
@@ -3991,7 +3997,13 @@ namespace SivayaanHMS.Data.Migrations
                     b.Property<string>("FeeTransactionNo")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("FeeWaivedAgainstVisitId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("FollowUpOn")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<DateTime?>("FreeFollowUpUntil")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<int?>("HeartRateBpm")
@@ -4056,14 +4068,16 @@ namespace SivayaanHMS.Data.Migrations
 
                     b.HasIndex("FeePaidOn");
 
-                    b.HasIndex("FollowUpOn");
+                    b.HasIndex("FeeWaivedAgainstVisitId");
 
-                    b.HasIndex("PatientId");
+                    b.HasIndex("FollowUpOn");
 
                     b.HasIndex("ScheduledOn");
 
                     b.HasIndex("TenantId", "VisitNo")
                         .IsUnique();
+
+                    b.HasIndex("PatientId", "DoctorId", "FreeFollowUpUntil");
 
                     b.ToTable("Visits");
                 });
@@ -4726,6 +4740,11 @@ namespace SivayaanHMS.Data.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("SivayaanHMS.Core.Visit", "FeeWaivedAgainstVisit")
+                        .WithMany()
+                        .HasForeignKey("FeeWaivedAgainstVisitId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("SivayaanHMS.Core.Patient", "Patient")
                         .WithMany("Visits")
                         .HasForeignKey("PatientId")
@@ -4733,6 +4752,8 @@ namespace SivayaanHMS.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Doctor");
+
+                    b.Navigation("FeeWaivedAgainstVisit");
 
                     b.Navigation("Patient");
                 });

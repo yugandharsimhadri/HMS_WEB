@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, ApiError } from '../api/client';
-import type { Doctor, Gender, Patient, Visit } from '../api/types';
+import type { Doctor, FeeCover, Gender, Patient, Visit } from '../api/types';
 import { useModalBehaviour } from '../shell/useModalBehaviour';
 import { agePartsFromDob, parseMonths } from './PatientEditorDialog';
 
@@ -51,12 +51,67 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  // The earlier paid visit that still covers this patient with this doctor,
+  // when the doctor runs an OPD validity window and the patient is inside it.
+  // Null the rest of the time, which is every booking until a doctor turns the
+  // scheme on in Settings.
+  const [cover, setCover] = useState<FeeCover | null>(null);
+
   // Booking from a doctor's tab defaults to that doctor, and the fee follows
-  // whichever doctor is chosen.
+  // whichever doctor is chosen — and, when the patient is still inside that
+  // doctor's validity window, drops to nothing.
+  //
+  // A default, not a lock. The fee box stays editable: a return inside the
+  // window for a genuinely new complaint is usually still chargeable, and that
+  // is a judgement no rule here can make. Whether the visit is recorded as a
+  // free review is decided by the server from what the fee says when Book is
+  // pressed, not by what this suggested.
+  const patientId = selectedPatient?.id ?? null;
   useEffect(() => {
     const doctor = doctors.find((d) => d.id === doctorId);
-    if (doctor) setFee(String(doctor.consultationFee));
-  }, [doctorId, doctors]);
+    if (!doctor) return;
+
+    if (!patientId || doctor.opdValidDays <= 0) {
+      setCover(null);
+      setFee(String(doctor.consultationFee));
+      return;
+    }
+
+    let stale = false;
+    api
+      .get<{ cover: FeeCover | null }>(
+        `/api/visits/fee-cover?patientId=${patientId}&doctorId=${doctor.id}&date=${date}`,
+      )
+      .then((r) => {
+        if (stale) return;
+        setCover(r.cover);
+        setFee(r.cover ? '0' : String(doctor.consultationFee));
+      })
+      .catch(() => {
+        // Not being able to ask must never stop a booking: fall back to the
+        // ordinary fee and let the server decide when the visit is booked.
+        if (stale) return;
+        setCover(null);
+        setFee(String(doctor.consultationFee));
+      });
+
+    return () => {
+      stale = true;
+    };
+  }, [doctorId, doctors, patientId, date]);
+
+  const short = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : '';
+
+  // Why this booking is free, in the terms the desk would use to explain it to
+  // the person standing in front of them.
+  const coverNote = cover
+    ? `Review — ₹${cover.fee.toFixed(0)} paid on ${short(cover.paidOn)}` +
+      (cover.receiptNo ? ` (receipt ${cover.receiptNo})` : '') +
+      `, free with this doctor until ${cover.freeUntil
+        ? new Date(cover.freeUntil).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+        : ''}.`
+    : '';
 
   useEffect(() => {
     if (!newDob) return;
@@ -155,7 +210,11 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
         fee: Number(fee) || 0,
       });
 
-      onBooked(`Token ${visit.tokenNo} booked for ${patient.name}.`);
+      onBooked(
+        visit.isReview
+          ? `Token ${visit.tokenNo} booked for ${patient.name} — review, no fee due.`
+          : `Token ${visit.tokenNo} booked for ${patient.name}.`,
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not book the visit.');
     } finally {
@@ -317,6 +376,17 @@ export function BookVisitDialog({ doctors, preferredDoctorId, date, onClose, onB
                 onChange={(e) => setFee(e.target.value)}
               />
             </div>
+
+            {/* Only ever seen when the doctor runs an OPD validity window and
+                this patient is inside it. Says which payment covers them and
+                until when, so the desk can answer the parent without opening
+                another screen — and the fee box above stays editable, because
+                a return for a new complaint is usually still chargeable. */}
+            {cover && (
+              <p className="hint cover-note" role="status" data-testid="opd-fee-cover-note">
+                {coverNote}
+              </p>
+            )}
           </section>
 
           <section>

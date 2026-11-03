@@ -165,7 +165,7 @@ export function PatientsPage() {
                       <td>{v.visitNo}</td>
                       <td>{new Date(v.scheduledOn).toLocaleDateString()}</td>
                       <td>{v.doctor?.name ?? ''}</td>
-                      <td>{v.fee.toFixed(2)}{v.feePaid ? ' (paid)' : ''}</td>
+                      <td>{v.fee.toFixed(2)}{v.isReview ? ' (review)' : v.feePaid ? ' (paid)' : ''}</td>
                       <td className="row-actions">
                         <button
                           type="button"
@@ -174,13 +174,13 @@ export function PatientsPage() {
                         >
                           Rx
                         </button>
-                        {v.feePaid && (
+                        {v.feeSettled && (
                           <button
                             type="button"
                             className="ghost"
                             onClick={() => print(`/api/print/receipt/${v.id}?reprint=true`, 'No receipt recorded.')}
                           >
-                            Receipt
+                            {v.isReview ? 'Slip' : 'Receipt'}
                           </button>
                         )}
                       </td>

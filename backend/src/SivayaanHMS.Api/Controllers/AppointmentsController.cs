@@ -31,7 +31,7 @@ public record ToggleReminderRequest(
     ReminderSourceKind SourceKind, Guid SourceId, Guid PatientId, DateTime DueOn, bool IsReminded);
 
 /// <summary>What a check-in produced, so the desk can read the token back.</summary>
-public record CheckInResult(Guid VisitId, int TokenNo, string PatientName);
+public record CheckInResult(Guid VisitId, int TokenNo, string PatientName, bool IsReview = false);
 
 /// <summary>
 /// Advance booking shared by every clinical module: the day's list, booking,
@@ -160,13 +160,23 @@ public class AppointmentsController(
 
         try
         {
+            // The doctor's OPD validity window applies however the visit was
+            // created. Checking in an appointment from a patient who is still
+            // covered and taking the fee anyway would charge them for something
+            // they have already paid for, purely because they booked ahead
+            // instead of walking in.
+            var cover = doctor is { OpdValidDays: > 0 }
+                ? await opd.FindFeeCoverAsync(appointment.PatientId, appointment.DoctorId, DateTime.Today)
+                : null;
+
             var visit = await opd.BookVisitAsync(
                 appointment.PatientId, appointment.DoctorId, DateTime.Now,
-                appointment.Reason, doctor?.ConsultationFee ?? 0, appointment.Id);
+                appointment.Reason, cover is null ? doctor?.ConsultationFee ?? 0 : 0m,
+                appointment.Id, feeWaivedAgainstVisitId: cover?.Id);
 
             await appointments.MarkCheckedInAsync(appointment.Id, visit.Id);
 
-            return Ok(new CheckInResult(visit.Id, visit.TokenNo, appointment.PatientName));
+            return Ok(new CheckInResult(visit.Id, visit.TokenNo, appointment.PatientName, cover is not null));
         }
         catch (InvalidOperationException ex)
         {

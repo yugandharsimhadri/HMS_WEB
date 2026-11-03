@@ -274,6 +274,12 @@ export interface Doctor {
   registrationNo: string | null;
   consultationFee: number;
   isActive: boolean;
+  /** Degrees as they print beside the name on a receipt. */
+  qualification: string | null;
+  /** Days one consultation fee covers with this doctor. 0 charges every visit. */
+  opdValidDays: number;
+  /** Name with degrees, as the server composes it. */
+  nameWithQualification: string;
 }
 
 export interface ClinicProfile {
@@ -472,9 +478,30 @@ export interface Visit {
   feeReceiptNo: string | null;
   feePaymentMode: PaymentMode | null;
   feeTransactionNo: string | null;
+  /** The last day this payment covers a return to the same doctor, if the doctor runs a window. */
+  freeFollowUpUntil: string | null;
+  /** The paid visit this one rides on, when it is a free review inside that window. */
+  feeWaivedAgainstVisitId: string | null;
+  /** A return inside the paying visit's window — free, and not the same as unpaid. */
+  isReview: boolean;
+  /** Paid, or free because it is a review. `feePaid` alone only means "still owes". */
+  feeSettled: boolean;
+  /** Whether there is still money to take. False on a review. */
+  canCollectFee: boolean;
+  visitKind: 'New' | 'Review';
+  feeBadge: string;
   followUpOn: string | null;
   prescription: PrescriptionItem[];
   diagnosticRequests: VisitDiagnosticRequest[];
+}
+
+/** What GET /api/visits/fee-cover answers: the earlier paid visit that still covers a patient. */
+export interface FeeCover {
+  visitId: string;
+  fee: number;
+  receiptNo: string | null;
+  paidOn: string | null;
+  freeUntil: string | null;
 }
 
 /** Which sitting the OPD screen is showing. Mirrors the desktop's
@@ -535,6 +562,8 @@ export interface CheckInResult {
   visitId: string;
   tokenNo: number;
   patientName: string;
+  /** True when the patient was still inside their doctor's OPD validity window, so no fee is due. */
+  isReview: boolean;
 }
 
 // ── Diagnostics ──────────────────────────────────────────────────────────

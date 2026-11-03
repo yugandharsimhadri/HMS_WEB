@@ -181,12 +181,28 @@ public class AppDbContext : DbContext
             e.HasOne<Appointment>().WithMany()
                 .HasForeignKey(x => x.AppointmentId).OnDelete(DeleteBehavior.SetNull);
 
+            // The paid visit a review rides on. Restrict, not Cascade: deleting
+            // the paying visit must never take its free follow-ups with it, and
+            // in practice a paid visit cannot be removed at all.
+            e.HasOne(x => x.FeeWaivedAgainstVisit).WithMany()
+                .HasForeignKey(x => x.FeeWaivedAgainstVisitId).OnDelete(DeleteBehavior.Restrict);
+
+            // Looked up on every booking once a doctor turns the scheme on:
+            // "has this patient already paid this doctor inside a live window?"
+            e.HasIndex(x => new { x.PatientId, x.DoctorId, x.FreeFollowUpUntil });
+
             e.Ignore(x => x.IsWaiting);
             e.Ignore(x => x.PatientLine);
             e.Ignore(x => x.FeeBadge);
             e.Ignore(x => x.RowSummary);
             e.Ignore(x => x.WaitedFor);
+            e.Ignore(x => x.IsReview);
+            e.Ignore(x => x.FeeSettled);
+            e.Ignore(x => x.VisitKind);
+            e.Ignore(x => x.CanCollectFee);
         });
+
+        b.Entity<Doctor>(e => e.Ignore(x => x.NameWithQualification));
 
         b.Entity<Product>(e =>
         {

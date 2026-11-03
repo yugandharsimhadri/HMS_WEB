@@ -167,6 +167,50 @@ surfaced are listed at the end.
 | 9.2 | **Prescription** — clinic header, doctor credentials, 3-row identity grid, vitals, Rx table, instructions, investigations, advice, follow-up, signature | ☑ |
 | 9.3 | **Fee receipt** — identity grid, particulars, received amount, in words, duplicate | ☑ |
 
+## 10 · OPD validity window and the review receipt (HMS_WPF `33e2eba`…`ff0c99d`, 9 Sep 2026)
+
+Added to the desktop after the web port was taken from its `Dentist_Pathology`
+branch, so the first port missed it. Ported 2 Nov 2026 and exercised end to
+end in a browser: a ₹300 fee taken on a doctor set to 7 days opened a window
+to the 9th; the same patient booked again came up as a free review with the
+fee at ₹0, the Fee button gone and a Slip in its place; the receipt printed
+the window and the slip quoted the original receipt number.
+
+| # | Feature | Why | Status |
+|---|---|---|---|
+| 10.1 | **`Doctor.OpdValidDays`** — days one fee covers; 0 (default) charges every visit | Per doctor because it is the doctor's own money being given away | ☑ |
+| 10.2 | **`Doctor.Qualification`** — free-text degrees, printed beside the name | Indian qualifications do not fit a fixed list | ☑ |
+| 10.3 | **Doctor editor** — both fields, with a note that says the number back ("One fee covers this doctor for 7 days…") | "7" alone does not say whether reviews just became free | ☑ |
+| 10.4 | **`Visit.FreeFollowUpUntil`** stamped once, when money is actually taken; never recomputed | The patient was told a date and it is printed; a later change to the doctor's setting must not revoke or extend it | ☑ |
+| 10.5 | **Dated from payment, day-wise** — paid at 9:45 pm on the 1st with 7 days is covered through the whole of the 8th | Nothing in the arithmetic looks at a clock | ☑ |
+| 10.6 | **Only a payment opens a window** — a review never re-anchors it | Otherwise a patient returning every sixth day is covered for ever | ☑ |
+| 10.7 | **`Visit.FeeWaivedAgainstVisitId`** — a real link to the paying visit, not a flag | So the slip can quote the receipt the money was taken on, months later | ☑ |
+| 10.8 | **`FindFeeCoverAsync`** — same patient, same doctor, dated on the visit being booked, inclusive of the last day | A fee paid to one doctor does not buy a visit with their colleague; booking on the 2nd for the 20th is outside a window ending on the 8th | ☑ |
+| 10.9 | **Booking** — cover found → fee ₹0 and a banner naming the receipt and the date; the fee box stays editable | A return for a new complaint is usually still chargeable; that judgement is the desk's | ☑ |
+| 10.10 | **Appointment check-in** applies the same cover | A patient who booked ahead must not be charged for what a walk-in gets free | ☑ |
+| 10.11 | **Queue tile** — "Review · no fee" badge, no Fee button (`CanCollectFee`), still cancellable | A review is a booking with no money on it | ☑ |
+| 10.12 | **Receipt for a review** — Visit line "Review", the original receipt's number, ₹0.00 stated, "(review — already paid)", "No fee — already paid on <date>", never stamped DUPLICATE | A receipt with no figure invites the question the figure answers; no new number is burned on a nil amount | ☑ |
+| 10.13 | **Receipt that opened a window** — "Free review with Dr X until <date>"; degrees beside the doctor's name; Visit line "New" | The line the desk points at when a parent asks whether they pay again | ☑ |
+| 10.14 | **Patients history** — "(review)" label and a Slip button | ☑ |
+
+### Where the web differs from the desktop here, on purpose
+
+- **The server decides what is free, not the client.** The desktop's booking
+  viewmodel works out the cover and passes the paying visit's id to the
+  service. Over HTTP that would let any caller name a payment and claim a free
+  visit, so the booking endpoint takes no such id: it looks the cover up itself
+  (`FindCoverForBookingAsync`) from the doctor's setting and the fee in the
+  request, and a fee typed back in means "charge this one". Checked by
+  sending a forged waiver id inside a live window — ignored.
+- **Taking a fee on a review is refused by the service**, not only hidden on
+  screen (`collect-fee` answers 400). On the desktop only the viewmodel guards
+  it; the web API is reachable by anything with a token.
+- **Doctor save leaves the new fields alone when they are absent.** A browser
+  tab still running the previous release does not send them, and an unrelated
+  edit from it must not blank a doctor's degrees or switch off a window the
+  clinic is relying on. The editor always sends both, so clearing is still
+  possible (empty string, and 0).
+
 ---
 
 ## Deliberate differences from HMS_WPF

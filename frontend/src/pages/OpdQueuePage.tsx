@@ -201,6 +201,10 @@ export function OpdQueuePage() {
   };
 
   const collectFee = (visit: Visit) => {
+    if (visit.isReview) {
+      setStatus(`Token ${visit.tokenNo} is a review inside the doctor's OPD validity window — no fee is due.`);
+      return;
+    }
     if (visit.feePaid) {
       setStatus(`Token ${visit.tokenNo} has already paid — use Receipt to reprint.`);
       return;
@@ -267,16 +271,20 @@ export function OpdQueuePage() {
           Reopen
         </button>
       )}
-      {!visit.feePaid && visit.status !== 'Cancelled' && (
+      {/* A review inside the doctor's OPD validity window has no fee to take. */}
+      {visit.canCollectFee && visit.status !== 'Cancelled' && (
         <button type="button" onClick={() => collectFee(visit)}>Fee</button>
       )}
-      {visit.feePaid && (
+      {/* A review takes no money and gets no receipt number, but it still gets
+          paper: a slip naming the doctor, the token and the receipt the fee was
+          actually paid on. */}
+      {visit.feeSettled && visit.status !== 'Cancelled' && (
         <button
           type="button"
           className="ghost"
           onClick={() => print(`/api/print/receipt/${visit.id}?reprint=true`, 'No receipt to print.')}
         >
-          Receipt
+          {visit.isReview ? 'Slip' : 'Receipt'}
         </button>
       )}
       <button
@@ -310,8 +318,11 @@ export function OpdQueuePage() {
             {visit.doctor.name}
           </div>
         </div>
-        <span className={`badge ${visit.feePaid ? 'paid' : 'unpaid'}`}>
-          ₹{visit.fee.toFixed(2)}{visit.feePaid ? ' paid' : ''}
+        <span
+          className={`badge ${visit.feeSettled ? 'paid' : 'unpaid'}`}
+          title={visit.isReview ? "A review inside the doctor's OPD validity window — no fee is due." : undefined}
+        >
+          {visit.isReview ? 'Review · no fee' : `₹${visit.fee.toFixed(2)}${visit.feePaid ? ' paid' : ''}`}
         </span>
       </div>
       <StatusChip status={visit.status} />
@@ -343,7 +354,7 @@ export function OpdQueuePage() {
             <td>{new Date(v.scheduledOn).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</td>
             <td>{v.doctor.name}</td>
             <td><StatusChip status={v.status} /></td>
-            <td>{v.fee.toFixed(2)}{v.feePaid ? ' (paid)' : ''}</td>
+            <td>{v.fee.toFixed(2)}{v.isReview ? ' (review)' : v.feePaid ? ' (paid)' : ''}</td>
             <td>{actions(v)}</td>
           </tr>
         ))}
