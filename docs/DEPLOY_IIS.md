@@ -184,7 +184,11 @@ New-Website -Name SivayaanHMS -ApplicationPool SivayaanHMS -PhysicalPath C:\Siva
 ```
 
 The app pool identity (`IIS AppPool\SivayaanHMS`) needs to read the folder,
-and to write the `logs` folder if stdout logging is ever turned on:
+and to write the `logs` folder — the application keeps its own logs there,
+`hms-<date>.log` (what it did, warnings, errors, and one line per API request)
+and `messages-<date>.log` (password resets and SivaCom/WhatsApp calls). Each is
+switched in the `Logging` section of `appsettings.Production.json`; without
+this permission nothing is written and nothing fails:
 
 ```powershell
 icacls C:\SivayaanHMS\api /grant "IIS AppPool\SivayaanHMS:(OI)(CI)(RX)" /T | Out-Null

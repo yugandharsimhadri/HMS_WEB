@@ -20,9 +20,10 @@ var builder = WebApplication.CreateBuilder(args);
 // nobody set.
 builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
-// Log files: the main log when Logging:File:PathFormat is set, and the
-// messages log (every reset request and every SivaCom/WhatsApp call) on any
-// server. IIS keeps no logs of its own for us. See MessagingLog.
+// Log files, on any server outside Development: the main log (the app's own
+// work, every API request, everyone's warnings and errors) and the messages
+// log (every reset request and every SivaCom/WhatsApp call). Each has its own
+// on/off switch. IIS keeps no logs of its own for us. See MessagingLog.
 SivayaanHMS.Api.MessagingLog.AddFiles(builder);
 
 // ── Database ─────────────────────────────────────────────────────────────
@@ -406,6 +407,8 @@ app.UseHttpsRedirection();
 app.UseCors(FrontendCorsPolicy);
 
 app.UseAuthentication();
+// After sign-in is read, so each line can say who; before everything that can fail. See RequestLog.
+SivayaanHMS.Api.RequestLog.UseRequestLog(app);
 app.UseAuthorization();
 
 app.MapControllers();

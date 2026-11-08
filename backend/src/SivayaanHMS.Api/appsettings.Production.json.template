@@ -56,15 +56,27 @@
 
   "Logging": {
     "//": [
-      "messages-<date>.log is written on every server without any setting here: every Forgot password",
-      "request (and why no code went out, if none did), every call to SivaCom or WhatsApp and its answer,",
-      "and a startup block saying how codes are sent. Default folder: logs beside the application.",
-      "IIS: the application pool must be allowed to write there, once:",
+      "Two log files beside the application (logs folder), each with its own on/off switch. Restart",
+      "(recycle the app pool) after changing one. IIS: the pool must be allowed to write there, once:",
       "  icacls <site folder>\\logs /grant \"IIS AppPool\\<pool name>:(OI)(CI)M\"",
-      "Messages:PathFormat moves it. File:PathFormat adds a main log too (optional), e.g.",
-      "  \"File\": { \"Enabled\": true, \"PathFormat\": \"C:\\\\Server\\\\hms\\\\logs\\\\hms-{Date}.log\", \"LogLevel\": { \"Default\": \"Warning\" } }",
-      "On/off: Messages:Enabled and File:Enabled (true by default). false = that file is not written; restart (recycle the app pool) to apply."
+      "",
+      "File     - the main log, hms-<date>.log: what the application did, warnings and errors from",
+      "           anywhere, and (Requests below) one line per API request. File:PathFormat moves it;",
+      "           File:LogLevel changes what goes in (default: this app at Information, the framework at Warning).",
+      "Requests - those request lines: method, path, result, time taken and who - never the query",
+      "           string or the body, which can hold patient names, phone numbers or a password.",
+      "           Off stops the lines; a request that fails with an error is still logged.",
+      "Messages - messages-<date>.log: every Forgot password request (and why no code went out, if",
+      "           none did), every call to SivaCom or WhatsApp and its answer, and a startup block",
+      "           saying how codes are sent. Messages:PathFormat moves it.",
+      "Files older than File:RetainedFileCountLimit days (31) are deleted."
     ],
+    "File": {
+      "Enabled": true
+    },
+    "Requests": {
+      "Enabled": true
+    },
     "Messages": {
       "Enabled": true
     }

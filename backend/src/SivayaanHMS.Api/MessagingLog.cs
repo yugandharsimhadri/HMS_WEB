@@ -10,8 +10,11 @@ namespace SivayaanHMS.Api;
 ///
 /// Two files, both written outside Development:
 ///
-///   * the main log (Logging:File:PathFormat), only when configured, at the
-///     levels in Logging:File:LogLevel;
+///   * the main log (hms-{Date}.log): the application's own Information and
+///     everyone else's warnings and errors, plus one line per API request
+///     (see <see cref="RequestLog"/>). It goes to Logging:File:PathFormat,
+///     else into a logs folder beside the application, at the levels in
+///     Logging:File:LogLevel when they are given;
 ///   * the messages log (messages-{Date}.log): every password-reset request,
 ///     every call to SivaCom or WhatsApp and what came back, plus errors from
 ///     anywhere — and nothing else. Its levels are fixed, so turning the main
@@ -54,11 +57,44 @@ public static class MessagingLog
         return Path.Combine(folder ?? "logs", "messages-{Date}.log");
     }
 
-    /// <summary>Logging:File:PathFormat, unless Logging:File:Enabled is false.</summary>
-    public static string? MainLogPath(IConfiguration config) =>
-        config.GetValue("Logging:File:Enabled", true) && !string.IsNullOrWhiteSpace(config["Logging:File:PathFormat"])
-            ? config["Logging:File:PathFormat"]
-            : null;
+    /// <summary>
+    /// Logging:File:PathFormat, else hms-{Date}.log in a logs folder beside the application;
+    /// null when Logging:File:Enabled is false, or in Development without a path (the console
+    /// shows everything there).
+    /// </summary>
+    public static string? MainLogPath(IConfiguration config, IHostEnvironment env)
+    {
+        if (!config.GetValue("Logging:File:Enabled", true)) return null;
+
+        var explicitPath = config["Logging:File:PathFormat"];
+        if (!string.IsNullOrWhiteSpace(explicitPath)) return explicitPath;
+        if (env.IsDevelopment()) return null;
+
+        return Path.Combine(env.ContentRootPath, "logs", "hms-{Date}.log");
+    }
+
+    /// <summary>
+    /// The main log's levels: Logging:File:LogLevel when it is given, else this application at
+    /// Information and the framework at Warning - enough to follow a day's work without every
+    /// SQL statement EF Core runs.
+    /// </summary>
+    public static (LogLevel Minimum, Dictionary<string, LogLevel> Overrides) MainLogLevels(IConfiguration config)
+    {
+        var section = config.GetSection("Logging:File:LogLevel");
+        if (!section.GetChildren().Any())
+            return (LogLevel.Information, new Dictionary<string, LogLevel>
+            {
+                ["Microsoft"] = LogLevel.Warning,
+                ["System"] = LogLevel.Warning,
+                ["Microsoft.Hosting.Lifetime"] = LogLevel.Information,
+            });
+
+        var minimum = Enum.TryParse<LogLevel>(section["Default"], true, out var d) ? d : LogLevel.Information;
+        var overrides = section.GetChildren()
+            .Where(c => c.Key != "Default" && Enum.TryParse<LogLevel>(c.Value, true, out _))
+            .ToDictionary(c => c.Key, c => Enum.Parse<LogLevel>(c.Value!, true));
+        return (minimum, overrides);
+    }
 
     private static string Describe(string? path, IConfiguration config, string section) =>
         path ?? (config.GetValue($"Logging:{section}:Enabled", true) ? "(none)" : $"OFF (Logging:{section}:Enabled = false)");
@@ -66,9 +102,13 @@ public static class MessagingLog
     public static void AddFiles(WebApplicationBuilder builder)
     {
         var config = builder.Configuration;
+        var retained = config.GetValue<int?>("Logging:File:RetainedFileCountLimit") ?? 31;
 
-        if (MainLogPath(config) is not null)
-            builder.Logging.AddFile(config.GetSection("Logging:File"));
+        if (MainLogPath(config, builder.Environment) is { } mainPath)
+        {
+            var (minimum, overrides) = MainLogLevels(config);
+            builder.Logging.AddFile(mainPath, minimumLevel: minimum, levelOverrides: overrides, retainedFileCountLimit: retained);
+        }
 
         var path = MessagesLogPath(config, builder.Environment);
         if (path is null) return;
@@ -76,7 +116,7 @@ public static class MessagingLog
         builder.Logging.AddFile(path,
             minimumLevel: LogLevel.Error,
             levelOverrides: Categories.ToDictionary(c => c, _ => LogLevel.Information),
-            retainedFileCountLimit: config.GetValue<int?>("Logging:File:RetainedFileCountLimit") ?? 31);
+            retainedFileCountLimit: retained);
     }
 
     public static void WriteStartup(WebApplication app, SivaComOptions sivaCom, WhatsAppOptions whatsApp)
@@ -119,11 +159,13 @@ public static class MessagingLog
             "  Reset codes    : {Codes:l}\n" +
             "  Welcome        : {Welcome:l}\n" +
             "  Main log       : {MainLog:l}\n" +
+            "  Request lines  : {Requests:l}\n" +
             "  Messages log   : {MessagesLog:l}",
             env.EnvironmentName, Process.GetCurrentProcess().StartTime, string.Join(", ", files),
             reset.Enabled ? "offered" : "OFF (PasswordReset:Enabled = false): users ask their clinic admin",
             reset.Enabled ? codes : "-", welcome,
-            Describe(MainLogPath(config), config, "File"),
+            Describe(MainLogPath(config, env), config, "File"),
+            RequestLog.Enabled(config) ? "on" : "OFF (Logging:Requests:Enabled = false)",
             Describe(MessagesLogPath(config, env), config, "Messages"));
     }
 }

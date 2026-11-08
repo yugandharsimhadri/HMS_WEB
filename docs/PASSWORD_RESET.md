@@ -300,9 +300,16 @@ line per *Forgot password* request and per call to SivaCom or WhatsApp. No
 code, password, grant or secret is written; phone numbers show their last
 four digits only. The browser's answer is the same whatever the log says.
 
-On/off: `Logging:Messages:Enabled` (and `Logging:File:Enabled` for the
-optional main log), both `true` by default. Set `false` and recycle the
-application pool to stop writing that file.
+Beside it is the main log, `logs\hms-<date>.log`: what the application did,
+warnings and errors from anywhere, and one line per API request
+(`POST /api/... -> 200 in 84 ms by admin@clinic`; never the query string or
+the body).
+
+On/off, each `true` by default: `Logging:Messages:Enabled` for the messages
+log, `Logging:File:Enabled` for the main log, and `Logging:Requests:Enabled`
+for the request lines in it. Set one `false` and recycle the application pool
+to stop it. A request that fails with an error is logged even with the
+request lines off.
 
 Under IIS the application pool must be allowed to write to that folder, once:
 
